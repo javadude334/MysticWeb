@@ -23,7 +23,7 @@ export function SectionPage({ section }: { section: keyof typeof sections }) {
         <div className="empty-art" aria-hidden="true">[ _ ]</div>
         <h2>This space is ready for its next chapter.</h2>
         <p>{content.detail}</p>
-        <Link className="button" href="/">Back to dashboard <span aria-hidden="true">↗</span></Link>
+        <Link className="button" href="/dashboard">Back to dashboard <span aria-hidden="true">↗</span></Link>
       </section>
     </Shell>
   );

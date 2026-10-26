@@ -1,7 +1,7 @@
 name: Frontend checks
 on:
   push:
-    branches: [main, feature/dark-dashboard]
+    branches: [main, 'feature/**']
   pull_request:
 permissions:
   contents: read
@@ -17,3 +17,13 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: Smoke test the built app and runtime revision
+        run: python3 deploy/tests/smoke_built_app.py
+  deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: for script in deploy/*.sh; do bash -n "$script"; done
+      - name: Test release selection, health checks, activation and rollback
+        run: python3 -m unittest discover -s deploy/tests -v

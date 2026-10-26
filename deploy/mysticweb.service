@@ -1,0 +1,25 @@
+[Unit]
+Description=MysticWeb production frontend
+After=network.target
+ConditionPathExists=/srv/mysticweb/current/.next/BUILD_ID
+
+[Service]
+Type=simple
+User=mysticweb
+Group=mysticweb
+WorkingDirectory=/srv/mysticweb/current
+Environment=NODE_ENV=production
+Environment=PATH=/opt/mysticweb/node/bin:/usr/bin:/bin
+EnvironmentFile=-/etc/mysticweb/app.env
+ExecStart=/usr/local/lib/mysticweb/start.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

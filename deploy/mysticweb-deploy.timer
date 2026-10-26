@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for approved MysticWeb releases every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=20s
+Unit=mysticweb-deploy.service
+
+[Install]
+WantedBy=timers.target

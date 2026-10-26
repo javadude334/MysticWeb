@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MysticWeb · Your next connection",
-  description: "A modern front door to Mystic BBS. Disconnected frontend preview.",
+  title: { default: "Dave's BBS", template: "%s · Dave's BBS" },
+  description: "The public front door to Dave's BBS. Find Telnet access and information about upcoming web sign-in.",
 };
 
 export default function RootLayout({
