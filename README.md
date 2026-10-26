@@ -1,62 +1,45 @@
-# MysticWeb frontend
+# MysticWeb — Dave's BBS
 
-A responsive, dark Next.js dashboard inspired by ANSI art and bulletin board systems.
+A public front door and developing web interface for Dave's BBS, powered by Mystic BBS.
 
-## Current behavior
+## Pages
 
-Dashboard, Messages, Private Mail, Files, Relay Chat, Door Games, and My Profile are navigable. Every destination is a disconnected preview. There is no BBS API, authentication, account storage, message sending, chat connection, game launch, or file download. No live Mystic data is read.
+- `/`: public information, a `telnet://davesbbs.com` link, and a web-login link.
+- `/login`: clearly marked as coming soon; no credential form or collection.
+- `/dashboard`: the original disconnected dashboard preview.
+- Messages, Private Mail, Files, Relay Chat, Door Games, and My Profile: disconnected previews.
+- `/api/health`: uncached runtime status and deployed commit revision.
 
-Before adding a backend, implement server-side authentication and per-resource authorization. Expose only explicitly approved public areas; never serve Mystic data directories directly.
+No live Mystic messages, files, callers, or account data are loaded. Authentication and
+server-side authorization must be implemented before connecting account features.
 
-## Run and check
-
-Use Node 24 (already installed through nvm on the Ubuntu development server).
-
-```bash
-cd ~/projects/mysticweb
-source ~/.nvm/nvm.sh
-nvm use 24
-npm ci
-npm run lint
-npm run build
-npm run dev -- --hostname 0.0.0.0
-```
-
-Open http://localhost:3000 on the development machine, or use the Ubuntu development server's address from another device. Binding to 0.0.0.0 makes the development server reachable on the network. Use `npm run dev` for localhost only.
-
-For a local production-mode check:
-
-```bash
-npm run build
-npm run start -- --hostname 127.0.0.1 --port 3100
-```
-
-## Sync the dashboard branch
-
-Commit or stash unrelated local edits before switching branches. Do not force-push or reset your working tree.
-
-Ubuntu:
+## Development on Ubuntu
 
 ```bash
 cd ~/projects/mysticweb
 git status --short
 git fetch origin
-git switch feature/dark-dashboard
+git switch main
 git pull --ff-only
 source ~/.nvm/nvm.sh
 nvm use 24
 npm ci
 npm run lint
 npm run build
+npm run dev -- --hostname 0.0.0.0 --port 3000
 ```
 
-Windows PowerShell, for the existing repository:
+Commit or stash unrelated edits before switching branches. Use the existing dev
+session or stop it first if port 3000 is occupied. Open http://ubuntu:3000 on the
+local network. Use `npm run dev -- --hostname 127.0.0.1` for localhost-only access.
+
+## Windows checkout
 
 ```powershell
 cd E:\work\javadude_dev\MysticWeb
 git status --short
 git fetch origin
-git switch feature/dark-dashboard
+git switch main
 git pull --ff-only
 npm ci
 npm run lint
@@ -64,16 +47,25 @@ npm run build
 npm run dev
 ```
 
-On first switch, Git creates the local branch from the matching origin branch. If the branch already exists locally, it is reused.
+Use Node 24. The scaffold dependency versions and lockfile are retained.
 
-## Review checklist
+## Production deployment
 
-- Dashboard and every navigation destination load.
-- The current destination is indicated in navigation.
-- Keyboard users can use the skip link and see focus outlines.
-- Navigation scrolls horizontally on narrow screens; cards reflow.
-- Preview labels and disconnected states appear throughout.
-- An unknown URL returns a 404.
-- No browser requests go to a BBS or private-data endpoint.
+See [deploy/README.md](deploy/README.md) for the nginx, systemd, HTTPS, and
+CI-gated automatic deployment setup for both davesbbs.com and www.davesbbs.com.
+The administrator installer prepares inactive files. Site activation and the
+first production start are separate manual steps.
 
-This change does not configure production hosting, nginx, or any live Mystic files. The original scaffold README is retained as ORIGINAL_README.md.
+Deployments build separate releases outside the development checkout. They do
+not change live Mystic files, existing nginx sites, or DNS. The original
+scaffold README is retained in ORIGINAL_README.md.
+
+## Deployment tests
+
+```bash
+for script in deploy/*.sh; do bash -n "$script"; done
+python3 -m unittest discover -s deploy/tests -v
+```
+
+Tests use temporary files, mock deployment commands, and loopback-only HTTP.
+They do not install services, execute sudo, or activate nginx.

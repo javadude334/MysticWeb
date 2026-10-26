@@ -1,20 +1,75 @@
 import Link from "next/link";
-import { Shell } from "@/components/shell";
-const areas = [
-  { href: "/messages", icon: "≡", name: "Messages", text: "Find your next conversation.", tag: "PUBLIC BOARDS" },
-  { href: "/private-mail", icon: "✉", name: "Private Mail", text: "A space for direct connections.", tag: "PERSONAL" },
-  { href: "/files", icon: "↓", name: "Files", text: "Explore the digital archive.", tag: "FILE LIBRARY" },
-  { href: "/relay-chat", icon: "#", name: "Relay Chat", text: "Drop into the conversation.", tag: "REAL TIME" },
-  { href: "/door-games", icon: "◇", name: "Door Games", text: "One more turn. One more adventure.", tag: "PLAY" },
-  { href: "/my-profile", icon: "◎", name: "My Profile", text: "Make yourself at home.", tag: "YOUR CORNER" },
-];
-export default function Dashboard() {
-  return <Shell active="/">
-    <div className="eyebrow">THE BOARD / OVERVIEW</div>
-    <div className="page-heading"><div><h1>Your next connection<br /><span>starts here.</span></h1><p>Old-school spirit. A whole new front door.</p></div><span className="edition">EST. IN THE TERMINAL<br />REIMAGINED FOR THE WEB</span></div>
-    <section className="hero" aria-labelledby="welcome"><div className="hero-copy"><span className="pill">FRONTEND PREVIEW · DISCONNECTED</span><h2 id="welcome">Welcome to<br />the neighborhood.</h2><p>Good conversations, shared discoveries, and a little friendly competition. Explore the familiar world of BBS, at your own pace.</p><Link className="button" href="/messages">Explore message boards <span aria-hidden="true">↗</span></Link></div><div className="ansi" aria-hidden="true"><div className="orbit one" /><div className="orbit two" /><pre>{"     ▄▄▄       ▄▄▄\n   ▄█████▄   ▄█████▄\n  ███▀ ▀███▄███▀ ▀███\n  ███   ▀█████▀   ███\n  ███     ███     ███\n  ███             ███\n  ▀▀▀             ▀▀▀"}</pre><span>M Y S T I C / W E B</span></div></section>
-    <div className="section-heading"><h2>Find your frequency</h2><span>06 DESTINATIONS</span></div>
-    <section className="area-grid" aria-label="Explore the board">{areas.map((area) => <Link className="area-card" href={area.href} key={area.href}><div className="card-top"><span className="area-icon" aria-hidden="true">{area.icon}</span><span className="arrow" aria-hidden="true">↗</span></div><span className="eyebrow">{area.tag}</span><h3>{area.name}</h3><p>{area.text}</p><span className="card-status">Preview · not connected</span></Link>)}</section>
-    <section className="bottom-grid"><div className="panel"><span className="eyebrow">ACTIVITY FEED</span><h2>A quiet board, for now.</h2><p>No live activity is loaded. Messages, callers, and file counts will appear only after an authorized BBS connection is configured.</p><span className="empty-line"><i /> Awaiting connection</span></div><div className="panel terminal"><div className="terminal-title"><span>CONNECTION NOTES</span><span aria-hidden="true">● ● ●</span></div><p><b>&gt;</b> Interface ready to explore</p><p><b>&gt;</b> BBS connection not configured</p><p><b>&gt;</b> No account signed in</p><p className="cursor"><b>&gt;</b> The next chapter is yours<span aria-hidden="true"> ▋</span></p></div></section>
-  </Shell>;
+import styles from "./public.module.css";
+
+export default function Home() {
+  return (
+    <div className={styles.page}>
+      <a className="skip-link" href="#main">Skip to content</a>
+      <header className={styles.header}>
+        <Link className={styles.brand} href="/" aria-label="Dave's BBS home">
+          <span className={styles.mark} aria-hidden="true">D_</span>
+          <span>Dave&apos;s <b>BBS</b><small>THE CONNECTION STARTS HERE</small></span>
+        </Link>
+        <nav className={styles.nav} aria-label="Public navigation">
+          <a href="#about">About</a>
+          <a href="#connect">Connect</a>
+          <Link href="/login">Web login <span aria-hidden="true">↗</span></Link>
+        </nav>
+      </header>
+
+      <main id="main" className={styles.main}>
+        <section className={styles.hero} aria-labelledby="welcome">
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>D A V E S B B S . C O M</span>
+            <h1 id="welcome">A classic connection.<br /><span>A place to belong.</span></h1>
+            <p>Welcome to Dave&apos;s BBS. Step into the world of bulletin boards, where the terminal has a personality and every connection starts with a hello.</p>
+            <div className={styles.actions}>
+              <a className={styles.primary} href="telnet://davesbbs.com">Connect via Telnet <span aria-hidden="true">↗</span></a>
+              <Link className={styles.secondary} href="/login">Web login <span aria-hidden="true">→</span></Link>
+            </div>
+            <span className={styles.hint}>Telnet client required · Web sign-in coming soon</span>
+          </div>
+          <div className={styles.terminal} aria-hidden="true">
+            <div className={styles.terminalTop}><span>DAVESBBS.COM</span><span>● ● ●</span></div>
+            <div className={styles.terminalArt}>
+              <pre>{"████▄   ▄▄▄  ▄   ▄ █████\n█   █  █   █ █   █ █\n█   █  █████ ▀▄ ▄▀ ████\n█   █  █   █  ███  █\n████▀  █   █   █   █████"}</pre>
+              <span>B U L L E T I N   B O A R D   S Y S T E M</span>
+            </div>
+            <div className={styles.terminalPrompt}><span>&gt;</span> The next conversation starts with you.<b>▌</b></div>
+          </div>
+        </section>
+
+        <section id="about" className={styles.about} aria-labelledby="about-title">
+          <span className={styles.eyebrow}>THE BOARD BEHIND THE ADDRESS</span>
+          <div className={styles.aboutContent}>
+            <h2 id="about-title">Old-school spirit.<br />An open invitation.</h2>
+            <p>Dave&apos;s BBS is powered by Mystic BBS. This page is the public front door: a place to find the board and choose how to connect. Use a Telnet-capable terminal client for traditional access. Browser-based sign-in is being developed.</p>
+          </div>
+        </section>
+
+        <section id="connect" className={styles.connect} aria-labelledby="connect-title">
+          <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>PICK YOUR CONNECTION</span><h2 id="connect-title">Meet you on the board.</h2></div><span className={styles.sectionNumber}>01 / CONNECT</span></div>
+          <div className={styles.cards}>
+            <article className={styles.card}>
+              <span className={styles.cardIcon} aria-hidden="true">&gt;_</span>
+              <span className={styles.eyebrow}>THE TERMINAL EXPERIENCE</span>
+              <h3>Telnet access</h3>
+              <p>Open Dave&apos;s BBS in your configured Telnet client. Prefer to enter the address yourself? Use <code>davesbbs.com</code>.</p>
+              <a className={styles.cardLink} href="telnet://davesbbs.com">Launch Telnet <span aria-hidden="true">↗</span></a>
+              <small>Telnet uses an unencrypted connection.</small>
+            </article>
+            <article className={styles.card}>
+              <span className={styles.cardIcon} aria-hidden="true">◎</span>
+              <span className={styles.eyebrow}>IN YOUR BROWSER · COMING SOON</span>
+              <h3>HTTPS web login</h3>
+              <p>A browser-based way to sign in is on the way. Web authentication must be connected before account features and messages become available.</p>
+              <Link className={styles.cardLink} href="/login">Go to web login <span aria-hidden="true">→</span></Link>
+              <small>Web sign-in is not available yet.</small>
+            </article>
+          </div>
+        </section>
+      </main>
+      <footer className={styles.footer}><span>Dave&apos;s BBS <b>/</b> KEEP THE CONNECTION ALIVE.</span><span>davesbbs.com</span></footer>
+    </div>
+  );
 }

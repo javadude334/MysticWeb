@@ -1,0 +1,21 @@
+[Unit]
+Description=Deploy a CI-approved MysticWeb main revision
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=mysticweb
+Group=mysticweb
+WorkingDirectory=/srv/mysticweb
+Environment=PATH=/opt/mysticweb/node/bin:/usr/bin:/bin
+Environment=NPM_CONFIG_CACHE=/srv/mysticweb/.npm
+EnvironmentFile=/etc/mysticweb/deploy.env
+EnvironmentFile=-/etc/mysticweb/github.env
+ExecStart=/usr/local/lib/mysticweb/deploy.sh
+TimeoutStartSec=30min
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/mysticweb
+UMask=0027

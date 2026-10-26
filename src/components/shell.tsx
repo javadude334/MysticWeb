@@ -1,6 +1,6 @@
 import Link from "next/link";
 const navigation = [
- {href:"/",name:"Dashboard",icon:"▦"},
+ {href:"/dashboard",name:"Dashboard",icon:"▦"},
  {href:"/messages",name:"Messages",icon:"≡"},
  {href:"/private-mail",name:"Private Mail",icon:"✉"},
  {href:"/files",name:"Files",icon:"↓"},
