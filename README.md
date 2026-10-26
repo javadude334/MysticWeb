@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MysticWeb frontend
 
-## Getting Started
+A responsive, dark Next.js dashboard inspired by ANSI art and bulletin board systems.
 
-First, run the development server:
+## Current behavior
+
+Dashboard, Messages, Private Mail, Files, Relay Chat, Door Games, and My Profile are navigable. Every destination is a disconnected preview. There is no BBS API, authentication, account storage, message sending, chat connection, game launch, or file download. No live Mystic data is read.
+
+Before adding a backend, implement server-side authentication and per-resource authorization. Expose only explicitly approved public areas; never serve Mystic data directories directly.
+
+## Run and check
+
+Use Node 24 (already installed through nvm on the Ubuntu development server).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd ~/projects/mysticweb
+source ~/.nvm/nvm.sh
+nvm use 24
+npm ci
+npm run lint
+npm run build
+npm run dev -- --hostname 0.0.0.0
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 on the development machine, or use the Ubuntu development server's address from another device. Binding to 0.0.0.0 makes the development server reachable on the network. Use `npm run dev` for localhost only.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For a local production-mode check:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start -- --hostname 127.0.0.1 --port 3100
+```
 
-## Learn More
+## Sync the dashboard branch
 
-To learn more about Next.js, take a look at the following resources:
+Commit or stash unrelated local edits before switching branches. Do not force-push or reset your working tree.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Ubuntu:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cd ~/projects/mysticweb
+git status --short
+git fetch origin
+git switch feature/dark-dashboard
+git pull --ff-only
+source ~/.nvm/nvm.sh
+nvm use 24
+npm ci
+npm run lint
+npm run build
+```
 
-## Deploy on Vercel
+Windows PowerShell, for the existing repository:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+cd E:\work\javadude_dev\MysticWeb
+git status --short
+git fetch origin
+git switch feature/dark-dashboard
+git pull --ff-only
+npm ci
+npm run lint
+npm run build
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+On first switch, Git creates the local branch from the matching origin branch. If the branch already exists locally, it is reused.
+
+## Review checklist
+
+- Dashboard and every navigation destination load.
+- The current destination is indicated in navigation.
+- Keyboard users can use the skip link and see focus outlines.
+- Navigation scrolls horizontally on narrow screens; cards reflow.
+- Preview labels and disconnected states appear throughout.
+- An unknown URL returns a 404.
+- No browser requests go to a BBS or private-data endpoint.
+
+This change does not configure production hosting, nginx, or any live Mystic files. The original scaffold README is retained as ORIGINAL_README.md.
