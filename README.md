@@ -13,6 +13,11 @@ A public front door and developing web interface for Dave's BBS, powered by Myst
 No live Mystic messages, files, callers, or account data are loaded. Authentication and
 server-side authorization must be implemented before connecting account features.
 
+The server-only, read-only JAM reader and its aggregate validation command are
+documented in [Mystic integration](docs/mystic-integration.md), including current
+authentication and authorization prerequisites. Run `npm test` for synthetic JAM
+and configuration fixtures. No message content is connected to web routes yet.
+
 ## Development on Ubuntu
 
 ```bash
