@@ -23,6 +23,7 @@ export const SESSION_SECONDS = 8 * 60 * 60;
 const IDLE_MS = 30 * 60 * 1000;
 const ABSOLUTE_MS = SESSION_SECONDS * 1000;
 const MAX_ROWS = 10000;
+const MAX_IDENTITY_SESSIONS = 8;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
 
@@ -83,16 +84,26 @@ export class AuthStore {
         CREATE TABLE IF NOT EXISTS rate_limits (
           bucket TEXT PRIMARY KEY, used INTEGER NOT NULL, resets INTEGER NOT NULL
         ) STRICT;`);
+      const expected: Record<string, string> = {
+        sessions: "digest:TEXT:1,instance:TEXT:0,user_id:INTEGER:0,created:INTEGER:0,seen:INTEGER:0,expires:INTEGER:0",
+        rate_limits: "bucket:TEXT:1,used:INTEGER:0,resets:INTEGER:0",
+      };
+      // Refuse incompatible/restored databases instead of silently accepting a
+      // legacy table whose missing expiry columns could turn comparisons into NaN.
+      for (const table of Object.keys(expected)) {
+        const columns = opened.prepare(`SELECT group_concat(name || ':' || type || ':' || pk, ',') AS shape FROM pragma_table_info('${table}')`).get();
+        if (columns?.shape !== expected[table]) throw new AuthStoreError();
+      }
       this.db = opened;
     } catch {
-      opened?.close();
+      try { opened?.close(); } catch { /* preserve the generic failure */ }
       throw new AuthStoreError();
     }
   }
 
   private now() {
     const now = this.clock();
-    if (!Number.isSafeInteger(now) || now < 0) throw new AuthStoreError();
+    if (!Number.isSafeInteger(now) || now < 0 || now > Number.MAX_SAFE_INTEGER - ABSOLUTE_MS) throw new AuthStoreError();
     return now;
   }
 
@@ -118,6 +129,12 @@ export class AuthStore {
       const now = this.now();
       this.db.prepare("DELETE FROM sessions WHERE expires <= ? OR seen <= ?").run(now, now - IDLE_MS);
       if (oldToken && TOKEN.test(oldToken)) this.db.prepare("DELETE FROM sessions WHERE digest = ?").run(digest(oldToken));
+      // Keep the newest seven before inserting the new eighth session. Scope
+      // eviction to this native account and installation, in the same transaction.
+      this.db.prepare(`DELETE FROM sessions WHERE digest IN (
+        SELECT digest FROM sessions WHERE instance = ? AND user_id = ?
+        ORDER BY created DESC, rowid DESC LIMIT -1 OFFSET ?
+      )`).run(identity.instance, identity.userId, MAX_IDENTITY_SESSIONS - 1);
       const count = this.db.prepare("SELECT count(*) AS count FROM sessions").get();
       if (Number(count?.count) >= MAX_ROWS) throw new AuthStoreError();
       const token = randomBytes(32).toString("base64url");
@@ -133,12 +150,16 @@ export class AuthStore {
       const now = this.now(), hash = digest(token);
       const row = this.db.prepare("SELECT * FROM sessions WHERE digest = ?").get(hash);
       if (!row) return null;
-      if (now < Number(row.seen) || now >= Number(row.expires) || now - Number(row.seen) >= IDLE_MS) {
+      const identity = { instance: String(row.instance), userId: Number(row.user_id) };
+      const created = Number(row.created), seen = Number(row.seen), expires = Number(row.expires);
+      if (!validIdentity(identity) || ![created, seen, expires].every(Number.isSafeInteger) ||
+        created < 0 || seen < created || expires !== created + ABSOLUTE_MS || seen >= expires ||
+        now < seen || now >= expires || now - seen >= IDLE_MS) {
         this.db.prepare("DELETE FROM sessions WHERE digest = ?").run(hash);
         return null;
       }
       this.db.prepare("UPDATE sessions SET seen = ? WHERE digest = ?").run(now, hash);
-      return { instance: String(row.instance), userId: Number(row.user_id) };
+      return identity;
     });
   }
 
@@ -167,6 +188,8 @@ export class AuthStore {
       this.db.prepare("DELETE FROM rate_limits WHERE resets <= ?").run(now);
       const row = this.db.prepare("SELECT * FROM rate_limits WHERE bucket = ?").get(bucket);
       if (row) {
+        if (!Number.isSafeInteger(Number(row.used)) || Number(row.used) < 1 || Number(row.used) > 10000 ||
+          !Number.isSafeInteger(Number(row.resets)) || Number(row.resets) > now + ABSOLUTE_MS) throw new AuthStoreError();
         if (Number(row.used) >= maximum) return { allowed: false, retryAfter: Math.ceil((Number(row.resets) - now) / 1000) };
         this.db.prepare("UPDATE rate_limits SET used = used + 1 WHERE bucket = ?").run(bucket);
       } else {

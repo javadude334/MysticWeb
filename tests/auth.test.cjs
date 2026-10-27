@@ -225,4 +225,33 @@ if (process.env.MYSTIC_AUTH_TEST_CHILD) {
       assert.equal(store.consume(bucket, 2, 60000).allowed, true);
     } finally { db.close(); store.close(); }
   });
+
+  test('rejects incompatible schemas and invalid persisted identities or lifetimes', t => {
+    const filename = path.join(directory(t), 'auth.sqlite');
+    let store = new AuthStore(filename, () => 1000);
+    const token = store.create(identity);
+    const db = new DatabaseSync(filename);
+    db.prepare('UPDATE sessions SET expires = created + 1').run();
+    assert.equal(store.read(token), null);
+    const another = store.create(identity);
+    db.exec('UPDATE sessions SET user_id = -1');
+    assert.equal(store.read(another), null);
+    store.close();
+    db.exec('DROP TABLE sessions; CREATE TABLE sessions (digest TEXT PRIMARY KEY, instance TEXT, user_id INTEGER)');
+    db.close();
+    assert.throws(() => new AuthStore(filename), AuthStoreError);
+  });
+
+  test('limits each native account to eight sessions without evicting another installation', t => {
+    const store = new AuthStore(path.join(directory(t), 'auth.sqlite'), () => 1000);
+    try {
+      const otherIdentity = { instance: 'local', userId: identity.userId };
+      const other = store.create(otherIdentity);
+      const tokens = Array.from({ length: 10 }, () => store.create(identity));
+      assert.equal(store.read(tokens[0]), null);
+      assert.equal(store.read(tokens[1]), null);
+      for (const token of tokens.slice(2)) assert.deepEqual(store.read(token), identity);
+      assert.deepEqual(store.read(other), otherIdentity);
+    } finally { store.close(); }
+  });
 }

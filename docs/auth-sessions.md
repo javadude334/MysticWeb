@@ -46,6 +46,10 @@ limit. Reads update activity without extending the absolute expiry. Backward clo
 movement relative to the last activity revokes the session. Expired sessions are
 removed on reads or new logins. Session and rate-limit tables are each capped at
 10,000 live rows; exhaustion or unavailable storage rejects operations.
+Each native account is limited to eight sessions; a new login evicts its oldest
+session within that same instance. Existing database schemas and persisted
+identity/lifetime fields are checked before accepting a session. Invalid state
+fails closed rather than becoming a non-expiring or invalid identity.
 
 No production database is opened automatically. No service configuration or state
 directory has been installed. When integrating, the existing systemd sandbox will
