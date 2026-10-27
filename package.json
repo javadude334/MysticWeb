@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.cjs",
-    "mystic:validate": "node scripts/validate-mystic-config.cjs"
+    "mystic:validate": "node scripts/validate-mystic-config.cjs",
+    "mystic:jam:validate": "node scripts/validate-jam.cjs"
   },
   "dependencies": {
     "next": "16.4.3",
