@@ -133,7 +133,10 @@ session and exchange a random, short-lived, single-use code with the web service
 Neither is implemented or presumed available. Deployment requires knowing the
 installed version and a supported native interface/VM execution channel.
 
-Before enabling login, implement and test shared persistent session/rate-limit
+Session primitives and their isolated tests are now implemented; see
+[authentication sessions](auth-sessions.md). They are not connected to routes or
+native identity verification yet. Before enabling login, integrate and verify
+shared persistent session/rate-limit
 storage (not per-process memory), opaque random session tokens stored as hashes,
 rotation on login, revocation on logout/account changes, absolute and idle
 expiration, Secure/HttpOnly/SameSite cookies, strict Origin/CSRF protection for
