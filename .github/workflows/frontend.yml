@@ -16,10 +16,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Test read-only native diagnostic probes
+        run: python3 -m unittest discover -s integrations/mystic/tests -v
       - run: npm run lint
       - run: npm run build
       - name: Smoke test the built app and runtime revision
         run: python3 deploy/tests/smoke_built_app.py
+      - name: Verify built authentication endpoints stay disabled
+        run: node scripts/smoke-auth-disabled.cjs
   deployment:
     runs-on: ubuntu-latest
     steps:

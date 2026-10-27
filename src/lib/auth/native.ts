@@ -42,7 +42,8 @@ function active(value: unknown) {
 }
 
 /** This is a deny-by-default protocol boundary, not a native implementation.
- * No live endpoint imports it until a native provider has passed runtime checks.
+ * The staged HTTP service consumes this boundary, but production composition
+ * remains disabled until a native provider has passed runtime checks.
  */
 export class NativeAccess {
   constructor(private readonly provider: NativeProvider | null, private readonly instance: string,

@@ -2,8 +2,9 @@
 
 ## Current status
 
-The server-only JAM reader is implemented. It is deliberately not connected to
-pages or HTTP endpoints until native identity and area authorization are verified.
+The server-only JAM reader and staged authenticated HTTP services are implemented.
+Production composition remains disabled until native identity, invocation and
+area authorization are verified. See [staged deployment](auth-reader-deployment.md).
 No message-base writes or last-read writes are performed. No password collection
 or authentication fallback is enabled.
 

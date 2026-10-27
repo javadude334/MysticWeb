@@ -91,7 +91,9 @@ export async function readJam(
     const resolvedRoot = await realpath(root);
     const filenames: string[] = [];
     for (const ext of ["jhr", "jdx", "jdt"]) {
-      const filename = await realpath(path.join(resolvedRoot, `${base}.${ext}`));
+      // Operator-mounted data is external to the application release. Do not
+      // trace/bundle the project as though these were application asset paths.
+      const filename = await realpath(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ resolvedRoot, `${base}.${ext}`));
       if (!inside(resolvedRoot, filename)) throw new JamError("INVALID");
       filenames.push(filename);
       handles.push(await open(filename, "r"));
