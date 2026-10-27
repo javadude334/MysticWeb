@@ -85,6 +85,38 @@ define the cryptographic format, salt, iteration encoding or algorithm revision.
 No user records, hashes or passwords were inspected. Installed documentation can
 be stale, so these definitions do not establish the running binary version.
 
+### Windows verification, October 27, 2026
+
+The operator identified `D:\mystic` as the 32-bit VM installation and `C:\mystic`
+as the separate 64-bit local Windows installation. They use the same message-base
+paths. Do not infer that user databases or effective security configurations are
+shared, and do not switch between these installations for authentication.
+
+SHA-256 checksums of both `mystic.exe` and `mis.exe` in `D:\mystic` match their
+counterparts on Ubuntu's `/mnt/mystic-readonly` mount. The mount reports `vboxsf`.
+The D: runtime's documented `-VER` command reports **Mystic BBS v1.12 A48,
+Windows/32, compiled 2023/01/15 15:29:45**. Its compiler reports A48 Windows/32,
+compiled six seconds later. This supersedes any inference of a runtime version
+from the A39 record documentation. The visible host's running MIS executable is
+under C:, which is expected for the separate local installation and does not
+identify the VM's running process.
+
+An isolated copy of the D: compiler successfully compiled
+`integrations/mystic/capabilities.mps`: native `CheckPW`, `ACS` and `GetUser` are
+recognized. The installed changelog documents that `CheckPW` verifies against the
+currently loaded native user. The compile probe never invokes these functions
+at runtime; compilation is **not** proof of authentication, correct user context,
+group context, account expiration enforcement or web integration.
+
+This makes native verification a concrete integration candidate without
+reimplementing password hashing. A production adapter still needs a safe,
+authenticated invocation channel with credentials in bounded in-memory input,
+never process arguments, and runtime tests using an explicit test account.
+Do not launch an authenticated script by silently selecting an existing account,
+creating an administrator, or bypassing Mystic's login process. An authenticated
+BBS-session link flow remains an alternative. No BBS files were changed during
+this inspection; only the documented version command ran against the D: runtime.
+
 Do not implement a guessed password verifier. The documented `-AUTH` interface
 takes the password as a process argument, potentially visible to process monitors;
 it is not an acceptable production web password transport. The Windows binary
