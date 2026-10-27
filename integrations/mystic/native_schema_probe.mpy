@@ -1,0 +1,82 @@
+"""Read-only schema probe. Run from an authenticated Mystic menu, not a shell.
+
+Reports field names and selected field types only. Never serializes a native
+record, password data, names, IDs, paths, message text or security expressions.
+"""
+import json
+import re
+import sys
+
+try:
+    STRING_TYPES = (str, unicode)
+    INTEGER_TYPES = (int, long)
+except NameError:
+    STRING_TYPES = (str,)
+    INTEGER_TYPES = (int,)
+
+SAFE_TYPES = frozenset([
+    "id", "index", "permidx", "flags", "security", "seclevel", "expires",
+    "expiresto", "lastpwchange", "mgroup", "mbase", "nettype", "listacs",
+    "readacs", "acs", "lastmgroup", "lastmbase",
+])
+
+
+def field_type(value):
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, INTEGER_TYPES):
+        return "integer"
+    if isinstance(value, STRING_TYPES):
+        return "string"
+    if value is None:
+        return "none"
+    return "other"
+
+
+def schema(record):
+    if record is None:
+        return None
+    if not isinstance(record, dict) or len(record) > 128:
+        raise ValueError("unsupported native schema")
+    names = sorted(key for key in record if isinstance(key, STRING_TYPES)
+                   and re.match(r"^[a-z][a-z0-9_]{0,39}$", key))
+    return {"fields": names,
+            "types": dict((key, field_type(record[key])) for key in names
+                          if key in SAFE_TYPES)}
+
+
+def collect(bbs):
+    # These functions execute within the authenticated native user's context.
+    # No password test, login attempt, user scan, message read or write occurs.
+    user = bbs.getuser(0)
+    if user is None:
+        raise ValueError("no current native user")
+    return {
+        "probe": "mysticweb-native-schema-v1",
+        "python": "%s.%s" % sys.version_info[:2],
+        "user": schema(user),
+        "first_area": schema(bbs.getmbase(0)),
+        "first_group": schema(bbs.getmgroup(0)),
+        "native_password_function_present": callable(getattr(bbs, "isuserpw", None)),
+        "acs_always_true": bbs.access("^") is True,
+        "acs_always_false": bbs.access("%") is False,
+    }
+
+
+def run(bbs):
+    try:
+        report = json.dumps(collect(bbs), sort_keys=True, ensure_ascii=True)
+        if len(report) > 4096:
+            raise ValueError("native schema too large")
+    except Exception:
+        # Never include exception text: it could contain native data or paths.
+        report = '{"probe":"mysticweb-native-schema-v1","error":"unavailable"}'
+    bbs.writeln("MYSTICWEB PROBE BEGIN")
+    bbs.writeln(report)
+    bbs.writeln("MYSTICWEB PROBE END")
+
+
+if __name__ == "__main__":
+    import mystic_bbs
+    run(mystic_bbs)
+    mystic_bbs.writeln("|CR|PA")

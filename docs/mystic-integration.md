@@ -142,6 +142,19 @@ rotation on login, revocation on logout/account changes, absolute and idle
 expiration, Secure/HttpOnly/SameSite cookies, strict Origin/CSRF protection for
 mutations, bounded request bodies, generic failures and secret-free logging.
 
+### Native probe runtime follow-up, October 27, 2026
+
+After the inspection above, the operator reported successful password and schema
+probe runs on the D: Windows/32 A48 runtime with Python 2.7. The compiled password
+probe returned TRUE for the password match and both constant ACS checks. The
+schema probe returned all three schemas, both constant ACS checks as true, and
+confirmed Python password-function presence without calling it.
+
+See [native runtime verification](native-runtime-verification.md) for sanitized
+evidence, Python environment configuration and remaining tests. This is limited
+native-session evidence; live web authentication, account-state enforcement and
+per-area/group authorization remain unverified. Login and Messages remain disabled.
+
 ## Authorization investigation
 
 The mounted definitions distinguish ListACS, ReadACS, PostACS, SysopACS and two
