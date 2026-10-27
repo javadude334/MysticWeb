@@ -18,6 +18,10 @@ documented in [Mystic integration](docs/mystic-integration.md), including curren
 authentication and authorization prerequisites. Run `npm test` for synthetic JAM
 and configuration fixtures. No message content is connected to web routes yet.
 
+The [authentication session foundation](docs/auth-sessions.md) adds tested private
+session storage, revocation, shared rate-limit primitives and request protections.
+Native account verification and endpoint integration remain disabled.
+
 ## Development on Ubuntu
 
 ```bash
