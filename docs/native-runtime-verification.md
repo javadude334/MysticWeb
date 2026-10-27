@@ -1,12 +1,13 @@
 # Native runtime verification checkpoint
 
-The D: A48 compiler recognizes CheckPW, ACS and GetUser. A real authenticated
-native session must now verify behavior before a password bridge or area mapping
-is enabled. Do not guess native dictionary keys, password storage or group context.
+The operator successfully ran the native password and schema probes on Windows
+Mystic 1.12 A48 32-bit. The results below verify this limited native runtime
+checkpoint; account-state enforcement and area/group authorization remain unverified.
+Do not guess native dictionary keys, password storage or group context.
 
-**Nothing in this PR installs or runs these scripts on the live BBS.** Installation
-and a temporary test menu are deployment changes requiring the operator's approval.
-No web authentication or JAM integration is enabled by these probes.
+This PR contains read-only diagnostic sources and documentation, not an installer.
+The runtime results were reported by the operator, not reproduced by CI. No web
+authentication or JAM integration is enabled by these probes.
 
 ## Prepared files
 
@@ -26,6 +27,55 @@ The password probe compiles successfully with the isolated A48 Windows/32
 compiler copied from D:. Its generated MPX is a build artifact, not a committed
 binary. Python synthetic tests verify schema-only output and error redaction;
 they cannot certify the installed native module or account/group context.
+
+## Operator-reported results — October 27, 2026
+
+Environment: Windows Mystic **1.12 A48 32-bit**, using the D: VM installation
+and Python **2.7**. In `startbbs.bat`, the environment variable was corrected
+to `PYTHONHOME` (not `PYTHON_HOME`), with `PYTHONPATH=C:\Python27\Lib`.
+The configured Python DLL was `D:\mystic\python\python27.dll`. These are
+operator-reported configuration details, not paths emitted by the schema probe.
+
+The compiled `native_password_probe.mpx` returned:
+
+```text
+NATIVE_PASSWORD_MATCH: TRUE
+NATIVE_TRUE_CHECK: TRUE
+NATIVE_FALSE_CHECK: TRUE
+```
+
+The `native_schema_probe.mpy` report returned `python: "2.7"`,
+`acs_always_true: true`, `acs_always_false: true`, and
+`native_password_function_present: true`. Both false-check result fields mean
+the constant false ACS expression was correctly denied. The Python password
+function was detected only; it was not invoked.
+
+The `user`, `first_area`, and `first_group` schemas returned field names and
+selected types only. Selected observed types:
+
+| Schema | Integer fields | String fields | Boolean fields |
+| --- | --- | --- | --- |
+| user | flags, id, mbase, mgroup | — | — |
+| first_area | flags, id, nettype | listacs, readacs | — |
+| first_group | id | acs | flags |
+
+The user schema includes `level`; it does not establish account expiry or
+lock-state semantics. Field names such as `pwdata` and `obj` are schema
+metadata only; their values were neither serialized nor retained. Returned IDs
+do not establish permanent identity or group/area mapping semantics.
+
+The checked-in entry point now pauses with `mystic_bbs.writeln("|CR|PA")`
+immediately after `run(mystic_bbs)`. This uses Mystic's native pause instead
+of Python 2's evaluating `input()` or a misindented input block. The PR's
+previous source had no pause block. Report collection and redaction are unchanged;
+the pause sits outside the report markers. Recheck the updated pause in the
+native menu; the reported successful schema run does not certify this revision.
+
+These results demonstrate a successful current-user native password match and
+constant ACS checks in the tested session. They do **not** verify live web login,
+Python password-call behavior, account restrictions, or per-area authorization.
+Test-account privilege level, wrong-password rejection and cleanup completion
+are not established by the captured booleans.
 
 ## Operator-approved runtime test
 
@@ -58,9 +108,17 @@ https://wiki.mysticbbs.com/doku.php?id=whats_new_112.
 
 The sanitized report identifies the native schema/version binding and verifies
 that password checking works in the current user's context. It does not expose
-credentials to the web or itself create an authentication service. Next, verify
-effective account lock/deletion/expiry/forced-change behavior and area/group ACS
-semantics against dedicated permitted/denied test areas using that native API.
+credentials to the web or itself create an authentication service.
+
+Remaining tests before integration:
+
+- Confirm the dedicated ordinary test-account context, a controlled wrong-password
+  rejection, and completion of temporary menu/file cleanup.
+- Re-run the updated schema entry point to confirm the native pause returns cleanly.
+- Verify effective account lock/deletion/expiry/forced-change behavior and area/group ACS
+  semantics against dedicated permitted/denied test areas using that native API,
+  including group switching, ListACS versus ReadACS, identity/area mapping and
+  denied or unavailable contexts.
 
 Only then implement and test an authenticated, encrypted native invocation channel
 or an authenticated-session link-code flow. Recheck current account state and

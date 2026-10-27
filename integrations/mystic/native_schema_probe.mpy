@@ -79,3 +79,4 @@ def run(bbs):
 if __name__ == "__main__":
     import mystic_bbs
     run(mystic_bbs)
+    mystic_bbs.writeln("|CR|PA")
