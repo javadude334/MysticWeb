@@ -22,6 +22,13 @@ var
   AllMode: Boolean;
   DiagnosticsFailed: Boolean;
 begin
+  { Explicit fail-closed auth boundary. No passwords are accepted via arguments. }
+  if (ParamCount > 0) and (ParamStr(1) = '--authenticate') then
+  begin
+    WriteLn('DENIED: native Mystic authentication is not certified.');
+    WriteLn('No credentials were processed. Authentication and server disabled.');
+    Halt(11);
+  end;
   { No listener, authentication, user data output, or writes. }
   if (ParamCount <> 1) or
      ((ParamStr(1) <> '--preflight') and (ParamStr(1) <> '--inspect-layout') and
