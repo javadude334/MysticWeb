@@ -4,6 +4,10 @@ Status: **NOT CERTIFIED / AUTH DISABLED**. No BBS execution or changes were
 performed. This work continues PR #12 from dcbcfda. PR #11 remains at 1949d39;
 its in-session MPL evidence is not evidence for arbitrary-user Python checks.
 
+Follow-up: [status investigation and offline comparison procedure](a48-status-investigation.md)
+records newer operator cross-account evidence, the echoed-input limitation and
+installed A48 status masks. It does not certify the complete runtime binding.
+
 ## Implemented candidate
 
 `integrations/mystic/a48_native_verifier.py` supplies `NativeRecordVerifier` for
