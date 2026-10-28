@@ -34,6 +34,7 @@ jobs:
       - name: Verify fail-closed behavior away from sandbox
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           & ./dist/MysticGateway.exe --preflight
           if ($LASTEXITCODE -eq 0) { throw 'Preflight unexpectedly passed on CI runner' }
           & ./dist/MysticGateway.exe
