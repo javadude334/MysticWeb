@@ -9,7 +9,8 @@ var
   Handle: THandle;
   Size: Int64;
   Stream: TFileStream;
-  Slot, Slots: Int64;
+  Slot: LongInt;
+  Slots: Int64;
   IdBytes: array[0..3] of Byte;
   IdValue: LongWord;
   Seen: TStringList;
@@ -74,6 +75,11 @@ begin
   { Read ONLY the four-byte candidate ID at the beginning of each slot.
     This offset is provisional, not a certified A48 schema or account policy.
     Never emit actual IDs, names, flags, or credential material. }
+  if Slots > High(LongInt) then
+  begin
+    WriteLn('DENIED: too many record slots for diagnostic.');
+    Halt(8);
+  end;
   Stream := TFileStream.Create(UsersPath, fmOpenRead or fmShareDenyNone);
   Seen := TStringList.Create;
   try
@@ -81,7 +87,7 @@ begin
     Seen.Duplicates := dupIgnore;
     DuplicateCount := 0;
     ZeroCount := 0;
-    for Slot := 0 to Slots - 1 do
+    for Slot := 0 to LongInt(Slots) - 1 do
     begin
       Stream.Position := Slot * ExpectedRecordSize;
       if Stream.Read(IdBytes, SizeOf(IdBytes)) <> SizeOf(IdBytes) then
