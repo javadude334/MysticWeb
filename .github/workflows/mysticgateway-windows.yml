@@ -34,11 +34,13 @@ jobs:
       - name: Verify fail-closed behavior away from sandbox
         shell: pwsh
         run: |
-          $PSNativeCommandUseErrorActionPreference = $false
-          & ./dist/MysticGateway.exe --preflight
-          if ($LASTEXITCODE -eq 0) { throw 'Preflight unexpectedly passed on CI runner' }
-          & ./dist/MysticGateway.exe
-          if ($LASTEXITCODE -eq 0) { throw 'Unconfigured gateway unexpectedly passed' }
+          $exe = (Resolve-Path ./dist/MysticGateway.exe).Path
+          $preflight = Start-Process -FilePath $exe -ArgumentList '--preflight' -Wait -PassThru -NoNewWindow
+          if ($preflight.ExitCode -ne 3) { throw "Expected sandbox denial exit 3; got $($preflight.ExitCode)" }
+          $unconfigured = Start-Process -FilePath $exe -Wait -PassThru -NoNewWindow
+          if ($unconfigured.ExitCode -ne 2) { throw "Expected disabled gateway exit 2; got $($unconfigured.ExitCode)" }
+          Write-Host 'PASS: both fail-closed negative tests returned their expected exit codes.'
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: MysticGateway-Windows-preflight-only
