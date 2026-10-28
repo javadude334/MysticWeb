@@ -15,3 +15,7 @@ Next: build and test `--inspect-layout` in `E:\mystic`, then investigate support
 ## Candidate flag-pattern diagnostic
 
 `MysticGateway.exe --inspect-flag-patterns` reads only bytes 0–7 of each sandbox user record, grouping bytes 4–7 into distinct **undisclosed** raw patterns. It prints only the number of distinct patterns, never the patterns or account data. No interpretation of flags as active, locked, deleted, or forced-password is made; the A48 definitions must be verified independently before enforcing any account policy. The diagnostic is read-only and sandbox-only; authentication and network services stay disabled.
+
+## One-command consolidated diagnostics
+
+After downloading the latest green Windows artifact and replacing the sandbox executable, run `E:\mystic\MysticGateway.exe --diagnose-all`. This combines sandbox root checks, required file checks, 1,536-byte alignment, provisional candidate ID counts and distinct undisclosed flag-pattern counts. It emits a single final PASS/FAIL for structural diagnostics; zero or repeated candidate IDs produce a nonzero exit code. It explicitly reports native account status semantics, native password verification, requested-user ACS, and concurrency as **NOT certified**. It does not prove these capabilities, read credentials, start a listener, or write files. All older individual diagnostics remain available.
