@@ -78,3 +78,7 @@ python3 -m unittest discover -s deploy/tests -v
 
 Tests use temporary files, mock deployment commands, and loopback-only HTTP.
 They do not install services, execute sudo, or activate nginx.
+
+The [staged authentication and message reader](docs/auth-reader-deployment.md) adds
+fail-closed HTTP services and a BBS dispatcher contract. Production remains
+disabled pending native driver, secure invocation and end-to-end verification.
