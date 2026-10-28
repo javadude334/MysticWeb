@@ -12,6 +12,9 @@ var
   Slot: LongInt;
   Slots: Int64;
   IdBytes: array[0..3] of Byte;
+  FlagBytes: array[0..3] of Byte;
+  FlagPatterns: TStringList;
+  FlagKey: string;
   IdValue: LongWord;
   Seen: TStringList;
   DuplicateCount, ZeroCount: Integer;
@@ -20,10 +23,11 @@ begin
   { No listener, authentication, user data output, or writes. }
   if (ParamCount <> 1) or
      ((ParamStr(1) <> '--preflight') and (ParamStr(1) <> '--inspect-layout') and
-      (ParamStr(1) <> '--inspect-identities')) then
+      (ParamStr(1) <> '--inspect-identities') and
+      (ParamStr(1) <> '--inspect-flag-patterns')) then
   begin
     WriteLn('MysticGateway diagnostic build; authentication and server disabled.');
-    WriteLn('Usage: MysticGateway.exe --preflight | --inspect-layout | --inspect-identities');
+    WriteLn('Usage: MysticGateway.exe --preflight | --inspect-layout | --inspect-identities | --inspect-flag-patterns');
     Halt(2);
   end;
   Mode := ParamStr(1);
@@ -82,7 +86,10 @@ begin
   end;
   Stream := TFileStream.Create(UsersPath, fmOpenRead or fmShareDenyNone);
   Seen := TStringList.Create;
+  FlagPatterns := TStringList.Create;
   try
+    FlagPatterns.Sorted := True;
+    FlagPatterns.Duplicates := dupIgnore;
     Seen.Sorted := True;
     Seen.Duplicates := dupIgnore;
     DuplicateCount := 0;
@@ -97,10 +104,30 @@ begin
       end;
       IdValue := LongWord(IdBytes[0]) or (LongWord(IdBytes[1]) shl 8) or
                  (LongWord(IdBytes[2]) shl 16) or (LongWord(IdBytes[3]) shl 24);
+      if Mode = '--inspect-flag-patterns' then
+      begin
+        if Stream.Read(FlagBytes, SizeOf(FlagBytes)) <> SizeOf(FlagBytes) then
+        begin
+          WriteLn('DENIED: unable to read candidate flag bytes.');
+          Halt(9);
+        end;
+        FlagKey := IntToHex(FlagBytes[0], 2) + IntToHex(FlagBytes[1], 2) +
+                   IntToHex(FlagBytes[2], 2) + IntToHex(FlagBytes[3], 2);
+        if FlagPatterns.IndexOf(FlagKey) < 0 then FlagPatterns.Add(FlagKey);
+      end;
       if IdValue = 0 then Inc(ZeroCount);
       Key := IntToHex(IdValue, 8);
       if Seen.IndexOf(Key) >= 0 then Inc(DuplicateCount)
       else Seen.Add(Key);
+    end;
+    if Mode = '--inspect-flag-patterns' then
+    begin
+      WriteLn('Candidate flags field: bytes 4-7 (unverified semantics).');
+      WriteLn('Distinct raw flag patterns: ', FlagPatterns.Count);
+      WriteLn('No raw flag values, account identifiers, or personal data displayed.');
+      WriteLn('No active/locked/deleted account classification performed.');
+      WriteLn('Authentication and server remain disabled.');
+      Halt(0);
     end;
     WriteLn('Candidate identifier field: first four bytes, little-endian (unverified).');
     WriteLn('Zero-valued identifiers: ', ZeroCount);
@@ -108,6 +135,7 @@ begin
     WriteLn('No account identifiers or personal data were displayed.');
     WriteLn('Native password verification and account policy remain disabled.');
   finally
+    FlagPatterns.Free;
     Seen.Free;
     Stream.Free;
   end;
