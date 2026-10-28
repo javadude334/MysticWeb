@@ -47,7 +47,7 @@ function withCookie(res: Response, value: string, maxAge: number) {
 export async function developmentRequest(request: Request): Promise<Response> {
   if (!developmentEnabled()) return response({ error: "Unavailable" }, 404);
   const url = new URL(request.url);
-  if (url.origin !== ORIGIN || request.headers.get("host") !== "127.0.0.1:3000") return response({ error: "Loopback only" }, 403);
+  if (request.headers.get("host") !== "127.0.0.1:3000") return response({ error: "Loopback only" }, 403);
   if (request.method !== "GET" && (request.headers.get("origin") !== ORIGIN ||
     (request.headers.has("sec-fetch-site") && request.headers.get("sec-fetch-site") !== "same-origin"))) return response({ error: "Origin rejected" }, 403);
   for (const [key, session] of sessions) if (session.expires <= Date.now()) sessions.delete(key);
