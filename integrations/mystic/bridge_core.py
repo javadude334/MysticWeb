@@ -114,9 +114,17 @@ def handle(raw, instance, driver=None):
             uid = driver.resolve(request['username'])
             if not number(uid, 0x7fffffff):
                 return denied
+            # Do not invoke the password engine for an inactive/unknown account.
+            # Recheck below: account state and name mapping can change while the
+            # native password call runs, even with this runtime serialized.
+            if not active(driver.account(uid)):
+                return denied
             if driver.verify_password(uid, request['password']) is not True:
                 return denied
             request['password'] = None
+            resolved = driver.resolve(request['username'])
+            if not number(resolved, 0x7fffffff) or resolved != uid:
+                return denied
         else:
             uid = request['userId']
         if not number(uid, 0x7fffffff):

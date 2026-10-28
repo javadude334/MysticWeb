@@ -67,6 +67,48 @@ class BridgeTests(unittest.TestCase):
         driver = Driver()
         driver.state.pop('locked')
         self.assertIn('error', handle(self.request(), 'vm', driver))
+    def test_inactive_account_never_reaches_password_engine(self):
+        for key in ['exists', 'deleted', 'locked', 'expired', 'passwordChangeRequired']:
+            driver = Driver()
+            driver.state[key] = key != 'exists'
+            self.assertEqual(handle(self.request(), 'vm', driver), {'error': 'Access unavailable'})
+            self.assertEqual(driver.calls, [])
+
+    def test_identity_or_account_change_during_password_check_denies(self):
+        for change in ['mapping', 'deleted', 'locked', 'expired', 'passwordChangeRequired']:
+            driver = Driver()
+            def verify(uid, password):
+                if change == 'mapping':
+                    driver.resolve = lambda name: 43
+                else:
+                    driver.state[change] = True
+                return True
+            driver.verify_password = verify
+            self.assertEqual(handle(self.request(), 'vm', driver), {'error': 'Access unavailable'})
+
+    def test_two_users_passwords_are_bound_to_resolved_permanent_id(self):
+        driver = Driver()
+        driver.resolve = lambda name: {'Alpha': 42, 'Beta': 73}.get(name)
+        def verify(uid, password):
+            driver.calls.append((uid, 'password-check'))
+            return {42: 'alpha-synthetic', 73: 'beta-synthetic'}.get(uid) == password
+        driver.verify_password = verify
+        dispatcher = BridgeDispatcher('vm', driver)
+        cases = [('Alpha', 'alpha-synthetic', 42), ('Beta', 'beta-synthetic', 73),
+                 ('Alpha', 'beta-synthetic', None), ('Beta', 'alpha-synthetic', None),
+                 ('Missing', 'alpha-synthetic', None), ('Beta', 'beta-synthetic', 73)]
+        for index, (name, password, expected) in enumerate(cases):
+            reply = dispatcher.dispatch(self.request(username=name, password=password,
+                                                    nonce=chr(65 + index) * 43))
+            if expected is None:
+                self.assertEqual(reply, {'error': 'Access unavailable'})
+            else:
+                self.assertEqual(reply['userId'], expected)
+                self.assertIs(reply['passwordVerified'], True)
+            self.assertNotIn(password, json.dumps(reply))
+        self.assertEqual(driver.calls, [(42, 'password-check'), (73, 'password-check'),
+                                       (42, 'password-check'), (73, 'password-check'),
+                                       (73, 'password-check')])
     def test_authorization_catalog_and_denial(self):
         raw = self.request('authorize', areaId=1, catalogRevision='a' * 64)
         driver = Driver()

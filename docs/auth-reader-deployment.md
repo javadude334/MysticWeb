@@ -35,6 +35,27 @@ composition change must supply a verified runtime driver, server, trusted proxy
 client identity, persistent private AuthStore, catalog snapshot loader and mTLS
 transport. Synthetic tests do not authorize production activation.
 
+## Operator evidence update — October 27, 2026
+
+The operator reports running the PR #11 native masked-input probe as the ordinary
+`javadude` BBS user with one deliberately wrong password:
+
+```text
+NATIVE_PASSWORD_MATCH: FALSE
+NATIVE_TRUE_CHECK: TRUE
+NATIVE_FALSE_CHECK: TRUE
+```
+
+The earlier correct-password run returned all three TRUE. The false-check TRUE
+means the constant false ACS was correctly denied. These are operator-reported
+results, not a local rerun or CI evidence. The latest report establishes ordinary
+account context for the negative run; it does not retroactively establish that
+context for every earlier run. No credential or password-derived bytes are retained.
+The planned wrong-password check is complete; do not ask the operator to repeat it.
+Pause and cleanup completion, arbitrary-user verification, account-state and
+per-area authorization remain separate checks. PR #11 receives this evidence as
+a comment; its branch and probe sources remain untouched.
+
 ## Confirmed API semantics and invocation limits
 
 Official [Python changelog](https://www.wiki.mysticbbs.com/doku.php?id=whats_new_112)
@@ -55,6 +76,10 @@ Reported Windows A48 results prove callable/schema presence and an in-session
 MPL password match with true/false controls. They do not prove arbitrary-user
 Python verification, name resolution, permanent ID mapping, account flags or
 remote group context. PR #11 remains the source of that evidence.
+
+The [A48 feasibility review](native-driver-feasibility.md) distinguishes the
+installed documentation/examples from runtime proof and records the next isolated
+two-account experiment. No credential-bearing command was executed during review.
 
 A feasible design still to prove is a bounded native-session worker which accepts
 requests only over a private authenticated encrypted channel, serializes context,
@@ -93,10 +118,8 @@ These are ordered staging milestones, not instructions to turn on live auth.
 Perform one milestone at a time and record only PASS/FAIL plus sanitized IDs/types,
 never passwords, hashes, native user records or message text.
 
-1. **Next manual step:** in an ordinary disposable test-account session, run the
-   PR #11 native password probe with one deliberately wrong password entered
-   privately. Expected: password match FALSE while both true/false controls pass.
-   Do not use a sysop account or put passwords in commands or screenshots.
+1. **Complete:** ordinary-account wrong-password rejection and both constant ACS
+   controls were reported on October 27, 2026; see the evidence above.
 2. Confirm the probe's pause and cleanup using PR #11 instructions. Retain the
    established PYTHONHOME/PYTHONPATH and 32-bit DLL configuration there.
 3. Prove exact other-user record lookup and permanent-ID mapping with two test
