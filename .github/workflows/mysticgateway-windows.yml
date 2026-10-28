@@ -22,9 +22,15 @@ jobs:
           $fpc = Get-ChildItem 'C:\tools','C:\ProgramData\chocolatey' -Filter fpc.exe -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $fpc) { throw 'Free Pascal compiler not found after install' }
           New-Item -ItemType Directory -Force dist | Out-Null
-          & $fpc.FullName -Mobjfpc -O2 -FE./dist -FU./dist gateway/MysticGateway.pas
+          $output = Join-Path (Resolve-Path dist).Path 'MysticGateway.exe'
+          $unitDir = (Resolve-Path dist).Path
+          & $fpc.FullName -Mobjfpc -O2 "-o$output" "-FU$unitDir" gateway/MysticGateway.pas
           if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }
-          if (-not (Test-Path dist/MysticGateway.exe)) { throw 'Executable missing' }
+          if (-not (Test-Path -LiteralPath $output)) {
+            Get-ChildItem -Path . -Filter MysticGateway.exe -Recurse | Select-Object -ExpandProperty FullName
+            throw 'Executable missing from expected absolute output path'
+          }
+          Write-Host "Built: $output ($((Get-Item $output).Length) bytes)"
       - name: Verify fail-closed behavior away from sandbox
         shell: pwsh
         run: |
