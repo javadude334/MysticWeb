@@ -39,7 +39,9 @@ jobs:
           if ($preflight.ExitCode -ne 3) { throw "Expected sandbox denial exit 3; got $($preflight.ExitCode)" }
           $unconfigured = Start-Process -FilePath $exe -Wait -PassThru -NoNewWindow
           if ($unconfigured.ExitCode -ne 2) { throw "Expected disabled gateway exit 2; got $($unconfigured.ExitCode)" }
-          Write-Host 'PASS: both fail-closed negative tests returned their expected exit codes.'
+          $auth = Start-Process -FilePath $exe -ArgumentList '--authenticate' -Wait -PassThru -NoNewWindow
+          if ($auth.ExitCode -ne 11) { throw "Expected uncertified authentication denial exit 11; got $($auth.ExitCode)" }
+          Write-Host 'PASS: sandbox restriction, unconfigured invocation, and authentication denial returned expected exit codes.'
           exit 0
       - uses: actions/upload-artifact@v4
         with:
