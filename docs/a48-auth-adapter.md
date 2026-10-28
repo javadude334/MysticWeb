@@ -74,6 +74,11 @@ private SQLite state and rate key specified in auth-reader-deployment.md.
 
 ## One remaining integration blocker
 
+The [binding certification checklist](a48-binding-certification.md) now supplies
+the exact isolated test sequence and describes the optional native API candidate
+`NativeRecordVerifier`. It is not certified and does not supply account or ACS
+policy. No production binding is installed.
+
 **Supply and certify the trusted A48 runtime binding** implementing the five
 callbacks above. This includes exact-account password verification, handle decoding,
 coherent record loading, account-state semantics and effective ACS context as one

@@ -26,7 +26,7 @@ const { WebAccess, productionAccess } = load('auth/service');
 const { MessageReader, numericId, catalogRevision } = load('mystic/reader');
 const { BridgeTransport } = load('auth/transport');
 const revision = 'a'.repeat(64);
-function setup(t) {
+function setup(t, exactAccounts = false) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mystic-web-'));
   fs.chmodSync(dir, 0o700);
   const store = new AuthStore(path.join(dir, 'auth.sqlite'));
@@ -35,7 +35,10 @@ function setup(t) {
   const native = new NativeAccess({ request: async req => {
     state.calls++;
     if (state.malformed) return { passwordVerified: true };
-    if (req.operation === 'authenticate' && req.password !== 'synthetic') return null;
+    if (req.operation === 'authenticate') {
+      const expected = exactAccounts ? { alice: 'synthetic-A', bob: 'synthetic-B' }[req.username] : 'synthetic';
+      if (!expected || req.password !== expected) return null;
+    }
     const userId = req.operation === 'authenticate' ? (req.username === 'alice' ? 42 : 43) : req.userId;
     const reply = { version: 1, nonce: req.nonce, operation: req.operation, instance: 'vm', userId,
       account: { exists: true, deleted: false, locked: state.disabled, expired: state.expired, passwordChangeRequired: false } };
@@ -66,6 +69,25 @@ async function login(app, name = 'alice', password = 'synthetic', old) {
 function token(response) { return response.headers.get('set-cookie')?.split(';')[0].split('=')[1]; }
 
 test('production has no activation flag or default provider', () => assert.equal(productionAccess(), null));
+
+test('B password creates only B session; A password for B creates none; denied areas never reach JAM', async t => {
+  const { app, store, state } = setup(t, true);
+  let creates = 0;
+  const create = store.create.bind(store);
+  store.create = (...args) => { creates++; return create(...args); };
+  const good = await login(app, 'bob', 'synthetic-B');
+  assert.equal(good.status, 200);
+  const b = token(good);
+  assert.deepEqual(store.read(b), { instance: 'vm', userId: 43 });
+  const wrong = await login(app, 'bob', 'synthetic-A');
+  assert.equal(wrong.status, 401);
+  assert.equal(wrong.headers.get('set-cookie'), null);
+  assert.equal(creates, 1);
+  assert.equal((await app.read(request('/api/messages?area=1', b))).status, 404);
+  assert.equal((await app.read(request('/api/messages?area=1&message=9', b))).status, 404);
+  assert.deepEqual(await (await app.read(request('/api/messages', b))).json(), { areas: [] });
+  assert.equal(state.reads, 0);
+});
 test('bad credentials, disabled/expired accounts and malformed replies create no session', async t => {
   const { app, state } = setup(t);
   assert.equal((await login(app, 'alice', 'wrong')).status, 401);

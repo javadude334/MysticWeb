@@ -11,6 +11,7 @@ import threading
 import test_bridge_core as fixtures
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from bridge_server import make_server
+from test_a48_native_verifier import Native, synthetic_driver
 
 
 class ServerTests(unittest.TestCase):
@@ -60,7 +61,8 @@ class ServerTests(unittest.TestCase):
             with socket.socket() as probe:
                 probe.bind(('127.0.0.1', 0))
                 port = probe.getsockname()[1]
-            server = make_server(('127.0.0.1', port), context, 'vm', fixtures.Driver())
+            driver = synthetic_driver(Native())
+            server = make_server(('127.0.0.1', port), context, 'vm', driver)
             worker = threading.Thread(target=server.serve_forever, daemon=True)
             worker.start()
             def call(client, body, headers=None, path='/v1/native'):
@@ -80,11 +82,18 @@ class ServerTests(unittest.TestCase):
                 with self.assertRaises((ssl.SSLError, OSError)):
                     call(untrusted, fixtures.BridgeTests().request())
                 client.load_cert_chain(cert, key)
-                raw = fixtures.BridgeTests().request()
+                raw = fixtures.BridgeTests().request(username='B', password='synthetic-B')
                 status, reply = call(client, raw)
                 self.assertEqual(status, 200)
                 self.assertTrue(reply['passwordVerified'])
+                self.assertEqual(reply['userId'], 73)
                 self.assertEqual(call(client, raw)[0], 403)  # replay
+                crossed = fixtures.BridgeTests().request(nonce='C' * 43, username='B', password='synthetic-A')
+                self.assertEqual(call(client, crossed), (403, {'error': 'Access unavailable'}))
+                driver.policy.allowed = False
+                denied = fixtures.BridgeTests().request('authorize', nonce='D' * 43,
+                         userId=73, areaId=1, catalogRevision='a' * 64)
+                self.assertEqual(call(client, denied), (403, {'error': 'Access unavailable'}))
                 self.assertEqual(call(client, b'X' * 4097)[0], 400)
                 self.assertEqual(call(client, raw, path='/wrong')[0], 400)
                 self.assertEqual(call(client, b'{')[0], 403)
