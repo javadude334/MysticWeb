@@ -14,6 +14,11 @@ from bridge_core import BridgeDispatcher
 
 
 def make_server(address, context, instance, driver=None):
+    # Refuse to bind a listener until an explicit runtime composition exists.
+    # Structural validation is not native certification or worker isolation.
+    if driver is None or any(not callable(getattr(driver, name, None)) for name in
+                             ['resolve', 'account', 'verify_password', 'authorize']):
+        raise ValueError('Bridge unavailable')
     if (context.verify_mode != ssl.CERT_REQUIRED or
             context.minimum_version < ssl.TLSVersion.TLSv1_2 or
             not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', instance)):

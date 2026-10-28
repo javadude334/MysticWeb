@@ -10,6 +10,9 @@ import struct
 class A48Driver(object):
     RECORD_SIZE = 1536
     MAX_BYTES = 16 * 1024 * 1024
+    # Installed A48 records.112: these are independent denial conditions,
+    # never sufficient evidence that an account is active.
+    DENY_FLAGS = 0x00000001 | 0x00000004 | 0x00000400
 
     def __init__(self, snapshot, decode_handle, verifier=None, policy=None):
         self.snapshot = snapshot
@@ -48,6 +51,8 @@ class A48Driver(object):
         record = self._records().get(uid)
         if record is None:
             return False
+        if struct.unpack_from('<I', record, 4)[0] & self.DENY_FLAGS:
+            return False
         # verify(uid, opaque_101_bytes, candidate) must return the literal True.
         # In-session CheckPW/isuserpw is not automatically such a verifier.
         result = self.verifier.verify(uid, record[8:109], candidate)
@@ -60,10 +65,18 @@ class A48Driver(object):
         if record is None or self.policy is None:
             return None
         flags = struct.unpack_from('<I', record, 4)[0]
+        if flags & self.DENY_FLAGS:
+            return None
         # Policy must interpret all relevant account fields, not just flags.
-        return self.policy.account(uid, flags, record)
+        result = self.policy.account(uid, flags, record)
+        return result if self._records().get(uid) == record else None
 
     def authorize(self, uid, area):
-        if self.policy is None or uid not in self._records():
+        record = self._records().get(uid)
+        if (self.policy is None or record is None or
+                struct.unpack_from('<I', record, 4)[0] & self.DENY_FLAGS):
             raise ValueError('Access unavailable')
-        return self.policy.authorize(uid, area)
+        result = self.policy.authorize(uid, area)
+        if self._records().get(uid) != record:
+            raise ValueError('Access unavailable')
+        return result

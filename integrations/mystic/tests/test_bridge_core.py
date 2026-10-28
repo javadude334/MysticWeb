@@ -118,6 +118,33 @@ class BridgeTests(unittest.TestCase):
         driver.allowed = True
         driver.revision = 'b' * 64
         self.assertIn('error', handle(raw, 'vm', driver))
+
+    def test_requested_user_acs_each_gate_and_revocation(self):
+        driver = Driver()
+        permissions = dict(list=True, read=True, group=True, context=True,
+                           kind='echo', private=False, personal=False)
+        calls = []
+        def authorize(uid, area):
+            calls.append((uid, area))
+            # Synthetic requested-user evaluation, never a native ACS claim.
+            return driver.revision, dict(permissions) if uid == 73 else dict(permissions, read=False)
+        driver.authorize = authorize
+        def request(uid):
+            return self.request('authorize', userId=uid, areaId=9, catalogRevision=driver.revision)
+        for uid in [42, 73, 42, 73]:
+            reply = handle(request(uid), 'vm', driver)
+            self.assertEqual('error' in reply, uid == 42)
+        self.assertEqual(calls, [(42, 9), (73, 9), (42, 9), (73, 9)])
+        for key in ['list', 'read', 'group', 'context']:
+            for invalid in [False, None, 1, 'true']:
+                permissions[key] = invalid
+                self.assertIn('error', handle(request(73), 'vm', driver))
+            permissions[key] = True
+        def revoke(uid, area):
+            driver.state['locked'] = True
+            return driver.revision, permissions
+        driver.authorize = revoke
+        self.assertIn('error', handle(request(73), 'vm', driver))
     def test_malformed_requests_and_errors_are_redacted(self):
         driver = Driver()
         for raw in ['{', self.request(userId=42), self.request(version=True),

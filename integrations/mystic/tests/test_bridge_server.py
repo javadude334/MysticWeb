@@ -105,11 +105,22 @@ class ServerTests(unittest.TestCase):
     def test_insecure_tls_and_public_bind_rejected(self):
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         with self.assertRaises(ValueError):
-            make_server(('127.0.0.1', 8443), context, 'vm')
+            make_server(('127.0.0.1', 8443), context, 'vm', fixtures.Driver())
         context.verify_mode = ssl.CERT_REQUIRED
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         for host in ['0.0.0.0', '8.8.8.8']:
             with self.assertRaises(ValueError):
-                make_server((host, 8443), context, 'vm')
+                make_server((host, 8443), context, 'vm', fixtures.Driver())
         with self.assertRaises(ValueError):
-            make_server(('127.0.0.1', 8443), context, '../bad')
+            make_server(('127.0.0.1', 8443), context, '../bad', fixtures.Driver())
+
+    def test_missing_runtime_binding_rejected_before_socket_creation(self):
+        from unittest.mock import patch
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        for driver in [None, object(), type('Partial', (), {'resolve': lambda *args: 42})()]:
+            with patch('bridge_server.HTTPServer.__init__') as bind:
+                with self.assertRaises(ValueError):
+                    make_server(('127.0.0.1', 8443), context, 'vm', driver)
+                bind.assert_not_called()

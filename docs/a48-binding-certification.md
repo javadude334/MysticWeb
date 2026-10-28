@@ -4,6 +4,45 @@ Status: **NOT CERTIFIED / AUTH DISABLED**. No BBS execution or changes were
 performed. This work continues PR #12 from dcbcfda. PR #11 remains at 1949d39;
 its in-session MPL evidence is not evidence for arbitrary-user Python checks.
 
+## Windows continuation — October 28, 2026
+
+Continues published status-tool commit `32fa2b1`. The installed sandbox
+`records.112` was reread and confirms locked `0x1`, deleted `0x4`, and forced
+password change `0x400`. The adapter now independently vetoes these bits for
+account queries, password verification, and authorization, even with a permissive
+policy callback. Clear bits never supply an active policy: expiration, password
+age and other account semantics still require a verified binding. Account and
+authorization callbacks now require the complete requested record to remain
+unchanged across evaluation. This detects changes, not a coherent snapshot or
+an atomic transaction with subsequent JAM reads.
+
+The mTLS listener refuses startup before socket creation when an explicit driver
+or any required driver method is absent. This is structural validation only;
+passing a driver is not certification. No launcher, subprocess password input,
+plaintext pipe, dynamic driver import or Python-2-to-3 worker channel was added.
+Do not improvise those mechanisms to bypass the outstanding secure-worker gate.
+
+| Check | This continuation | Remaining evidence |
+| --- | --- | --- |
+| Locked/deleted/forced-change rejection | Synthetic adapter/dispatcher tests, including direct password calls and permissive policy | Native editor changes, native login behavior, web-session revocation on E:\\mystic |
+| Requested-user ACS | Synthetic alternating IDs 42/73; independent list/read/group/context failures; post-ACS revocation | Supported requested-account effective ACS and context restoration on A48 |
+| Runtime invocation | Missing/incomplete driver rejected before bind; existing real loopback mTLS tests | Reviewed encrypted/authenticated bounded embedded worker and lifecycle |
+| Status races | Full-record changes during account/ACS callbacks deny | Coherent native loading and live concurrency evidence |
+
+Automated synthetic and loopback transport checks can run remotely or unattended
+on this host. Native editor/terminal checks require interactive Windows control;
+native app APIs are disabled in this session. E:\\mystic is available and sandbox
+modifications are authorized, but no editor changes or native password probes
+were performed. A process inventory identified the running Mystic executable
+as D:\\mystic\\mystic.exe; it was not stopped or operated. Production files were
+not opened or modified. No sandbox user records were changed. Production
+authentication remains disabled and PR #12 must remain draft.
+
+Validation for this continuation: 31 Python tests passed, including real loopback
+mTLS and five new regression cases. Application tests: 50 passed, one expected
+Windows/POSIX permissions skip. `git diff --check` passed. These results certify
+only the tested synthetic and transport behavior, not native A48 integration.
+
 Follow-up: [status investigation and offline comparison procedure](a48-status-investigation.md)
 records newer operator cross-account evidence, the echoed-input limitation and
 installed A48 status masks. It does not certify the complete runtime binding.
