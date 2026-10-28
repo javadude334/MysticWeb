@@ -24,8 +24,11 @@ unknown account states, and requires current group/context/ListACS/ReadACS
 permissions. Use one BridgeDispatcher per runtime; it rejects concurrent native
 calls and keeps a bounded 60-second nonce replay cache. Clock rollback and cache
 exhaustion deny. It defaults to denial with no driver. It is **not** a verified
-Mystic driver or a running bridge server. The HTTPS client requires CA-validated
+Mystic runtime binding. The HTTPS client requires CA-validated
 mutual TLS, bounds concurrency and bytes, times out/cancels and never retries.
+The private modern-Python mTLS listener and A48 record adapter are now supplied;
+see [A48 adapter and listener](a48-auth-adapter.md) for exact interfaces,
+deployment requirements and the single remaining runtime-binding blocker.
 No listener or native process launcher is installed.
 
 **Production composition returns null unconditionally.** There is no environment
@@ -134,8 +137,9 @@ never passwords, hashes, native user records or message text.
    restrict access to the web host's private address and client certificate.
    Never expose a Python 2.7 listener directly to the internet. The modern TLS
    endpoint must authenticate the caller and securely bind to the native worker;
-   a reverse proxy alone does not supply native user context. No listener is
-   provided here because that invocation is unproved.
+   a reverse proxy alone does not supply native user context. The provided
+   bridge_server listener requires the trusted A48 binding; it does not establish
+   native invocation or user context by itself.
 7. Provision dedicated CA/server/client certificates, short timeouts, bounded
    workers, no body logs and a cancellation path. Verify wrong CA/client cert,
    unavailable worker, malformed/oversized replies and replay all deny.
