@@ -28,7 +28,7 @@ Run from the updated MysticWeb checkout:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gateway-preflight.ps1
 ```
 
-It reports only file presence/sizes, compiler availability, Git revision, and platform metadata. It does **not** read account contents, execute Mystic, launch services, change settings, or access D:. The report is saved to the user's TEMP directory and copied to the clipboard when available.
+It reports only file presence/sizes, tool availability, and platform metadata. It derives the checkout directory from the script location and rejects reparse points in every checked path component. Missing prerequisites and errors return exit 1. It does **not** read account contents, execute Mystic or Git, launch services, change settings, access D:, write a report, or change the clipboard. Output is emitted to the console. Sequential metadata checks do not protect against concurrent path replacement or audit configuration/service references. They do not establish that the Pascal executable is safe to run; its independent path boundary still needs hardening. See [the recovery checkpoint](recovery-checkpoint-2026-10-28.md).
 
 ## Acceptance criteria
 
