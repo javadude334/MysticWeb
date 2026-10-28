@@ -10,7 +10,7 @@ The gateway must discover its root from its executable directory and reject path
 
 ## Boundary
 
-Mystic remains the sole owner of user records, messages, read pointers, bulletins, and door data. MysticWeb owns only short-lived web session/security state; no mirrored BBS database. The gateway exposes a small authenticated encrypted interface, preferably bound to loopback or an explicitly private network. No public unauthenticated listener.
+Mystic remains the sole owner of user records, messages, read pointers, bulletins, and door data. The A48 user file is located at `data\\users.dat` relative to the Mystic installation root; never assume `users.dat` resides beside the executable. MysticWeb owns only short-lived web session/security state; no mirrored BBS database. The gateway exposes a small authenticated encrypted interface, preferably bound to loopback or an explicitly private network. No public unauthenticated listener.
 
 Native Mystic `isuserpw` has been demonstrated in an interactive embedded session, but a standalone process **cannot call that Python function by itself**. A record reader is not a password verifier. Do not implement a guessed password algorithm, pass passwords in process arguments, or declare authentication working based on synthetic tests.
 
