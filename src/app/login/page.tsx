@@ -24,6 +24,7 @@ export default function Login() {
           <p>Web sign-in is being connected to Mystic accounts. It is not available yet, and this page does not collect usernames or passwords.</p>
           <p>For traditional access, connect to Dave&apos;s BBS using your Telnet client.</p>
           <a className={styles.primary} href="telnet://davesbbs.com">Connect via Telnet <span aria-hidden="true">↗</span></a>
+          <Link className={styles.back} href="/connect">Need help connecting?</Link>
           <Link className={styles.back} href="/">Return to Dave&apos;s BBS</Link>
         </section>
       </main>

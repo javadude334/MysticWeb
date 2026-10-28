@@ -13,6 +13,7 @@ export default function Home() {
         <nav className={styles.nav} aria-label="Public navigation">
           <a href="#about">About</a>
           <a href="#connect">Connect</a>
+          <Link href="/connect">Connection help</Link>
           <Link href="/login">Web login <span aria-hidden="true">↗</span></Link>
         </nav>
       </header>
@@ -56,6 +57,7 @@ export default function Home() {
               <h3>Telnet access</h3>
               <p>Open Dave&apos;s BBS in your configured Telnet client. Prefer to enter the address yourself? Use <code>davesbbs.com</code>.</p>
               <a className={styles.cardLink} href="telnet://davesbbs.com">Launch Telnet <span aria-hidden="true">↗</span></a>
+              <Link className={styles.cardLink} href="/connect">Need help connecting? <span aria-hidden="true">→</span></Link>
               <small>Telnet uses an unencrypted connection.</small>
             </article>
             <article className={styles.card}>

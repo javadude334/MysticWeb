@@ -61,6 +61,22 @@
 .badge { color: #d6c4f7; font: 9px monospace; letter-spacing: 1.5px; border: 1px solid #544765; background: #292334; border-radius: 4px; padding: 7px 11px; margin: 20px 0; }
 .loginPanel p { font-size: 13px; margin-bottom: 18px; max-width: 430px; }
 .loginPanel .primary { margin: 13px 0 25px; }
+.loginPanel .back + .back { margin-top: 18px; }
+.guideMain { max-width: 840px; padding: 50px 30px 70px; }
+.guidePanel { padding: 40px; border: 1px solid #3c5747; border-radius: 12px; background: #111d17; }
+.guidePanel h1 { margin: 18px 0 22px; }
+.guidePanel h2 { font-size: 23px; font-weight: 500; margin: 32px 0 15px; }
+.guidePanel p { font-size: 14px; }
+.copyAddress { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 28px; padding: 22px; border: 1px solid #3b5147; border-radius: 6px; }
+.copyAddress .eyebrow, .copyAddress p { flex-basis: 100%; }
+.copyAddress code { font-size: 20px; overflow-wrap: anywhere; user-select: all; }
+.copyAddress button { font-family: inherit; background: transparent; cursor: pointer; }
+.copyAddress button:focus-visible { outline: 2px solid #a8f0cd; outline-offset: 5px; }
+.copyAddress p { min-height: 2.5em; }
+.steps { padding-left: 24px; margin: 0; }
+.steps li { padding-left: 8px; margin: 20px 0; line-height: 1.6; }
+.steps p { margin-top: 5px; }
+.connectionNote { margin-top: 22px; padding-left: 16px; border-left: 2px solid #a8f0cd; }
 @media (max-width: 950px) {
  .hero { gap: 30px; padding: 62px 0; }
  .hero h1 { font-size: 43px; }
@@ -85,6 +101,9 @@
  .footer { padding: 24px; }
  .loginMain { padding: 35px 20px; }
  .loginPanel { padding: 35px 23px; }
+ .guideMain { padding: 35px 20px; }
+ .guidePanel { padding: 28px 22px; }
+ .nav { flex-wrap: wrap; }
 }
 @media (max-width: 350px) {
  .terminalArt pre { font-size: 11px; }

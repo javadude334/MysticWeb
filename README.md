@@ -6,6 +6,7 @@ A public front door and developing web interface for Dave's BBS, powered by Myst
 
 - `/`: public information, a `telnet://davesbbs.com` link, and a web-login link.
 - `/login`: clearly marked as coming soon; no credential form or collection.
+- `/connect`: connection instructions, a copy-address button and Telnet troubleshooting; no live availability claim or credential collection.
 - `/dashboard`: the original disconnected dashboard preview.
 - Messages, Private Mail, Files, Relay Chat, Door Games, and My Profile: disconnected previews.
 - `/api/health`: uncached runtime status and deployed commit revision.
