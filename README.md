@@ -82,3 +82,7 @@ They do not install services, execute sudo, or activate nginx.
 The [staged authentication and message reader](docs/auth-reader-deployment.md) adds
 fail-closed HTTP services and a BBS dispatcher contract. Production remains
 disabled pending native driver, secure invocation and end-to-end verification.
+
+## Local functional workspace
+
+See [development workspace](docs/development-workspace.md) for disposable account selection, authorized synthetic message reading, pagination and logout. Run npm run dev:demo and open http://127.0.0.1:3000/development. Native authentication remains disabled.

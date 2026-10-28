@@ -11,7 +11,7 @@ async function main() {
   await new Promise(resolve => reservation.close(resolve));
   const root = path.resolve(__dirname, '..');
   const child = spawn(process.execPath, [path.join(root, 'node_modules/next/dist/bin/next'), 'start', '-H', '127.0.0.1', '-p', String(port)], {
-    cwd: root, windowsHide: true, stdio: 'ignore',
+    cwd: root, windowsHide: true, stdio: 'ignore', env: { ...process.env, MYSTICWEB_DEMO: '1' },
   });
   let failed = false;
   child.on('error', () => { failed = true; });
@@ -32,6 +32,11 @@ async function main() {
       assert.equal(result.headers.get('cache-control'), 'private, no-store');
       assert.equal(result.headers.get('set-cookie'), null);
       assert.deepEqual(await result.json(), { error: 'Access unavailable' });
+    }
+    for (const url of ['/development', '/api/development']) {
+      const result = await fetch(base + url, { signal: AbortSignal.timeout(5000) });
+      assert.equal(result.status, 404);
+      assert.equal(result.headers.get('set-cookie'), null);
     }
     const login = await fetch(base + '/login', { signal: AbortSignal.timeout(5000) });
     assert.equal(login.status, 200);

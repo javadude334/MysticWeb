@@ -146,3 +146,11 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
  .section-heading { align-items: flex-start; flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+
+.development-board { line-height: 1.65; }
+.development-board .panel { margin: 24px 0; }
+.development-board button { cursor: pointer; color: #f3f0ff; background: #40308a; border: 1px solid #9987df; border-radius: 8px; padding: 10px 16px; font: inherit; margin: 4px; }
+.development-board button:hover { background: #5844ad; }
+.development-board button:focus-visible { outline: 3px solid #e1d5ff; outline-offset: 3px; }
+.development-board button:disabled { opacity: .55; cursor: wait; }
+.development-board li { margin: 12px 0; }
