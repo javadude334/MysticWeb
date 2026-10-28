@@ -11,3 +11,7 @@ Next: build and test `--inspect-layout` in `E:\mystic`, then investigate support
 ## Candidate identifier diagnostic
 
 `MysticGateway.exe --inspect-identities` runs only from `E:\mystic`. It reads the first four bytes of each 1,536-byte record slot as a **provisional** little-endian identifier and reports only counts of zero or repeated values. It never prints identifiers, names, account flags, or password material, and it does not modify the file. This is **not** certification of the A48 record schema, eligibility, or native password verification. Compare results with trusted native Mystic sandbox behavior before using these fields for authentication.
+
+## Candidate flag-pattern diagnostic
+
+`MysticGateway.exe --inspect-flag-patterns` reads only bytes 0–7 of each sandbox user record, grouping bytes 4–7 into distinct **undisclosed** raw patterns. It prints only the number of distinct patterns, never the patterns or account data. No interpretation of flags as active, locked, deleted, or forced-password is made; the A48 definitions must be verified independently before enforcing any account policy. The diagnostic is read-only and sandbox-only; authentication and network services stay disabled.
