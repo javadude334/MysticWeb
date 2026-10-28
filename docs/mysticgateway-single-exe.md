@@ -1,6 +1,6 @@
 # MysticGateway: single-file deployment target
 
-Status: design and read-only preflight only. **No gateway executable or certified login exists yet.**
+Status: Windows diagnostic executable compiled and tested in disposable sandbox. **No certified native login or operational gateway exists yet.**
 
 ## Operator contract
 
@@ -38,3 +38,7 @@ It reports only file presence/sizes, compiler availability, Git revision, and pl
 4. Do not expose messages until requested-user group/ListACS/ReadACS checks are proven.
 5. Verify concurrent BBS usage and file locking before any write to Mystic read-state files.
 6. Keep production auth disabled until an independently reviewed activation and native certification.
+
+## Current diagnostic scope
+
+The sandbox-only executable supports `--preflight`, `--inspect-layout`, `--inspect-identities`, and `--inspect-flag-patterns`. These are read-only diagnostics. The last mode counts distinct raw patterns in candidate account flags at bytes 4–7 without displaying values or interpreting account status. No standalone native password verifier or requested-user ACS evaluator has been certified.
