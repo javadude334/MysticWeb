@@ -19,7 +19,7 @@ try {
   Add ('Date UTC: ' + [DateTime]::UtcNow.ToString('u'))
   Add ('Windows: ' + [Environment]::OSVersion.VersionString)
   Add ('PowerShell: ' + $PSVersionTable.PSVersion.ToString())
-  foreach ($name in @('mystic.exe','mystic64.exe','mystic.dat','users.dat','docs\records.112')) {
+  foreach ($name in @('mystic.exe','mystic64.exe','mystic.dat','data\users.dat','docs\records.112')) {
     $path = Join-Path $root $name
     if (Test-Path -LiteralPath $path) {
       $f = CheckPath $path
