@@ -7,3 +7,7 @@ With `--preflight` it checks file presence only. With `--inspect-layout` it open
 GitHub Actions workflow `MysticGateway Windows diagnostic build` compiles on a hosted Windows runner and uploads a binary artifact if the build and fail-closed checks succeed. The workflow may need adjustment if the hosted runner's Free Pascal package layout changes. **Do not interpret a green build as native A48 authentication certification.**
 
 Next: build and test `--inspect-layout` in `E:\mystic`, then investigate supported standalone native password verification without inventing the password algorithm. A record-length check is not native schema or authentication certification.
+
+## Candidate identifier diagnostic
+
+`MysticGateway.exe --inspect-identities` runs only from `E:\mystic`. It reads the first four bytes of each 1,536-byte record slot as a **provisional** little-endian identifier and reports only counts of zero or repeated values. It never prints identifiers, names, account flags, or password material, and it does not modify the file. This is **not** certification of the A48 record schema, eligibility, or native password verification. Compare results with trusted native Mystic sandbox behavior before using these fields for authentication.
