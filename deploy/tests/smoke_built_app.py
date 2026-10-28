@@ -50,9 +50,16 @@ def run_revision(revision, check_pages):
                     assert "Dave's BBS" in html.unescape(body)
                     assert 'href="telnet://davesbbs.com"' in body
                     assert 'href="/login"' in body
+                    assert 'href="/connect"' in body
+                _, guide = request(port, "/connect")
+                assert "Connection help" in guide and "Copy BBS address" in guide
+                assert 'href="telnet://davesbbs.com"' in guide
+                assert "<form" not in guide and "<input" not in guide
+                assert "does not report live BBS availability" in guide
                 _, login = request(port, "/login")
                 assert "COMING SOON" in login
                 assert "<input" not in login and "<form" not in login
+                assert 'href="/connect"' in login
                 _, dashboard = request(port, "/dashboard")
                 assert "DISCONNECTED" in dashboard
                 assert 'href="/dashboard"' in dashboard

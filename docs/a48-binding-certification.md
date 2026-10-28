@@ -1,5 +1,15 @@
 # A48 binding certification — October 28, 2026
 
+## Merge disposition update
+
+PR #12 was reviewed and merged to main as
+`01e0c36dc667763cb2903dcc7c204e6f6fdfc4f7` with production authentication
+unconditionally disabled. Earlier instructions below to keep the PR draft are
+historical and superseded by this disposition. Every native activation gate
+remains in force. Merge is not native certification or permission to enable auth.
+See [the focused continuation plan](native-certification-next.md) for the next
+sandbox milestones and evidence requirements.
+
 Status: **NOT CERTIFIED / AUTH DISABLED**. No BBS execution or changes were
 performed. This work continues PR #12 from dcbcfda. PR #11 remains at 1949d39;
 its in-session MPL evidence is not evidence for arbitrary-user Python checks.
