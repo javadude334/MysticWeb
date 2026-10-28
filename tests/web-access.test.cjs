@@ -185,3 +185,50 @@ test('forged and ambiguous session cookies cannot reach native work', async t =>
   assert.equal((await app.read(req)).status, 401);
   assert.equal(state.calls, calls);
 });
+
+test('development workspace isolates identities, expires/revokes sessions and stays absent in production', async t => {
+  const oldEnv = { node: process.env.NODE_ENV, demo: process.env.MYSTICWEB_DEMO };
+  t.after(() => {
+    if (oldEnv.node === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv.node;
+    if (oldEnv.demo === undefined) delete process.env.MYSTICWEB_DEMO; else process.env.MYSTICWEB_DEMO = oldEnv.demo;
+  });
+  const { developmentRequest: demo } = load('auth/development');
+  function req(query = '', method = 'GET', cookieValue = '', origin = 'http://127.0.0.1:3000', host = '127.0.0.1:3000') {
+    return new Request('http://127.0.0.1:3000/api/development' + query, { method, headers: {
+      host, origin, ...(cookieValue ? { cookie: cookieValue } : {}),
+    } });
+  }
+  process.env.NODE_ENV = 'production'; process.env.MYSTICWEB_DEMO = '1';
+  assert.equal((await demo(req('?account=42', 'POST'))).status, 404);
+  process.env.NODE_ENV = 'development'; delete process.env.MYSTICWEB_DEMO;
+  assert.equal((await demo(req())).status, 404);
+  process.env.MYSTICWEB_DEMO = '1';
+  assert.equal((await demo(req())).status, 401);
+  assert.equal((await demo(req('?account=42', 'POST', '', 'http://evil.example'))).status, 403);
+  assert.equal((await demo(req('', 'GET', '', undefined, 'evil.example'))).status, 403);
+  assert.equal((await demo(req('?account=42&account=73', 'POST'))).status, 400);
+  const alice = await demo(req('?account=42', 'POST'));
+  const aCookie = alice.headers.get('set-cookie').split(';')[0];
+  assert.match(alice.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
+  assert.equal((await (await demo(req('', 'GET', aCookie))).json()).areas.length, 2);
+  const body = await (await demo(req('?area=2&message=3', 'GET', aCookie))).json();
+  assert.match(body.messages[0].body, /synthetic/);
+  const bob = await demo(req('?account=73', 'POST', aCookie));
+  const bCookie = bob.headers.get('set-cookie').split(';')[0];
+  assert.equal((await demo(req('', 'GET', aCookie))).status, 401, 'identity switch revokes previous token');
+  assert.equal((await (await demo(req('', 'GET', bCookie))).json()).areas.length, 1);
+  assert.equal((await demo(req('?area=2&message=3', 'GET', bCookie))).status, 404);
+  const first = await (await demo(req('?area=1', 'GET', bCookie))).json();
+  assert.equal(first.nextBefore, 2);
+  const older = await (await demo(req('?area=1&before=2', 'GET', bCookie))).json();
+  assert.deepEqual(older.messages.map(m => m.number), [1]);
+  assert.equal(older.nextBefore, null);
+  assert.equal((await demo(req('?area=1&area=2', 'GET', bCookie))).status, 404);
+  await demo(req('', 'DELETE', bCookie));
+  assert.equal((await demo(req('', 'GET', bCookie))).status, 401);
+  const expired = await demo(req('?account=42', 'POST'));
+  const eCookie = expired.headers.get('set-cookie').split(';')[0];
+  const now = Date.now;
+  try { Date.now = () => now() + 3600001; assert.equal((await demo(req('', 'GET', eCookie))).status, 401); }
+  finally { Date.now = now; }
+});
