@@ -19,18 +19,23 @@ var
   Seen: TStringList;
   DuplicateCount, ZeroCount: Integer;
   Key: string;
+  AllMode: Boolean;
+  DiagnosticsFailed: Boolean;
 begin
   { No listener, authentication, user data output, or writes. }
   if (ParamCount <> 1) or
      ((ParamStr(1) <> '--preflight') and (ParamStr(1) <> '--inspect-layout') and
       (ParamStr(1) <> '--inspect-identities') and
-      (ParamStr(1) <> '--inspect-flag-patterns')) then
+      (ParamStr(1) <> '--inspect-flag-patterns') and
+      (ParamStr(1) <> '--diagnose-all')) then
   begin
     WriteLn('MysticGateway diagnostic build; authentication and server disabled.');
-    WriteLn('Usage: MysticGateway.exe --preflight | --inspect-layout | --inspect-identities | --inspect-flag-patterns');
+    WriteLn('Usage: MysticGateway.exe --preflight | --inspect-layout | --inspect-identities | --inspect-flag-patterns | --diagnose-all');
     Halt(2);
   end;
   Mode := ParamStr(1);
+  AllMode := Mode = '--diagnose-all';
+  DiagnosticsFailed := False;
   Root := ExcludeTrailingPathDelimiter(ExtractFilePath(ExpandFileName(ParamStr(0))));
   CanonicalRoot := ExcludeTrailingPathDelimiter(ExpandFileName(ExpectedRoot));
   if not SameText(Root, CanonicalRoot) then
@@ -44,6 +49,13 @@ begin
   begin
     WriteLn('DENIED: required Mystic sandbox files are missing.');
     Halt(4);
+  end;
+  if AllMode then
+  begin
+    WriteLn('MysticGateway consolidated read-only sandbox diagnostics');
+    WriteLn('PASS: executable located at approved sandbox root.');
+    WriteLn('PASS: mystic.exe and data/users.dat are present.');
+    WriteLn('PASS: no network listener, password verification, or write operation is enabled.');
   end;
   if Mode = '--preflight' then
   begin
@@ -104,7 +116,7 @@ begin
       end;
       IdValue := LongWord(IdBytes[0]) or (LongWord(IdBytes[1]) shl 8) or
                  (LongWord(IdBytes[2]) shl 16) or (LongWord(IdBytes[3]) shl 24);
-      if Mode = '--inspect-flag-patterns' then
+      if (Mode = '--inspect-flag-patterns') or AllMode then
       begin
         if Stream.Read(FlagBytes, SizeOf(FlagBytes)) <> SizeOf(FlagBytes) then
         begin
@@ -120,20 +132,41 @@ begin
       if Seen.IndexOf(Key) >= 0 then Inc(DuplicateCount)
       else Seen.Add(Key);
     end;
-    if Mode = '--inspect-flag-patterns' then
+    if (Mode = '--inspect-flag-patterns') or AllMode then
     begin
       WriteLn('Candidate flags field: bytes 4-7 (unverified semantics).');
       WriteLn('Distinct raw flag patterns: ', FlagPatterns.Count);
       WriteLn('No raw flag values, account identifiers, or personal data displayed.');
       WriteLn('No active/locked/deleted account classification performed.');
       WriteLn('Authentication and server remain disabled.');
-      Halt(0);
+      if not AllMode then Halt(0);
     end;
     WriteLn('Candidate identifier field: first four bytes, little-endian (unverified).');
     WriteLn('Zero-valued identifiers: ', ZeroCount);
     WriteLn('Repeated identifiers: ', DuplicateCount);
     WriteLn('No account identifiers or personal data were displayed.');
     WriteLn('Native password verification and account policy remain disabled.');
+    if AllMode then
+    begin
+      if ZeroCount <> 0 then
+      begin
+        WriteLn('WARN: zero-valued candidate IDs detected.');
+        DiagnosticsFailed := True;
+      end;
+      if DuplicateCount <> 0 then
+      begin
+        WriteLn('WARN: repeated candidate IDs detected.');
+        DiagnosticsFailed := True;
+      end;
+      WriteLn('WARN: A48 flag meanings, account eligibility, native password verification,');
+      WriteLn('      requested-user ACS and concurrent file behavior are NOT certified.');
+      if DiagnosticsFailed then
+      begin
+        WriteLn('RESULT: FAIL - candidate identity anomalies; no authentication enabled.');
+        Halt(10);
+      end;
+      WriteLn('RESULT: PASS - structural diagnostics only; authentication NOT certified.');
+    end;
   finally
     FlagPatterns.Free;
     Seen.Free;
