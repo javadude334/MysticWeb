@@ -114,3 +114,12 @@ The job now uses the official downloads.freepascal.org mirror, pinned to the
 SHA256 of the 93,909,874-byte installer retrieved over HTTPS during this review:
 8c255390544b051388b577eb61c6191a04883264afe0e3369b3600a56daf7bde.
 Native compile/runtime boundary results remain pending until that job completes.
+
+The hosted 64-bit compiler at 633a2c3 successfully compiled BoundaryProbe and
+MysticGateway. Runtime checks passed for ordinary pinned files, blocked concurrent
+write opens, junctions, missing paths, disabled authentication and nested-executable
+rejection. The job wrapper initially mistook the final expected denial exit code
+for a suite failure; the test script now exits zero only after all assertions.
+The fixtures use a newly created temporary VHD mounted as E: on the hosted runner,
+not SUBST (which would violate canonical-path checks). No local disks were mounted
+or formatted. Redundant/outdated branch CI runs are now automatically cancelled.

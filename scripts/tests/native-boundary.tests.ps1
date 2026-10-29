@@ -26,3 +26,6 @@ if ($LASTEXITCODE -ne 11) { throw 'Authentication must remain denied' }
 & (Join-Path $output 'MysticGateway.exe') --preflight
 if ($LASTEXITCODE -ne 3) { throw 'Nested executable must be denied' }
 Write-Output "PASS: native synthetic boundary checks. Retained at $output"
+
+# Expected denial exit codes above are assertions, not the suite's exit status.
+exit 0
