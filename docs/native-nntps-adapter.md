@@ -114,7 +114,7 @@ specific; production certificate provisioning remains separate.
 accepts no credential arguments, requires a real terminal in this exact E: checkout,
 and masks password input using raw terminal mode. It authenticates against the
 verified TLS endpoint, reports sanitized results and group count only, sends QUIT,
-and tries one generated wrong candidate. Only native 481 rejection passes that
+and tries one generated wrong candidate. Native 481 rejection or the observed A48 381 password reprompt after AUTHINFO PASS passes that
 negative check; transport/protocol errors are inconclusive. It never issues a web
 cookie or claims permanent identity/account/ACS certification. Use disposable
 sandbox accounts. Do not send passwords to chat or capture terminal input.
@@ -127,4 +127,27 @@ node .\scripts\sandbox-nntps-login.cjs
 ```
 
 Graceful QUIT shutdown has an additional passing disposable-server regression.
-Actual account authentication is awaiting the operator's masked-input run.
+The operator subsequently reported native password acceptance for javadude2; see below.
+
+## Operator login result and compatibility fixes
+
+The operator reported the masked tool accepting javadude2 over the verified TLS
+connection. test123 was intentionally nonexistent and did not authenticate.
+Group listing returned only the old generic UNAVAILABLE result; its exact cause
+is not yet established. The generated wrong candidate was inconclusive under
+the original checker.
+
+A separate no-real-credential probe against the verified E: TLS endpoint observed
+381 after AUTHINFO USER and another 381 after a generated wrong AUTHINFO PASS,
+followed by QUIT 205. The adapter now explicitly treats that password reprompt
+as non-acceptance and closes the connection. It never issues a session from it.
+Unauthenticated LIST ACTIVE and LIST both returned 450; no group names were
+printed. This establishes unauthenticated rejection, not per-user area policy.
+
+Compatibility fixes accept bounded zero-padded article counts and horizontal
+protocol whitespace. Bare LIST is retried only after syntax codes 500/501,
+never after authorization denial. Failures expose fixed stage names and numeric
+status codes only, with no server reply text, account records or message data.
+Focused regressions cover these behaviors. The next operator run is needed to
+identify or resolve the authenticated group-list failure; browser login remains
+disabled and identity/eligibility/ACS certification remains incomplete.

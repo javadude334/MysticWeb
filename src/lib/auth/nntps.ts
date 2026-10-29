@@ -2,7 +2,7 @@ import "server-only";
 import { connect, type TLSSocket } from "node:tls";
 
 export class NntpsError extends Error {
-  constructor(public readonly reason: "UNAVAILABLE" | "CREDENTIALS_REJECTED" = "UNAVAILABLE") { super("Secure Mystic connection unavailable"); }
+  constructor(public readonly reason: "UNAVAILABLE" | "CREDENTIALS_REJECTED" = "UNAVAILABLE", public readonly stage?: string, public readonly statusCode?: number) { super("Secure Mystic connection unavailable"); }
 }
 
 export interface NntpsEndpoint {
@@ -32,6 +32,7 @@ export class NntpsSession {
   private closed = false;
   private busy = false;
   private authenticated = false;
+  private stage = "TLS";
 
   private constructor(private readonly socket: TLSSocket) {
     socket.on("error", () => this.close());
@@ -70,10 +71,13 @@ export class NntpsSession {
           socket.once("error", () => reject(new NntpsError()));
           socket.once("close", () => reject(new NntpsError()));
         });
+        session.stage = "GREETING";
         await session.status([200, 201]);
+        session.stage = "AUTH_USER";
         session.send(`AUTHINFO USER ${username}`);
         // Do not accept an already-authorized/anonymous connection as a password match.
         await session.status([381]);
+        session.stage = "AUTH_PASS";
         session.send(`AUTHINFO PASS ${password}`);
         password = "";
         await session.status([281]);
@@ -94,7 +98,7 @@ export class NntpsSession {
 
   async quit(): Promise<void> {
     if (this.closed) return;
-    try { await this.run(async () => { this.send("QUIT"); await this.status([205]); }); }
+    try { await this.run(async () => { this.stage = "QUIT"; this.send("QUIT"); await this.status([205]); }); }
     finally { this.close(); }
   }
 
@@ -106,7 +110,7 @@ export class NntpsSession {
       return await Promise.race([action(), new Promise<never>((_, reject) => {
         timer = setTimeout(() => { this.close(); reject(new NntpsError()); }, 3000);
       })]);
-    } catch (error) { this.close(); throw error instanceof NntpsError ? error : new NntpsError(); }
+    } catch (error) { const failure = error instanceof NntpsError ? error : new NntpsError(); this.close(); throw new NntpsError(failure.reason, failure.stage ?? this.stage, failure.statusCode); }
     finally { if (timer) clearTimeout(timer); this.busy = false; }
   }
 
@@ -122,8 +126,9 @@ export class NntpsSession {
   }
   private async status(expected: number[]) {
     const line = await this.line();
-    if (/^481 /.test(line)) throw new NntpsError("CREDENTIALS_REJECTED");
-    if (!/^[1-5][0-9]{2} /.test(line) || !expected.includes(Number(line.slice(0, 3)))) throw new NntpsError();
+    const code = /^[1-5][0-9]{2} /.test(line) ? Number(line.slice(0, 3)) : undefined;
+    if (code === 481 || (this.stage === "AUTH_PASS" && code === 381)) throw new NntpsError("CREDENTIALS_REJECTED", this.stage, code);
+    if (code === undefined || !expected.includes(code)) throw new NntpsError("UNAVAILABLE", this.stage, code);
     return line.slice(4);
   }
   private async multiline(maxLines: number, maxBytes: number) {
@@ -141,12 +146,20 @@ export class NntpsSession {
 
   async groups(): Promise<string[]> {
     return this.run(async () => {
-      this.send("LIST ACTIVE"); await this.status([215]);
+      this.stage = "GROUP_LIST";
+      this.send("LIST ACTIVE");
+      try { await this.status([215]); }
+      catch (error) {
+        // Bare LIST defaults to ACTIVE. Retry syntax rejection only, never denial.
+        if (!(error instanceof NntpsError) || ![500, 501].includes(error.statusCode ?? 0)) throw error;
+        this.send("LIST"); await this.status([215]);
+      }
       const lines = await this.multiline(512, 65536);
+      this.stage = "GROUP_PARSE";
       const names = lines.map(line => {
-        const fields = line.split(/ +/);
+        const fields = line.trim().split(/[ \t]+/);
         if (fields.length !== 4 || !groupName(fields[0]) ||
-          !fields.slice(1, 3).every(n => /^(0|[1-9][0-9]{0,9})$/.test(n) && Number(n) <= 0x7fffffff) ||
+          !fields.slice(1, 3).every(n => /^[0-9]{1,10}$/.test(n) && Number(n) <= 0x7fffffff) ||
           !/^[ynm]$/.test(fields[3])) throw new NntpsError();
         return fields[0];
       });
@@ -157,10 +170,11 @@ export class NntpsSession {
 
   private async select(group: string) {
     if (!groupName(group)) throw new NntpsError();
+    this.stage = "GROUP_SELECT";
     this.send(`GROUP ${group}`);
-    const fields = (await this.status([211])).split(/ +/);
+    const fields = (await this.status([211])).trim().split(/[ \t]+/);
     if (fields.length !== 4 || fields[3] !== group ||
-      !fields.slice(0, 3).every(n => /^(0|[1-9][0-9]{0,9})$/.test(n) && Number(n) <= 0x7fffffff)) throw new NntpsError();
+      !fields.slice(0, 3).every(n => /^[0-9]{1,10}$/.test(n) && Number(n) <= 0x7fffffff)) throw new NntpsError();
     return { count: Number(fields[0]), low: Number(fields[1]), high: Number(fields[2]) };
   }
 
@@ -172,12 +186,13 @@ export class NntpsSession {
       if (!bounds.count || high < bounds.low || high < 1) return { lines: [] as string[], nextBefore: null };
       const low = Math.max(1, bounds.low, high - limit + 1);
       // The verified sandbox advertises the standard OVER capability.
+      this.stage = "OVERVIEW";
       this.send(`OVER ${low}-${high}`); await this.status([224]);
       const lines = await this.multiline(limit, 256 * 1024);
       const seen = new Set<number>();
       for (const line of lines) {
         const fields = line.split("\t"); const number = Number(fields[0]);
-        if (fields.length < 8 || !articleNumber(number) || fields[0] !== String(number) || number < low || number > high || seen.has(number)) throw new NntpsError();
+        if (fields.length < 8 || !articleNumber(number) || !/^[0-9]{1,10}$/.test(fields[0]) || number < low || number > high || seen.has(number)) throw new NntpsError();
         seen.add(number);
       }
       return { lines, nextBefore: low > Math.max(bounds.low, 1) ? low : null };
@@ -190,6 +205,7 @@ export class NntpsSession {
       const bounds = await this.select(group);
       if (!bounds.count || number < bounds.low || number > bounds.high) throw new NntpsError();
       // Numeric addressing after GROUP prevents cross-area Message-ID lookups.
+      this.stage = "ARTICLE";
       this.send(`ARTICLE ${number}`);
       const fields = (await this.status([220])).split(/ +/);
       if (fields[0] !== String(number)) throw new NntpsError();

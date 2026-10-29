@@ -49,13 +49,15 @@ async function fixture(t, mode = '') {
         } else if (command === 'AUTHINFO' && sub === 'PASS') {
           authenticated = (selectedUser === 'Alice' && rest.join(' ') === 'synthetic-a') ||
             (selectedUser === 'Bob' && rest.join(' ') === 'synthetic-b');
-          send(authenticated ? '281 Accepted' : '481 Rejected');
+          send(authenticated ? '281 Accepted' : mode === 'reprompt' ? '381 Password required' : '481 Rejected');
         } else if (command === 'QUIT') { send('205 Closing'); socket.end(); }
         else if (!authenticated) send('480 Authenticate');
         else if (command === 'LIST') {
+          if (mode === 'bare-list' && sub === 'ACTIVE') { send('501 Syntax'); continue; }
+          if (mode === 'denied-list') { send('450 Denied'); continue; }
           send('215 Active groups');
           if (mode === 'oversize') { send('x'.repeat(8193)); continue; }
-          send('welcome 3 1 n'); if (selectedUser === 'Alice') send('workshop 3 1 n'); send('.');
+          send(mode === 'padded' ? 'welcome\t0000000003 0000000001 n  ' : 'welcome 3 1 n'); if (selectedUser === 'Alice') send('workshop 3 1 n'); send('.');
         } else if (command === 'GROUP') {
           group = sub;
           send(group === 'welcome' || (group === 'workshop' && selectedUser === 'Alice') ? `211 3 1 3 ${group}` : '411 No group');
@@ -128,4 +130,24 @@ test('graceful shutdown sends QUIT and closes the authenticated connection', asy
   await session.quit();
   assert.equal(commands.at(-1), 'QUIT');
   await assert.rejects(session.groups());
+});
+
+test('Mystic password reprompt never authenticates and reports native status safely', async t => {
+ const { endpoint } = await fixture(t, 'reprompt');
+ await assert.rejects(NntpsSession.login(endpoint, 'Bob', 'synthetic-a'), error => error.reason === 'CREDENTIALS_REJECTED' && error.stage === 'AUTH_PASS' && error.statusCode === 381);
+});
+test('LIST accepts bounded padded counts and protocol whitespace', async t => {
+ const { endpoint } = await fixture(t, 'padded');
+ const session = await NntpsSession.login(endpoint, 'Bob', 'synthetic-b'); t.after(() => session.close());
+ assert.deepEqual(await session.groups(), ['welcome']);
+});
+test('bare LIST fallback is limited to syntax rejection', async t => {
+ const { endpoint, commands } = await fixture(t, 'bare-list');
+ const session = await NntpsSession.login(endpoint, 'Bob', 'synthetic-b'); t.after(() => session.close());
+ assert.deepEqual(await session.groups(), ['welcome']);
+ assert.equal(commands.filter(s => s === 'LIST').length, 2);
+ const denied = await fixture(t, 'denied-list');
+ const other = await NntpsSession.login(denied.endpoint, 'Bob', 'synthetic-b'); t.after(() => other.close());
+ await assert.rejects(other.groups(), error => error.stage === 'GROUP_LIST' && error.statusCode === 450);
+ assert.equal(denied.commands.filter(s => s === 'LIST').length, 1);
 });

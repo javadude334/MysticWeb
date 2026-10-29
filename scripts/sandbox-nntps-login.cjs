@@ -58,7 +58,7 @@ async function main() {
     console.log('NATIVE_NNTPS_PASSWORD_ACCEPTED: PASS');
     // No group names, subjects, native records or passwords are emitted.
     try { const groups = await session.groups(); console.log('NATIVE_GROUP_LIST: PASS; count=' + groups.length); }
-    catch { console.log('NATIVE_GROUP_LIST: UNAVAILABLE'); }
+    catch (error) { console.log('NATIVE_GROUP_LIST: UNAVAILABLE; stage=' + (error.stage ?? 'UNKNOWN') + '; status=' + (error.statusCode ?? 'NONE')); }
     if (session) { await session.quit(); session = undefined; }
     let wrong = randomBytes(12).toString('hex');
     if (wrong === password) wrong = wrong === 'x' ? 'y' : 'x';
@@ -67,7 +67,7 @@ async function main() {
       const unexpected = await NntpsSession.login(endpoint, username, wrong);
       unexpected.close(); console.log('NATIVE_NNTPS_WRONG_PASSWORD_REJECTED: FAIL'); process.exitCode = 1;
      } catch (error) {
-      if (error?.reason === 'CREDENTIALS_REJECTED') console.log('NATIVE_NNTPS_WRONG_PASSWORD_REJECTED: PASS (native 481)');
+      if (error?.reason === 'CREDENTIALS_REJECTED') console.log('NATIVE_NNTPS_WRONG_PASSWORD_REJECTED: PASS; native=' + error.statusCode);
       else { console.log('NATIVE_NNTPS_WRONG_PASSWORD_REJECTED: INCONCLUSIVE (transport or protocol failure)'); process.exitCode = 1; }
     }
     finally { wrong = ''; }
@@ -75,4 +75,4 @@ async function main() {
   } finally { password = ''; session?.close(); }
 }
 
-main().catch(() => { console.error('NATIVE_NNTPS_LOGIN: UNAVAILABLE (no web session created)'); process.exitCode = 1; });
+main().catch(error => { console.error('NATIVE_NNTPS_LOGIN: DENIED_OR_UNAVAILABLE; stage=' + (error.stage ?? 'INPUT') + '; status=' + (error.statusCode ?? 'NONE')); process.exitCode = 1; });
