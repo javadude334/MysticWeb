@@ -164,8 +164,8 @@ export class NntpsSession {
       const high = Math.min(bounds.high, before === undefined ? bounds.high : before - 1);
       if (!bounds.count || high < bounds.low || high < 1) return { lines: [] as string[], nextBefore: null };
       const low = Math.max(1, bounds.low, high - limit + 1);
-      // A48 predates guaranteed OVER support; XOVER is the compatibility command.
-      this.send(`XOVER ${low}-${high}`); await this.status([224]);
+      // The verified sandbox advertises the standard OVER capability.
+      this.send(`OVER ${low}-${high}`); await this.status([224]);
       const lines = await this.multiline(limit, 256 * 1024);
       const seen = new Set<number>();
       for (const line of lines) {

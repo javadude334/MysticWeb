@@ -14,7 +14,7 @@ connections. It requires the password challenge and successful AUTHINFO PASS;
 an anonymous/already-authorized response to AUTHINFO USER is rejected. Passwords
 are not saved for reconnects. There is no connection pool or user switching.
 Concurrent operations on one connection are rejected; failed operations close it.
-The only wire operations are AUTHINFO USER/PASS, LIST ACTIVE, GROUP, XOVER and
+The only wire operations are AUTHINFO USER/PASS, LIST ACTIVE, GROUP, OVER and
 numeric ARTICLE. No POST, IHAVE, cancel, native file access, subprocess invocation,
 or last-read update exists in this adapter. Native server side effects still
 require live verification. It implements implicit TLS, not STARTTLS fallback.
@@ -78,3 +78,23 @@ password-log suppression at 477; private/netmail exclusion at 731),
 https://wiki.mysticbbs.com/doku.php?id=config_server_servers,
 https://www.rfc-editor.org/rfc/rfc3977,
 https://www.rfc-editor.org/rfc/rfc4643.
+
+## Live protocol observation, October 28
+
+After the operator started the sandbox MIS, process inventory confirmed that
+E:\mystic\mis.exe owned port 8119. A no-credential loopback probe received a 200
+greeting and 101 CAPABILITIES response advertising VERSION, LIST, OVER and POST.
+STARTTLS returned 500. No authentication command, area list or message read was
+sent. The adapter uses advertised OVER and never sends POST. A separate implicit
+TLS endpoint is still required; port 8119 has not been accepted for credentials.
+The configured listeners were bound to all interfaces, not loopback. Other Mystic
+installations were not connected to, stopped or reconfigured.
+
+## Read pointers
+
+Standard NNTP has no operation for Mystic's native last-read pointers. This
+adapter never updates them; the original sprint is explicitly read-only. Opening
+a web message must not be reported as synchronizing the BBS read/unread position.
+A future shared-pointer feature requires a separately authorized supported native
+operation, such as a certified use of Mystic's documented msg_setlr interface.
+NNTP is not a replacement for the gateway's broader native integration boundary.

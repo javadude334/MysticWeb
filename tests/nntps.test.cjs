@@ -58,7 +58,7 @@ async function fixture(t, mode = '') {
         } else if (command === 'GROUP') {
           group = sub;
           send(group === 'welcome' || (group === 'workshop' && selectedUser === 'Alice') ? `211 3 1 3 ${group}` : '411 No group');
-        } else if (command === 'XOVER') {
+        } else if (command === 'OVER') {
           const [lo, hi] = sub.split('-').map(Number); send('224 Overview');
           for (let n = lo; n <= hi; n++) send(`${n}\tSubject ${n}\tTest author\tDate\t<${n}@test>\t\t100\t2`);
           send('.');
@@ -87,7 +87,7 @@ test('TLS authentication binds separate users to separate read-only native conne
   assert.deepEqual(await alice.article('workshop', 3), ['Subject: Synthetic', '', '.literal dot']);
   await assert.rejects(bob.article('workshop', 3), { message: 'Secure Mystic connection unavailable' });
   assert.deepEqual(await alice.groups(), ['welcome', 'workshop']);
-  assert.ok(commands.every(s => ['AUTHINFO USER', 'AUTHINFO PASS', 'LIST', 'GROUP', 'XOVER', 'ARTICLE'].includes(s)));
+  assert.ok(commands.every(s => ['AUTHINFO USER', 'AUTHINFO PASS', 'LIST', 'GROUP', 'OVER', 'ARTICLE'].includes(s)));
 });
 
 test('crossed passwords, unknown users, and command injection never authenticate', async t => {
