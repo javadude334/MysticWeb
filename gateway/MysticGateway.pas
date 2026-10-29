@@ -1,6 +1,6 @@
 program MysticGateway;
 {$mode objfpc}{$H+}
-uses SysUtils, Classes;
+uses Windows, SysUtils, Classes, SandboxBoundary;
 const
   ExpectedRoot = 'E:\mystic';
   ExpectedRecordSize = 1536;
@@ -8,7 +8,8 @@ var
   Root, UsersPath, MysticPath, CanonicalRoot, Mode: string;
   Handle: THandle;
   Size: Int64;
-  Stream: TFileStream;
+  Stream: THandleStream;
+  Boundary: TSandboxBoundary;
   Slot: LongInt;
   Slots: Int64;
   IdBytes: array[0..3] of Byte;
@@ -43,7 +44,7 @@ begin
   Mode := ParamStr(1);
   AllMode := Mode = '--diagnose-all';
   DiagnosticsFailed := False;
-  Root := ExcludeTrailingPathDelimiter(ExtractFilePath(ExpandFileName(ParamStr(0))));
+  Root := ExcludeTrailingPathDelimiter(ExtractFilePath(ModulePath));
   CanonicalRoot := ExcludeTrailingPathDelimiter(ExpandFileName(ExpectedRoot));
   if not SameText(Root, CanonicalRoot) then
   begin
@@ -52,10 +53,18 @@ begin
   end;
   MysticPath := IncludeTrailingPathDelimiter(Root) + 'mystic.exe';
   UsersPath := IncludeTrailingPathDelimiter(Root) + 'data' + PathDelim + 'users.dat';
-  if (not FileExists(MysticPath)) or (not FileExists(UsersPath)) then
-  begin
-    WriteLn('DENIED: required Mystic sandbox files are missing.');
-    Halt(4);
+  Boundary := TSandboxBoundary.Create;
+  try
+    Boundary.OpenChecked(ModulePath);
+    Boundary.OpenChecked(MysticPath);
+    Handle := Boundary.OpenChecked(UsersPath);
+  except
+    on E: Exception do
+    begin
+      Boundary.Free;
+      WriteLn('DENIED: sandbox handle boundary failed.');
+      Halt(4);
+    end;
   end;
   if AllMode then
   begin
@@ -71,17 +80,7 @@ begin
     Halt(0);
   end;
   { Metadata-only: open for read sharing, query length, never read a record. }
-  Handle := FileOpen(UsersPath, fmOpenRead or fmShareDenyNone);
-  if Handle = feInvalidHandle then
-  begin
-    WriteLn('DENIED: unable to open sandbox user file read-only.');
-    Halt(5);
-  end;
-  try
-    Size := FileSeek(Handle, Int64(0), fsFromEnd);
-  finally
-    FileClose(Handle);
-  end;
+  Size := FileSeek(Handle, Int64(0), fsFromEnd);
   if (Size <= 0) or ((Size mod ExpectedRecordSize) <> 0) then
   begin
     WriteLn('DENIED: user file length is not aligned to the expected A48 record size.');
@@ -103,7 +102,7 @@ begin
     WriteLn('DENIED: too many record slots for diagnostic.');
     Halt(8);
   end;
-  Stream := TFileStream.Create(UsersPath, fmOpenRead or fmShareDenyNone);
+  Stream := THandleStream.Create(Handle);
   Seen := TStringList.Create;
   FlagPatterns := TStringList.Create;
   try
@@ -115,7 +114,7 @@ begin
     ZeroCount := 0;
     for Slot := 0 to LongInt(Slots) - 1 do
     begin
-      Stream.Position := Slot * ExpectedRecordSize;
+      Stream.Position := Int64(Slot) * ExpectedRecordSize;
       if Stream.Read(IdBytes, SizeOf(IdBytes)) <> SizeOf(IdBytes) then
       begin
         WriteLn('DENIED: unable to read candidate record identifier.');
@@ -178,5 +177,6 @@ begin
     FlagPatterns.Free;
     Seen.Free;
     Stream.Free;
+    Boundary.Free;
   end;
 end.
