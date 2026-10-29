@@ -1,0 +1,7 @@
+.form { width: 100%; max-width: 360px; display: grid; gap: 10px; text-align: left; margin-top: 24px; }
+.form label { font-size: 13px; color: #d1dfd7; }
+.form input { width: 100%; padding: 13px; border: 1px solid #496750; border-radius: 5px; background: #0b1510; color: #eef8f1; font: inherit; }
+.form input:focus-visible, .form button:focus-visible { outline: 2px solid #a8f0cd; outline-offset: 3px; }
+.form button { margin-top: 12px; min-height: 45px; padding: 13px; border: 0; border-radius: 5px; background: #a8f0cd; color: #14261e; font: inherit; font-size: 13px; cursor: pointer; }
+.form button:disabled { opacity: .65; cursor: wait; }
+.form p { min-height: 3em; color: #ffcabd; font-size: 13px; }
