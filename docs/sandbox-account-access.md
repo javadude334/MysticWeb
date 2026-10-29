@@ -162,3 +162,13 @@ ranges were skipped. Native User Editor confirmation of Security is required
 before treating this layout-based observation as verified account state. At the
 restored s10/s20 thresholds, level 0 would explain denial; it does not explain or
 certify the earlier u1/u2 experiment. Do not lower thresholds or fabricate grants.
+
+## Native User Editor correction
+
+Operator independently confirmed Security Level: test (ID 1) = 255;
+javadude2 (ID 2) = 10. These replace the incorrect offset-1011 interpretation
+above. That offset has not been validated against the installed account layout
+and must not be used for eligibility or security decisions. No production code
+uses that one-off diagnostic read as an authorization grant. Both confirmed
+levels satisfy an s10 minimum; group context and native NNTP catalog filtering
+remain unresolved. No further password test is justified by this correction alone.
