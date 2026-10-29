@@ -16,8 +16,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $installer = Join-Path $env:RUNNER_TEMP 'fpc-3.2.2.exe'
-          Invoke-WebRequest 'https://downloads.sourceforge.net/project/freepascal/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe' -OutFile $installer
-          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ine '7ec78b1790ecac7685f440b17f9e03865bc09846b7c068a9270c4d37704b5ac8') { throw 'Compiler checksum mismatch' }
+          Invoke-WebRequest 'https://downloads.freepascal.org/fpc/dist/3.2.2/i386-win32/fpc-3.2.2.win32.and.win64.exe' -OutFile $installer
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ine '8c255390544b051388b577eb61c6191a04883264afe0e3369b3600a56daf7bde') { throw 'Compiler checksum mismatch' }
           $compilerRoot = Join-Path $env:RUNNER_TEMP 'freepascal'
           $process = Start-Process -FilePath $installer -WindowStyle Hidden -Wait -PassThru -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOICONS','/TASKS=',('/DIR="' + $compilerRoot + '"'))
           if ($process.ExitCode -ne 0) { throw 'Compiler installation failed' }

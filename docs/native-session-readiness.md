@@ -104,3 +104,13 @@ References: installed A48 `docs/records.112` and `docs/whatsnew.txt`;
 [ACS semantics](https://wiki.mysticbbs.com/doku.php?id=access_control),
 [GY/GZ menu commands](https://wiki.mysticbbs.com/doku.php?id=menu_commands),
 [versioned native APIs](https://wiki.mysticbbs.com/doku.php?id=whats_new_112).
+
+Follow-up: Windows path comparison now respects native case insensitivity; the
+loader successfully read the live E: catalog and returned public echo IDs 5/6,
+without opening message files. Hosted frontend, deployment, Windows TypeScript
+and Windows production build passed at 7e66f51. The first native CI attempt
+received an HTML page from SourceForge and rejected its checksum before execution.
+The job now uses the official downloads.freepascal.org mirror, pinned to the
+SHA256 of the 93,909,874-byte installer retrieved over HTTPS during this review:
+8c255390544b051388b577eb61c6191a04883264afe0e3369b3600a56daf7bde.
+Native compile/runtime boundary results remain pending until that job completes.
