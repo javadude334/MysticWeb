@@ -98,3 +98,33 @@ a web message must not be reported as synchronizing the BBS read/unread position
 A future shared-pointer feature requires a separately authorized supported native
 operation, such as a certified use of Mystic's documented msg_setlr interface.
 NNTP is not a replacement for the gateway's broader native integration boundary.
+
+## TLS listener established
+
+Operator restart exposed 127.0.0.1:8563, owned by E:\mystic\mis.exe. An initial
+strict handshake rejected the self-signed certificate. Its public certificate was
+retrieved from that verified local endpoint and saved only to the ignored local
+`.certificates/mystic-sandbox-cert.pem`. No Windows/root trust store changed.
+A subsequent connection with that explicit CA and certificate identity mybbs.com
+passed chain and hostname validation, negotiated TLSv1.2, and received NNTP 200.
+No AUTHINFO or password was sent during these probes. The trust setup is sandbox
+specific; production certificate provisioning remains separate.
+
+`scripts/sandbox-nntps-login.cjs` supplies an operator-run interactive check. It
+accepts no credential arguments, requires a real terminal in this exact E: checkout,
+and masks password input using raw terminal mode. It authenticates against the
+verified TLS endpoint, reports sanitized results and group count only, sends QUIT,
+and tries one generated wrong candidate. Only native 481 rejection passes that
+negative check; transport/protocol errors are inconclusive. It never issues a web
+cookie or claims permanent identity/account/ACS certification. Use disposable
+sandbox accounts. Do not send passwords to chat or capture terminal input.
+
+Run locally:
+
+```
+cd E:\work\javadude_dev\MysticWeb
+node .\scripts\sandbox-nntps-login.cjs
+```
+
+Graceful QUIT shutdown has an additional passing disposable-server regression.
+Actual account authentication is awaiting the operator's masked-input run.

@@ -50,7 +50,8 @@ async function fixture(t, mode = '') {
           authenticated = (selectedUser === 'Alice' && rest.join(' ') === 'synthetic-a') ||
             (selectedUser === 'Bob' && rest.join(' ') === 'synthetic-b');
           send(authenticated ? '281 Accepted' : '481 Rejected');
-        } else if (!authenticated) send('480 Authenticate');
+        } else if (command === 'QUIT') { send('205 Closing'); socket.end(); }
+        else if (!authenticated) send('480 Authenticate');
         else if (command === 'LIST') {
           send('215 Active groups');
           if (mode === 'oversize') { send('x'.repeat(8193)); continue; }
@@ -118,5 +119,13 @@ test('oversized native lines close the connection and disclose no partial group 
   const session = await NntpsSession.login(endpoint, 'Alice', 'synthetic-a');
   t.after(() => session.close());
   await assert.rejects(session.groups());
+  await assert.rejects(session.groups());
+});
+
+test('graceful shutdown sends QUIT and closes the authenticated connection', async t => {
+  const { endpoint, commands } = await fixture(t);
+  const session = await NntpsSession.login(endpoint, 'Alice', 'synthetic-a');
+  await session.quit();
+  assert.equal(commands.at(-1), 'QUIT');
   await assert.rejects(session.groups());
 });

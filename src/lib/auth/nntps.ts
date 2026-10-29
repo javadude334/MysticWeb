@@ -2,7 +2,7 @@ import "server-only";
 import { connect, type TLSSocket } from "node:tls";
 
 export class NntpsError extends Error {
-  constructor() { super("Secure Mystic connection unavailable"); }
+  constructor(public readonly reason: "UNAVAILABLE" | "CREDENTIALS_REJECTED" = "UNAVAILABLE") { super("Secure Mystic connection unavailable"); }
 }
 
 export interface NntpsEndpoint {
@@ -80,7 +80,7 @@ export class NntpsSession {
         session.authenticated = true;
       }, false);
       return session;
-    } catch { session.close(); throw new NntpsError(); }
+    } catch (error) { session.close(); throw error instanceof NntpsError ? error : new NntpsError(); }
     finally { password = ""; }
   }
 
@@ -92,6 +92,12 @@ export class NntpsSession {
     this.socket.destroy();
   }
 
+  async quit(): Promise<void> {
+    if (this.closed) return;
+    try { await this.run(async () => { this.send("QUIT"); await this.status([205]); }); }
+    finally { this.close(); }
+  }
+
   private async run<T>(action: () => Promise<T>, requireAuth = true): Promise<T> {
     if (this.busy || this.closed || (requireAuth && !this.authenticated)) throw new NntpsError();
     this.busy = true;
@@ -100,7 +106,7 @@ export class NntpsSession {
       return await Promise.race([action(), new Promise<never>((_, reject) => {
         timer = setTimeout(() => { this.close(); reject(new NntpsError()); }, 3000);
       })]);
-    } catch { this.close(); throw new NntpsError(); }
+    } catch (error) { this.close(); throw error instanceof NntpsError ? error : new NntpsError(); }
     finally { if (timer) clearTimeout(timer); this.busy = false; }
   }
 
@@ -116,6 +122,7 @@ export class NntpsSession {
   }
   private async status(expected: number[]) {
     const line = await this.line();
+    if (/^481 /.test(line)) throw new NntpsError("CREDENTIALS_REJECTED");
     if (!/^[1-5][0-9]{2} /.test(line) || !expected.includes(Number(line.slice(0, 3)))) throw new NntpsError();
     return line.slice(4);
   }
