@@ -147,3 +147,18 @@ ARTICLE/OVER or web session. Results are observations, not authorization grants.
 Inspect CreateFile failures for the fixture JAM paths and record only operation,
 JAM extension, status and requested access. A sharing violation supports the
 lock-conflict explanation; its absence alone does not certify permissions.
+
+## Follow-up after sandbox MIS restart
+
+Operator reran current-settings diagnostic after restarting E: MIS. Both fixture
+areas again returned listed=false, selected=false, nativeStatus=411 for test.
+The earlier filtered trace contained no mbases.dat or .jhr match; this does not
+establish absence of native I/O (cached handles and capture coverage unresolved).
+Read-only config inspection confirms SystemPath/DataPath/LogsPath/MsgsPath/
+ThemePath resolve lexically to E:\mystic and its subdirectories.
+A bounded metadata read of the records.112-derived packed RecUser Security offset
+1011 returned 0 for IDs 1 and 2, with LockedOut clear. Password and personal-data
+ranges were skipped. Native User Editor confirmation of Security is required
+before treating this layout-based observation as verified account state. At the
+restored s10/s20 thresholds, level 0 would explain denial; it does not explain or
+certify the earlier u1/u2 experiment. Do not lower thresholds or fabricate grants.
