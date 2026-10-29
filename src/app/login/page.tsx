@@ -1,3 +1,7 @@
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { productionAccess } from "@/lib/auth/service";
+import { LoginForm } from "@/components/login-form";
 import { BbsName } from "@/components/bbs-name";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -21,8 +25,7 @@ export default function Login() {
           <span className={styles.eyebrow}><BbsName /> / WEB ACCESS</span>
           <span className={styles.loginIcon} aria-hidden="true">[ _ ]</span>
           <h1 id="login-title">Web login</h1>
-          <span className={styles.badge}>COMING SOON</span>
-          <p>Web sign-in is being connected to Mystic accounts. It is not available yet, and this page does not collect usernames or passwords.</p>
+          <Suspense fallback={<p>Checking sign-in availability…</p>}><LoginAvailability /></Suspense>
           <p>For traditional access, connect to <BbsName /> using your Telnet client.</p>
           <a className={styles.primary} href="telnet://davesbbs.com">Connect via Telnet <span aria-hidden="true">↗</span></a>
           <Link className={styles.back} href="/connect">Need help connecting?</Link>
@@ -32,4 +35,13 @@ export default function Login() {
       <footer className={styles.footer}><span><BbsName /> <b>/</b> KEEP THE CONNECTION ALIVE.</span><span>davesbbs.com</span></footer>
     </div>
   );
+}
+
+async function LoginAvailability() {
+  await connection();
+  if (productionAccess()) return <LoginForm />;
+  return <>
+    <span className={styles.badge}>SIGN-IN UNAVAILABLE</span>
+    <p>Web sign-in is being connected to Mystic accounts. It is not available yet, and this page does not collect usernames or passwords.</p>
+  </>;
 }

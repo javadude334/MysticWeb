@@ -1,0 +1,60 @@
+name: Native Windows boundary
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  native-boundary:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Free Pascal in temporary tools directory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:RUNNER_TEMP 'fpc-3.2.2.exe'
+          Invoke-WebRequest 'https://downloads.freepascal.org/fpc/dist/3.2.2/i386-win32/fpc-3.2.2.win32.and.win64.exe' -OutFile $installer
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ine '8c255390544b051388b577eb61c6191a04883264afe0e3369b3600a56daf7bde') { throw 'Compiler checksum mismatch' }
+          $compilerRoot = Join-Path $env:RUNNER_TEMP 'freepascal'
+          $process = Start-Process -FilePath $installer -WindowStyle Hidden -Wait -PassThru -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOICONS','/TASKS=',('/DIR="' + $compilerRoot + '"'))
+          if ($process.ExitCode -ne 0) { throw 'Compiler installation failed' }
+          $candidates = @((Join-Path $compilerRoot 'bin\x86_64-win64\fpc.exe'), (Join-Path $compilerRoot 'bin\i386-win32\ppcrossx64.exe'))
+          $compiler = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $compiler) { throw '64-bit Windows compiler missing' }
+          "MYSTIC_CI_COMPILER=$compiler" >> $env:GITHUB_ENV
+      - name: Prepare isolated E drive with synthetic boundary fixtures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path 'E:\') { throw 'Refusing to reuse an existing E drive' }
+          # A real temporary volume is required: SUBST resolves to the backing
+          # runner drive and must be rejected by the native final-path checks.
+          $image = Join-Path $env:RUNNER_TEMP 'mystic-ci.vhd'
+          if (Test-Path -LiteralPath $image) { throw 'Preserve existing image' }
+          $diskpartScript = Join-Path $env:RUNNER_TEMP 'create-mystic-ci.txt'
+          ('create vdisk file="' + $image + '" maximum=64 type=expandable') | Set-Content -LiteralPath $diskpartScript
+          diskpart /s $diskpartScript
+          if (-not (Test-Path -LiteralPath $image)) { throw 'Cannot create test image' }
+          "MYSTIC_CI_IMAGE=$image" >> $env:GITHUB_ENV
+          $mounted = Mount-DiskImage -ImagePath $image -NoDriveLetter -PassThru
+          $disk = $mounted | Get-Disk
+          if ($disk.IsBoot -or $disk.IsSystem -or $disk.PartitionStyle -ne 'RAW') { throw 'Unexpected test disk' }
+          $disk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -DriveLetter E | Format-Volume -FileSystem NTFS -NewFileSystemLabel 'MysticCI' -Confirm:$false | Out-Null
+          $checkout = 'E:\mystic\ci'
+          New-Item -ItemType Directory -Path $checkout -Force | Out-Null
+          Copy-Item -LiteralPath gateway,scripts -Destination $checkout -Recurse
+      - name: Compile 64-bit gateway and verify native path boundaries
+        shell: pwsh
+        run: |
+          & 'E:\mystic\ci\scripts\tests\native-boundary.tests.ps1' -Compiler $env:MYSTIC_CI_COMPILER
+          if ($LASTEXITCODE -ne 0) { throw 'Native boundary checks failed' }
+      - name: Release test drive mapping
+        if: always() && env.MYSTIC_CI_IMAGE != ''
+        shell: pwsh
+        run: Dismount-DiskImage -ImagePath $env:MYSTIC_CI_IMAGE

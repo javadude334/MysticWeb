@@ -24,10 +24,16 @@ def run_revision(revision, check_pages):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
-    with tempfile.TemporaryFile(mode="w+") as log:
+    with tempfile.TemporaryDirectory(prefix="mystic-branding-") as branding_root, tempfile.TemporaryFile(mode="w+") as log:
+        config = bytearray(8192)
+        config[:9] = b'\x081.12 A47'
+        name = b'Smoke Board'
+        config[989] = len(name)
+        config[990:990 + len(name)] = name
+        Path(branding_root, 'mystic.dat').write_bytes(config)
         process = subprocess.Popen(
             ["node", "node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", str(port)],
-            cwd=ROOT, env=dict(os.environ, MYSTICWEB_REVISION=revision),
+            cwd=ROOT, env=dict(os.environ, MYSTICWEB_REVISION=revision, MYSTIC_DATA_ROOT=branding_root),
             stdout=log, stderr=subprocess.STDOUT,
         )
         try:
@@ -47,7 +53,7 @@ def run_revision(revision, check_pages):
             if check_pages:
                 for host in ["davesbbs.com", "www.davesbbs.com"]:
                     _, body = request(port, "/", host)
-                    assert "Dave's BBS" in html.unescape(body)
+                    assert "Smoke Board" in html.unescape(body)
                     assert 'href="telnet://davesbbs.com"' in body
                     assert 'href="/login"' in body
                     assert 'href="/connect"' in body
@@ -57,7 +63,7 @@ def run_revision(revision, check_pages):
                 assert "<form" not in guide and "<input" not in guide
                 assert "does not report live BBS availability" in guide
                 _, login = request(port, "/login")
-                assert "COMING SOON" in login
+                assert "SIGN-IN UNAVAILABLE" in login
                 assert "<input" not in login and "<form" not in login
                 assert 'href="/connect"' in login
                 _, dashboard = request(port, "/dashboard")
