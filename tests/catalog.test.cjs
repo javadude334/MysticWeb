@@ -40,6 +40,8 @@ test('catalog rejects ambiguous IDs, malformed layout and paths outside message 
   const root = path.resolve('fixture'), msgs = path.join(root, 'msgs');
   assert.throws(() => parseReadOnlyCatalog(group(), Buffer.concat([base(2), base(2)]), root, msgs));
   assert.throws(() => parseReadOnlyCatalog(group().subarray(1), base(2), root, msgs));
+  const alias = base(3, 1, 16); put(alias, 138, 'radio2');
+  assert.throws(() => parseReadOnlyCatalog(group(), Buffer.concat([base(2), alias]), root, msgs), /Aliased/);
   const b = base(2); put(b, 179, '../outside');
   assert.throws(() => parseReadOnlyCatalog(group(), b, root, msgs));
   put(b, 179, 'msgs'); put(b, 138, '../radio');

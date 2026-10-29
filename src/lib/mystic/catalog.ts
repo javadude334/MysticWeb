@@ -46,11 +46,17 @@ export function parseReadOnlyCatalog(groups: Buffer, bases: Buffer, root: string
     if (!id || id > 0x7fffffff || groupIds.has(id)) throw new Error("Ambiguous group");
     groupIds.add(id); field(r, 4, 80); field(r, 167, 30);
   }
-  const ids = new Set<number>(), names = new Set<string>(), areas: Catalog["areas"][number][] = [];
+  const ids = new Set<number>(), names = new Set<string>(), storage = new Set<string>(), areas: Catalog["areas"][number][] = [];
   for (let o = 0; o < bases.length; o += 768) {
     const r = bases.subarray(o, o + 768), id = r.readUInt16LE(0);
     if (!id || ids.has(id)) throw new Error("Ambiguous area");
     ids.add(id);
+    // A public area may never alias a private/netmail area's physical storage.
+    // Resolve metadata lexically only; never open the configured target here.
+    const storedBase = field(r, 138, 40).toString("latin1"), storedFolder = field(r, 179, 80).toString("latin1");
+    const storageKey = path.resolve(root, storedFolder, storedBase).toLowerCase();
+    if (storage.has(storageKey)) throw new Error("Aliased message storage");
+    storage.add(storageKey);
     if (r[260] !== 1 || (r.readUInt32LE(577) & 16)) continue;
     const base = field(r, 138, 40).toString("latin1"), folder = field(r, 179, 80).toString("latin1");
     const nameBytes = field(r, 2, 60);
