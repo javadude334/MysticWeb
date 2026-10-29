@@ -32,6 +32,7 @@ test('catalog excludes local/private/netmail without treating metadata as permis
   const rows = Buffer.concat([base(1, 0), base(2), base(3, 3), base(4, 1, 16)]);
   const c = parseReadOnlyCatalog(group(), rows, root, path.join(root, 'msgs'));
   assert.deepEqual(c.areas, [{ id: 2, name: 'Radio', jamBase: 'radio2' }]);
+  if (process.platform === 'win32') assert.deepEqual(parseReadOnlyCatalog(group(), rows, root.toUpperCase(), path.join(root, 'msgs').toLowerCase()).areas, c.areas);
   const changed = Buffer.from(rows); put(changed, 768 + 263, 'u1g2');
   assert.notEqual(c.revision, parseReadOnlyCatalog(group(), changed, root, path.join(root, 'msgs')).revision);
 });

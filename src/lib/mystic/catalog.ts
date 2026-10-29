@@ -57,7 +57,9 @@ export function parseReadOnlyCatalog(groups: Buffer, bases: Buffer, root: string
     if (!isJamBaseName(base) || names.has(base.toLowerCase()) || !nameBytes.length ||
       [...nameBytes].some(b => b < 32 || b === 127) || /[\x00-\x1f\x7f]/.test(folder)) throw new Error("Invalid public area");
     names.add(base.toLowerCase());
-    if (path.resolve(root, folder) !== path.resolve(messageRoot)) throw new Error("Unsupported message path");
+    const configured = path.resolve(root, folder), expected = path.resolve(messageRoot);
+    const matches = process.platform === "win32" ? configured.toLowerCase() === expected.toLowerCase() : configured === expected;
+    if (!matches) throw new Error("Unsupported message path");
     // Preserve original display characters; never interpret Mystic display codes.
     const name = decodeJamText(nameBytes).replace(/\|[0-9a-zA-Z]{2}/g, "").trim();
     if (!name) throw new Error("Invalid area name");

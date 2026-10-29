@@ -46,4 +46,4 @@ jobs:
       - name: Release test drive mapping
         if: always() && env.MYSTIC_CI_MAPPED_E == '1'
         shell: pwsh
-        run: subst E: /D
+        run: 'subst E: /D'
