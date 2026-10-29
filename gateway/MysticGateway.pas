@@ -1,0 +1,182 @@
+program MysticGateway;
+{$mode objfpc}{$H+}
+uses SysUtils, Classes;
+const
+  ExpectedRoot = 'E:\mystic';
+  ExpectedRecordSize = 1536;
+var
+  Root, UsersPath, MysticPath, CanonicalRoot, Mode: string;
+  Handle: THandle;
+  Size: Int64;
+  Stream: TFileStream;
+  Slot: LongInt;
+  Slots: Int64;
+  IdBytes: array[0..3] of Byte;
+  FlagBytes: array[0..3] of Byte;
+  FlagPatterns: TStringList;
+  FlagKey: string;
+  IdValue: LongWord;
+  Seen: TStringList;
+  DuplicateCount, ZeroCount: Integer;
+  Key: string;
+  AllMode: Boolean;
+  DiagnosticsFailed: Boolean;
+begin
+  { Explicit fail-closed auth boundary. No passwords are accepted via arguments. }
+  if (ParamCount > 0) and (ParamStr(1) = '--authenticate') then
+  begin
+    WriteLn('DENIED: native Mystic authentication is not certified.');
+    WriteLn('No credentials were processed. Authentication and server disabled.');
+    Halt(11);
+  end;
+  { No listener, authentication, user data output, or writes. }
+  if (ParamCount <> 1) or
+     ((ParamStr(1) <> '--preflight') and (ParamStr(1) <> '--inspect-layout') and
+      (ParamStr(1) <> '--inspect-identities') and
+      (ParamStr(1) <> '--inspect-flag-patterns') and
+      (ParamStr(1) <> '--diagnose-all')) then
+  begin
+    WriteLn('MysticGateway diagnostic build; authentication and server disabled.');
+    WriteLn('Usage: MysticGateway.exe --preflight | --inspect-layout | --inspect-identities | --inspect-flag-patterns | --diagnose-all');
+    Halt(2);
+  end;
+  Mode := ParamStr(1);
+  AllMode := Mode = '--diagnose-all';
+  DiagnosticsFailed := False;
+  Root := ExcludeTrailingPathDelimiter(ExtractFilePath(ExpandFileName(ParamStr(0))));
+  CanonicalRoot := ExcludeTrailingPathDelimiter(ExpandFileName(ExpectedRoot));
+  if not SameText(Root, CanonicalRoot) then
+  begin
+    WriteLn('DENIED: diagnostics are restricted to E:\mystic.');
+    Halt(3);
+  end;
+  MysticPath := IncludeTrailingPathDelimiter(Root) + 'mystic.exe';
+  UsersPath := IncludeTrailingPathDelimiter(Root) + 'data' + PathDelim + 'users.dat';
+  if (not FileExists(MysticPath)) or (not FileExists(UsersPath)) then
+  begin
+    WriteLn('DENIED: required Mystic sandbox files are missing.');
+    Halt(4);
+  end;
+  if AllMode then
+  begin
+    WriteLn('MysticGateway consolidated read-only sandbox diagnostics');
+    WriteLn('PASS: executable located at approved sandbox root.');
+    WriteLn('PASS: mystic.exe and data/users.dat are present.');
+    WriteLn('PASS: no network listener, password verification, or write operation is enabled.');
+  end;
+  if Mode = '--preflight' then
+  begin
+    WriteLn('PASS: sandbox root and required file paths exist.');
+    WriteLn('Gateway features: disabled (preflight only).');
+    Halt(0);
+  end;
+  { Metadata-only: open for read sharing, query length, never read a record. }
+  Handle := FileOpen(UsersPath, fmOpenRead or fmShareDenyNone);
+  if Handle = feInvalidHandle then
+  begin
+    WriteLn('DENIED: unable to open sandbox user file read-only.');
+    Halt(5);
+  end;
+  try
+    Size := FileSeek(Handle, Int64(0), fsFromEnd);
+  finally
+    FileClose(Handle);
+  end;
+  if (Size <= 0) or ((Size mod ExpectedRecordSize) <> 0) then
+  begin
+    WriteLn('DENIED: user file length is not aligned to the expected A48 record size.');
+    Halt(6);
+  end;
+  Slots := Size div ExpectedRecordSize;
+  WriteLn('PASS: A48 user file length is aligned to 1536-byte records.');
+  WriteLn('Record slots: ', Slots);
+  if Mode = '--inspect-layout' then
+  begin
+    WriteLn('No user records or passwords were read. Authentication remains disabled.');
+    Halt(0);
+  end;
+  { Read ONLY the four-byte candidate ID at the beginning of each slot.
+    This offset is provisional, not a certified A48 schema or account policy.
+    Never emit actual IDs, names, flags, or credential material. }
+  if Slots > High(LongInt) then
+  begin
+    WriteLn('DENIED: too many record slots for diagnostic.');
+    Halt(8);
+  end;
+  Stream := TFileStream.Create(UsersPath, fmOpenRead or fmShareDenyNone);
+  Seen := TStringList.Create;
+  FlagPatterns := TStringList.Create;
+  try
+    FlagPatterns.Sorted := True;
+    FlagPatterns.Duplicates := dupIgnore;
+    Seen.Sorted := True;
+    Seen.Duplicates := dupIgnore;
+    DuplicateCount := 0;
+    ZeroCount := 0;
+    for Slot := 0 to LongInt(Slots) - 1 do
+    begin
+      Stream.Position := Slot * ExpectedRecordSize;
+      if Stream.Read(IdBytes, SizeOf(IdBytes)) <> SizeOf(IdBytes) then
+      begin
+        WriteLn('DENIED: unable to read candidate record identifier.');
+        Halt(7);
+      end;
+      IdValue := LongWord(IdBytes[0]) or (LongWord(IdBytes[1]) shl 8) or
+                 (LongWord(IdBytes[2]) shl 16) or (LongWord(IdBytes[3]) shl 24);
+      if (Mode = '--inspect-flag-patterns') or AllMode then
+      begin
+        if Stream.Read(FlagBytes, SizeOf(FlagBytes)) <> SizeOf(FlagBytes) then
+        begin
+          WriteLn('DENIED: unable to read candidate flag bytes.');
+          Halt(9);
+        end;
+        FlagKey := IntToHex(FlagBytes[0], 2) + IntToHex(FlagBytes[1], 2) +
+                   IntToHex(FlagBytes[2], 2) + IntToHex(FlagBytes[3], 2);
+        if FlagPatterns.IndexOf(FlagKey) < 0 then FlagPatterns.Add(FlagKey);
+      end;
+      if IdValue = 0 then Inc(ZeroCount);
+      Key := IntToHex(IdValue, 8);
+      if Seen.IndexOf(Key) >= 0 then Inc(DuplicateCount)
+      else Seen.Add(Key);
+    end;
+    if (Mode = '--inspect-flag-patterns') or AllMode then
+    begin
+      WriteLn('Candidate flags field: bytes 4-7 (unverified semantics).');
+      WriteLn('Distinct raw flag patterns: ', FlagPatterns.Count);
+      WriteLn('No raw flag values, account identifiers, or personal data displayed.');
+      WriteLn('No active/locked/deleted account classification performed.');
+      WriteLn('Authentication and server remain disabled.');
+      if not AllMode then Halt(0);
+    end;
+    WriteLn('Candidate identifier field: first four bytes, little-endian (unverified).');
+    WriteLn('Zero-valued identifiers: ', ZeroCount);
+    WriteLn('Repeated identifiers: ', DuplicateCount);
+    WriteLn('No account identifiers or personal data were displayed.');
+    WriteLn('Native password verification and account policy remain disabled.');
+    if AllMode then
+    begin
+      if ZeroCount <> 0 then
+      begin
+        WriteLn('WARN: zero-valued candidate IDs detected.');
+        DiagnosticsFailed := True;
+      end;
+      if DuplicateCount <> 0 then
+      begin
+        WriteLn('WARN: repeated candidate IDs detected.');
+        DiagnosticsFailed := True;
+      end;
+      WriteLn('WARN: A48 flag meanings, account eligibility, native password verification,');
+      WriteLn('      requested-user ACS and concurrent file behavior are NOT certified.');
+      if DiagnosticsFailed then
+      begin
+        WriteLn('RESULT: FAIL - candidate identity anomalies; no authentication enabled.');
+        Halt(10);
+      end;
+      WriteLn('RESULT: PASS - structural diagnostics only; authentication NOT certified.');
+    end;
+  finally
+    FlagPatterns.Free;
+    Seen.Free;
+    Stream.Free;
+  end;
+end.

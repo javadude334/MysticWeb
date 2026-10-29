@@ -1,0 +1,50 @@
+name: MysticGateway Windows diagnostic build
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/single-exe-gateway-preflight]
+    paths:
+      - 'gateway/**'
+      - '.github/workflows/mysticgateway-windows.yml'
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        shell: pwsh
+        run: choco install freepascal --yes --no-progress
+      - name: Find compiler and build
+        shell: pwsh
+        run: |
+          $fpc = Get-ChildItem 'C:\tools','C:\ProgramData\chocolatey' -Filter fpc.exe -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $fpc) { throw 'Free Pascal compiler not found after install' }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $output = Join-Path (Resolve-Path dist).Path 'MysticGateway.exe'
+          $unitDir = (Resolve-Path dist).Path
+          & $fpc.FullName -Mobjfpc -O2 "-o$output" "-FU$unitDir" gateway/MysticGateway.pas
+          if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }
+          if (-not (Test-Path -LiteralPath $output)) {
+            Get-ChildItem -Path . -Filter MysticGateway.exe -Recurse | Select-Object -ExpandProperty FullName
+            throw 'Executable missing from expected absolute output path'
+          }
+          Write-Host "Built: $output ($((Get-Item $output).Length) bytes)"
+      - name: Verify fail-closed behavior away from sandbox
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path ./dist/MysticGateway.exe).Path
+          $preflight = Start-Process -FilePath $exe -ArgumentList '--preflight' -Wait -PassThru -NoNewWindow
+          if ($preflight.ExitCode -ne 3) { throw "Expected sandbox denial exit 3; got $($preflight.ExitCode)" }
+          $unconfigured = Start-Process -FilePath $exe -Wait -PassThru -NoNewWindow
+          if ($unconfigured.ExitCode -ne 2) { throw "Expected disabled gateway exit 2; got $($unconfigured.ExitCode)" }
+          $auth = Start-Process -FilePath $exe -ArgumentList '--authenticate' -Wait -PassThru -NoNewWindow
+          if ($auth.ExitCode -ne 11) { throw "Expected uncertified authentication denial exit 11; got $($auth.ExitCode)" }
+          Write-Host 'PASS: sandbox restriction, unconfigured invocation, and authentication denial returned expected exit codes.'
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MysticGateway-Windows-preflight-only
+          path: dist/MysticGateway.exe
+          if-no-files-found: error
