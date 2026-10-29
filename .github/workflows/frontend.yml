@@ -41,5 +41,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Check secure NNTP adapter with disposable TLS server
+        run: node --test tests/nntps.test.cjs
       - run: npx tsc --noEmit
       - run: npm run build
