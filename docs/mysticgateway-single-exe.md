@@ -1,6 +1,6 @@
 # MysticGateway: single-file deployment target
 
-Status: design and read-only preflight only. **No gateway executable or certified login exists yet.**
+Status: Windows diagnostic executable compiled and tested in disposable sandbox. **No certified native login or operational gateway exists yet.**
 
 ## Operator contract
 
@@ -28,7 +28,7 @@ Run from the updated MysticWeb checkout:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gateway-preflight.ps1
 ```
 
-It reports only file presence/sizes, compiler availability, Git revision, and platform metadata. It does **not** read account contents, execute Mystic, launch services, change settings, or access D:. The report is saved to the user's TEMP directory and copied to the clipboard when available.
+It reports only file presence/sizes, tool availability, and platform metadata. It derives the checkout directory from the script location and rejects reparse points in every checked path component. Missing prerequisites and errors return exit 1. It does **not** read account contents, execute Mystic or Git, launch services, change settings, access D:, write a report, or change the clipboard. Output is emitted to the console. Sequential metadata checks do not protect against concurrent path replacement or audit configuration/service references. They do not establish that the Pascal executable is safe to run; its independent path boundary still needs hardening. See [the recovery checkpoint](recovery-checkpoint-2026-10-28.md).
 
 ## Acceptance criteria
 
@@ -38,3 +38,7 @@ It reports only file presence/sizes, compiler availability, Git revision, and pl
 4. Do not expose messages until requested-user group/ListACS/ReadACS checks are proven.
 5. Verify concurrent BBS usage and file locking before any write to Mystic read-state files.
 6. Keep production auth disabled until an independently reviewed activation and native certification.
+
+## Current diagnostic scope
+
+The sandbox-only executable supports `--preflight`, `--inspect-layout`, `--inspect-identities`, and `--inspect-flag-patterns`. These are read-only diagnostics. The last mode counts distinct raw patterns in candidate account flags at bytes 4–7 without displaying values or interpreting account status. No standalone native password verifier or requested-user ACS evaluator has been certified.
