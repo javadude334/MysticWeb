@@ -112,3 +112,21 @@ preflight passed with this wider guard. During the run, catalog topology is pinn
 so adding bases, changing paths/newsgroup names, changing privacy or replacing group
 identities stops probes instead of redirecting them to unlocked files. Only the
 planned area 2/5 ListACS/ReadACS and group 2 ACS edits are accepted between phases.
+
+## Operator baseline result — October 29, 2026
+
+Both disposable accounts completed NNTPS authentication. With group 2 ACS s0,
+area 2 ListACS/ReadACS u1, and area 5 ListACS/ReadACS u2, both accounts
+reported listed=false and GROUP selection status 411 for both areas. Baseline
+result: FAIL_OR_INCONCLUSIVE. No identity, group/ListACS/ReadACS separation or
+revocation claim follows from these denials. No direct messages or browser
+sessions were requested. The harness reported its message/read-pointer locks
+were held; this is not an independent before/after file hash measurement.
+
+Unresolved causes include native catalog reload behavior, native area filtering,
+and inability to open JAM files under read-only sharing locks. None is yet
+established. Do not remove write prevention or weaken ACS to obtain a pass.
+Before another credential run, diagnose native catalog/file-open behavior with
+metadata-only observation. Restore the documented original fixture settings
+when ending this experiment. General NNTPS identity/current eligibility remains
+unsupported by the capabilities established so far.
