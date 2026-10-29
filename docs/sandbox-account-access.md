@@ -130,3 +130,7 @@ Before another credential run, diagnose native catalog/file-open behavior with
 metadata-only observation. Restore the documented original fixture settings
 when ending this experiment. General NNTPS identity/current eligibility remains
 unsupported by the capabilities established so far.
+
+Operator selected group 2 ACS s10 as the restoration baseline after this run;
+use s10 for future cleanup, superseding the original s20 setting.
+

@@ -263,5 +263,5 @@ main().catch(error => {
   for (const session of sessions) { try { await session.quit(); } catch { session.close(); } }
   if (locker && locker.exitCode === null) { locker.stdin.end('release\n'); }
   console.log('MESSAGE_FILES_AND_READ_POINTERS_UNCHANGED_BY_TOOL; BROWSER_LOGIN_DISABLED');
-  if (operatorRun) console.log('Restore fixture settings in the E: editor: user ID 1 Locked Out=No; area 2 ListACS/ReadACS=s10g1; area 5=s10g2; TestNET group 2 ACS=s20.');
+  if (operatorRun) console.log('Restore fixture settings in the E: editor: user ID 1 Locked Out=No; area 2 ListACS/ReadACS=s10g1; area 5=s10g2; TestNET group 2 ACS=s10.');
 });
