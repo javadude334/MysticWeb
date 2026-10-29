@@ -178,3 +178,21 @@ A read path must establish that it cannot modify native user/message files;
 otherwise use the existing direct read-only JAM reader behind independently
 verified identity and per-area authorization. A read-only client command alone
 is not proof of a read-only native server implementation.
+
+## TestNET sandbox configuration verified
+
+The operator created TestNET configuration and assigned newsgroup names. Read-only
+A48 metadata inspection found two groups and five areas. All five resolved JAM
+locations are within E:\mystic; component checks rejected links/outside paths.
+Public areas are ID 2 (local.general) and ID 5 (testnet.sysop). The other three
+are private or netmail; these remain excluded from the intended public reader.
+
+The existing direct read-only JAM implementation parsed one visible header in
+each public area, with no skipped headers and no missing message IDs in that
+sample. No bodies were requested, no native OVER/ARTICLE command was sent, and
+no user/message/configuration file was modified. Existing IDs in this sample do
+not prove future NNTP reads cannot write. Native per-account area listing and
+read access, permanent-identity web binding and eligibility/revocation behavior
+still require verification; configuration existence is not an authorization grant.
+Native password acceptance and wrong-password rejection remain established by
+the operator's prior masked-input results and need not be re-proven separately.
