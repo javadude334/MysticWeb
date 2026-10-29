@@ -151,3 +151,30 @@ status codes only, with no server reply text, account records or message data.
 Focused regressions cover these behaviors. The next operator run is needed to
 identify or resolve the authenticated group-list failure; browser login remains
 disabled and identity/eligibility/ACS certification remains incomplete.
+
+## Latest operator result: native authentication passes
+
+The updated masked-input run reported:
+
+```
+NATIVE_NNTPS_PASSWORD_ACCEPTED: PASS
+NATIVE_GROUP_LIST: PASS; count=0
+NATIVE_NNTPS_WRONG_PASSWORD_REJECTED: PASS; native=381
+```
+
+This is operator-reported native NNTPS evidence for javadude2, not a browser login.
+The group parser now succeeds. A read-only inspection of the sandbox A48 catalog
+found three areas, all with blank NewsName fields. ID 2 is a public local base;
+IDs 1 and 3 are private, with ID 3 also netmail. The next native-editor step is to
+assign a newsgroup name to the public area only, preserving all ACS and privacy.
+The checker now reports that metadata-only setup hint automatically for an empty
+native list. It does not change configuration or grant access from catalog data.
+
+Important no-write constraint: the installed A48 changelog and official 1.12
+changelog explicitly state that NNTP generates missing MSGIDs when encountered.
+No OVER/ARTICLE command has been sent to the real sandbox by this work. Do not
+activate native message-body reads merely because authentication and listing pass.
+A read path must establish that it cannot modify native user/message files;
+otherwise use the existing direct read-only JAM reader behind independently
+verified identity and per-area authorization. A read-only client command alone
+is not proof of a read-only native server implementation.

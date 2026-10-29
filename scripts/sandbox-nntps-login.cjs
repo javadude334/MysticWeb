@@ -31,6 +31,33 @@ function hiddenPassword() {
   });
 }
 
+function areaSetupHint() {
+  // Metadata only, from the fixed sandbox path. Never treat it as authorization.
+  const filename = "E:/mystic/data/mbases.dat";
+  for (const part of ["E:/mystic", "E:/mystic/data", filename]) if (fs.lstatSync(part).isSymbolicLink()) return;
+  const fd = fs.openSync(filename, "r");
+  try {
+    const before = fs.fstatSync(fd);
+    if (!before.isFile() || before.size % 768 || before.size > 512 * 768) return;
+    const data = Buffer.alloc(before.size);
+    if (fs.readSync(fd, data, 0, data.length, 0) !== data.length) return;
+    const after = fs.fstatSync(fd);
+    if (before.mtimeMs !== after.mtimeMs || before.size !== after.size) return;
+    let named = 0; const publicIds = [];
+    for (let offset = 0; offset < data.length; offset += 768) {
+      const record = data.subarray(offset, offset + 768);
+      if (record[77] > 60) return;
+      if (record[77] > 0) named++;
+      if ((record.readUInt32LE(577) & 16) === 0 && record[260] !== 3) publicIds.push(record.readUInt16LE(0));
+    }
+    if (!named) {
+      console.log("NNTP_AREA_SETUP: all sandbox newsgroup names are blank");
+      console.log("PUBLIC_AREA_IDS_FOR_EDITOR: " + publicIds.join(","));
+      console.log("Set a newsgroup name through the E: native editor; preserve access rules and private/netmail settings.");
+    }
+  } finally { fs.closeSync(fd); }
+}
+
 async function main() {
   if (process.argv.length !== 2 || !process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive use only');
   const root = path.resolve(__dirname, '..');
@@ -57,7 +84,7 @@ async function main() {
     session = await NntpsSession.login(endpoint, username, password);
     console.log('NATIVE_NNTPS_PASSWORD_ACCEPTED: PASS');
     // No group names, subjects, native records or passwords are emitted.
-    try { const groups = await session.groups(); console.log('NATIVE_GROUP_LIST: PASS; count=' + groups.length); }
+    try { const groups = await session.groups(); console.log('NATIVE_GROUP_LIST: PASS; count=' + groups.length); if (!groups.length) { try { areaSetupHint(); } catch { /* Hint failures never change authentication results. */ } } }
     catch (error) { console.log('NATIVE_GROUP_LIST: UNAVAILABLE; stage=' + (error.stage ?? 'UNKNOWN') + '; status=' + (error.statusCode ?? 'NONE')); }
     if (session) { await session.quit(); session = undefined; }
     let wrong = randomBytes(12).toString('hex');
