@@ -12,6 +12,7 @@ type
   end;
 function ModulePath: string;
 implementation
+const OpenReparsePointFlag = DWORD($00200000); { Win32 FILE_FLAG_OPEN_REPARSE_POINT; absent from FPC 3.2.2 Windows unit. }
 function FinalPathName(Handle: THandle; Buffer: PChar; Count, Flags: DWORD): DWORD;
   stdcall; external 'kernel32.dll' name 'GetFinalPathNameByHandleA';
 function ModulePath: string;
@@ -43,7 +44,7 @@ begin
       if Length(Part) <= Last then Continue;
       Last := Length(Part);
       H := CreateFile(PChar(Part), GENERIC_READ, FILE_SHARE_READ, nil,
-        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS or FILE_FLAG_OPEN_REPARSE_POINT, 0);
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS or OpenReparsePointFlag, 0);
       if H = INVALID_HANDLE_VALUE then
         raise Exception.Create('Cannot pin sandbox path component');
       SetLength(Handles, Length(Handles) + 1);

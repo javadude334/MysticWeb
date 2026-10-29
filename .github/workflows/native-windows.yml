@@ -30,11 +30,19 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if (Test-Path 'E:\') { throw 'Refusing to reuse an existing E drive' }
-          $volume = Join-Path $env:RUNNER_TEMP 'mystic-test-volume'
-          New-Item -ItemType Directory -Path $volume | Out-Null
-          subst E: $volume
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot create isolated E drive' }
-          'MYSTIC_CI_MAPPED_E=1' >> $env:GITHUB_ENV
+          # A real temporary volume is required: SUBST resolves to the backing
+          # runner drive and must be rejected by the native final-path checks.
+          $image = Join-Path $env:RUNNER_TEMP 'mystic-ci.vhd'
+          if (Test-Path -LiteralPath $image) { throw 'Preserve existing image' }
+          $diskpartScript = Join-Path $env:RUNNER_TEMP 'create-mystic-ci.txt'
+          ('create vdisk file="' + $image + '" maximum=64 type=expandable') | Set-Content -LiteralPath $diskpartScript
+          diskpart /s $diskpartScript
+          if (-not (Test-Path -LiteralPath $image)) { throw 'Cannot create test image' }
+          "MYSTIC_CI_IMAGE=$image" >> $env:GITHUB_ENV
+          $mounted = Mount-DiskImage -ImagePath $image -NoDriveLetter -PassThru
+          $disk = $mounted | Get-Disk
+          if ($disk.IsBoot -or $disk.IsSystem -or $disk.PartitionStyle -ne 'RAW') { throw 'Unexpected test disk' }
+          $disk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -DriveLetter E | Format-Volume -FileSystem NTFS -NewFileSystemLabel 'MysticCI' -Confirm:$false | Out-Null
           $checkout = 'E:\mystic\ci'
           New-Item -ItemType Directory -Path $checkout -Force | Out-Null
           Copy-Item -LiteralPath gateway,scripts -Destination $checkout -Recurse
@@ -44,6 +52,6 @@ jobs:
           & 'E:\mystic\ci\scripts\tests\native-boundary.tests.ps1' -Compiler $env:MYSTIC_CI_COMPILER
           if ($LASTEXITCODE -ne 0) { throw 'Native boundary checks failed' }
       - name: Release test drive mapping
-        if: always() && env.MYSTIC_CI_MAPPED_E == '1'
+        if: always() && env.MYSTIC_CI_IMAGE != ''
         shell: pwsh
-        run: 'subst E: /D'
+        run: Dismount-DiskImage -ImagePath $env:MYSTIC_CI_IMAGE
