@@ -196,3 +196,26 @@ read access, permanent-identity web binding and eligibility/revocation behavior
 still require verification; configuration existence is not an authorization grant.
 Native password acceptance and wrong-password rejection remain established by
 the operator's prior masked-input results and need not be re-proven separately.
+
+## Amateur Radio base and read-state fixtures
+
+The operator added TestNET Amateur Radio as public echo area ID 6 with newsgroup
+name testnet_radio. All three JAM file locations passed E:\mystic confinement and
+link checks. The operator reports test has read every message, while javadude2
+has read none; these are useful read-state fixtures, not access-control evidence.
+No .jlr data was opened or changed by this validation.
+
+Initial read-only header enumeration skipped 25 entries. Fixed-header inspection
+found no deleted/private/protected/invalid records. Subfield inspection identified
+23 ASCII and two CP850 declarations unsupported by the reader. Added strict ASCII
+(no high bytes) and CP850 using the official Unicode Consortium mapping, preserving
+existing control stripping and rejection of unknown encodings. Source mapping:
+https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/PC/CP850.TXT
+
+After the fix, the existing direct read-only reader enumerated all 76 headers in
+four pages (25, 25, 25, 1), with no skips or duplicate message numbers. No bodies
+were requested or displayed and no native NNTP body-read command was issued.
+Twelve focused JAM tests and TypeScript pass. The fixture also verifies CP850
+body decoding using synthetic messages; live copied message bodies remain unread.
+This establishes storage/encoding/pagination readiness, not authenticated web
+access. Browser composition and account/area policy gates remain disabled.
