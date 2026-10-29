@@ -1,3 +1,4 @@
+import { BbsName } from "@/components/bbs-name";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyBbsAddress } from "@/components/copy-bbs-address";
@@ -10,15 +11,15 @@ export default function Connect() {
     <div className={styles.page}>
       <a className="skip-link" href="#main">Skip to content</a>
       <header className={styles.header}>
-        <Link className={styles.brand} href="/" aria-label="Dave's BBS home">
-          <span className={styles.mark} aria-hidden="true">D_</span>
-          <span>Dave&apos;s <b>BBS</b><small>THE CONNECTION STARTS HERE</small></span>
+        <Link className={styles.brand} href="/" aria-label="Board home">
+          <span className={styles.mark} aria-hidden="true">M_</span>
+          <span><BbsName /><small>THE CONNECTION STARTS HERE</small></span>
         </Link>
         <Link className={styles.back} href="/">← Back to the public page</Link>
       </header>
       <main id="main" className={styles.guideMain}>
         <section className={styles.guidePanel} aria-labelledby="connect-title">
-          <span className={styles.eyebrow}>DAVE&apos;S BBS / GET CONNECTED</span>
+          <span className={styles.eyebrow}><BbsName /> / GET CONNECTED</span>
           <h1 id="connect-title">Connection help</h1>
           <p>Visit the board with a Telnet-capable terminal client. If you already have one configured, launch it below.</p>
           <div className={styles.actions}>
@@ -39,7 +40,7 @@ export default function Connect() {
           <Link className={styles.cardLink} href="/login">Web login status <span aria-hidden="true">→</span></Link>
         </section>
       </main>
-      <footer className={styles.footer}><span>Dave&apos;s BBS <b>/</b> KEEP THE CONNECTION ALIVE.</span><span>davesbbs.com</span></footer>
+      <footer className={styles.footer}><span><BbsName /> <b>/</b> KEEP THE CONNECTION ALIVE.</span><span>davesbbs.com</span></footer>
     </div>
   );
 }

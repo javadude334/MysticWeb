@@ -32,3 +32,14 @@ jobs:
         run: for script in deploy/*.sh; do bash -n "$script"; done
       - name: Test release selection, health checks, activation and rollback
         run: python3 -m unittest discover -s deploy/tests -v
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build

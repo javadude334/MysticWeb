@@ -1,17 +1,15 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
+import { configuredBbsName } from "@/lib/mystic/branding";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: { default: "Dave's BBS", template: "%s · Dave's BBS" },
-  description: "The public front door to Dave's BBS. Find Telnet access and information about upcoming web sign-in.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const name = await configuredBbsName();
+  return { title: { default: name, template: `%s · ${name}` }, description: `Welcome to ${name}, powered by Mystic BBS.` };
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+async function BrandingReady() { await configuredBbsName(); return null; }
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en"><body><Suspense fallback={null}><BrandingReady /></Suspense>{children}</body></html>;
 }
