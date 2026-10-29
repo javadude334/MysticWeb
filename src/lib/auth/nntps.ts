@@ -102,7 +102,7 @@ export class NntpsSession {
     finally { this.close(); }
   }
 
-  private async run<T>(action: () => Promise<T>, requireAuth = true): Promise<T> {
+  private async run<T>(action: () => Promise<T>, requireAuth = true, preserveSelectionDenial = false): Promise<T> {
     if (this.busy || this.closed || (requireAuth && !this.authenticated)) throw new NntpsError();
     this.busy = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -110,7 +110,7 @@ export class NntpsSession {
       return await Promise.race([action(), new Promise<never>((_, reject) => {
         timer = setTimeout(() => { this.close(); reject(new NntpsError()); }, 3000);
       })]);
-    } catch (error) { const failure = error instanceof NntpsError ? error : new NntpsError(); this.close(); throw new NntpsError(failure.reason, failure.stage ?? this.stage, failure.statusCode); }
+    } catch (error) { const failure = error instanceof NntpsError ? error : new NntpsError(); if (!(preserveSelectionDenial && failure.stage === "GROUP_SELECT" && [411, 450].includes(failure.statusCode ?? 0))) this.close(); throw new NntpsError(failure.reason, failure.stage ?? this.stage, failure.statusCode); }
     finally { if (timer) clearTimeout(timer); this.busy = false; }
   }
 
@@ -165,6 +165,20 @@ export class NntpsSession {
       });
       if (new Set(names).size !== names.length) throw new NntpsError();
       return names;
+    });
+  }
+
+  /** Native selection metadata only. This is NOT a ReadACS/eligibility grant. */
+  async probeGroup(group: string) {
+    return this.run(() => this.select(group), true, true);
+  }
+
+  /** Keep an existing native connection alive without reauthenticating it. */
+  async ping(): Promise<void> {
+    return this.run(async () => {
+      this.stage = "CAPABILITIES";
+      this.send("CAPABILITIES"); await this.status([101]);
+      await this.multiline(64, 8192);
     });
   }
 
