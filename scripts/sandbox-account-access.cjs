@@ -210,21 +210,13 @@ async function main() {
   if (heartbeatFailed) throw new Error('Existing connection lost');
   // Probe each account's own area first. Native U# evaluation supplies only
   // controlled-fixture evidence; it is not a general production identity API.
-  const rows = [];
-  const identityConfig = snapshot();
-  if (!matches(identity, identityConfig)) throw new Error('Fixture changed');
-  for (let i = 0; i < sessions.length; i++) {
-    const own = i === 0 ? 2 : 5, other = i === 0 ? 5 : 2;
-    const names = await sessions[i].groups();
-    if (names.some(name => identityConfig.privateNames.includes(name))) throw new Error('Private metadata exposed');
-    await sessions[i].probeGroup(snapshot().areas.get(own).group);
-    rows.push({ userId: accounts[i].id, areaId: own, listed: names.includes(snapshot().areas.get(own).group), selected: true });
-    rows.push({ userId: accounts[i].id, areaId: other, listed: names.includes(snapshot().areas.get(other).group) });
+  // Record both accounts and both area selections even when an expected
+  // allowed group is denied. A 411 is evidence to diagnose, not a grant.
+  const identityPassed = await observe(identity);
+  if (!identityPassed) {
+    console.log('BASELINE_NOT_VERIFIED: observations above distinguish LIST visibility from GROUP selection. Do not change more ACS settings yet.');
+    process.exitCode = 1; return;
   }
-  if (snapshot().revision !== identityConfig.revision) throw new Error('Catalog changed during observation');
-  const identityPassed = identity.check(rows);
-  emit({ phase: identity.name, result: identityPassed ? 'PASS_FIXTURE_ONLY' : 'FAIL_OR_INCONCLUSIVE', observations: rows, productionIdentityCertified: false });
-  if (!identityPassed) { process.exitCode = 1; return; }
   resumeHeartbeat();
   const read = { name: 'INDEPENDENT_READ_ACS', group: 's0', areas: [[2, 's0', 'u1'], [5, 'u2', 'u2']], targets: [2],
     check: rows => positive(rows, 1, 2) && deniedSelection(rows, 2, 2) };
