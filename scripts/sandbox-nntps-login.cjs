@@ -102,4 +102,6 @@ async function main() {
   } finally { password = ''; session?.close(); }
 }
 
-main().catch(error => { console.error('NATIVE_NNTPS_LOGIN: DENIED_OR_UNAVAILABLE; stage=' + (error.stage ?? 'INPUT') + '; status=' + (error.statusCode ?? 'NONE')); process.exitCode = 1; });
+module.exports = { hiddenPassword };
+
+if (require.main === module) main().catch(error => { console.error('NATIVE_NNTPS_LOGIN: DENIED_OR_UNAVAILABLE; stage=' + (error.stage ?? 'INPUT') + '; status=' + (error.statusCode ?? 'NONE')); process.exitCode = 1; });

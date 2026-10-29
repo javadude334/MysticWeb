@@ -50,7 +50,8 @@ async function fixture(t, mode = '') {
           authenticated = (selectedUser === 'Alice' && rest.join(' ') === 'synthetic-a') ||
             (selectedUser === 'Bob' && rest.join(' ') === 'synthetic-b');
           send(authenticated ? '281 Accepted' : mode === 'reprompt' ? '381 Password required' : '481 Rejected');
-        } else if (command === 'QUIT') { send('205 Closing'); socket.end(); }
+        } else if (command === 'CAPABILITIES') { send('101 Capabilities'); send('VERSION 2'); send('LIST ACTIVE'); send('.'); }
+        else if (command === 'QUIT') { send('205 Closing'); socket.end(); }
         else if (!authenticated) send('480 Authenticate');
         else if (command === 'LIST') {
           if (mode === 'bare-list' && sub === 'ACTIVE') { send('501 Syntax'); continue; }
@@ -150,4 +151,15 @@ test('bare LIST fallback is limited to syntax rejection', async t => {
  const other = await NntpsSession.login(denied.endpoint, 'Bob', 'synthetic-b'); t.after(() => other.close());
  await assert.rejects(other.groups(), error => error.stage === 'GROUP_LIST' && error.statusCode === 450);
  assert.equal(denied.commands.filter(s => s === 'LIST').length, 1);
+});
+
+test('metadata probes preserve known GROUP denials without granting reads or replacing identity', async t => {
+ const { endpoint, commands } = await fixture(t);
+ const session = await NntpsSession.login(endpoint, 'Bob', 'synthetic-b'); t.after(() => session.close());
+ await assert.rejects(session.probeGroup('workshop'), error => error.stage === 'GROUP_SELECT' && error.statusCode === 411);
+ await session.ping();
+ assert.equal((await session.probeGroup('welcome')).count, 3);
+ assert.deepEqual(await session.groups(), ['welcome']);
+ assert.ok(!commands.some(command => ['ARTICLE', 'OVER', 'POST'].includes(command)));
+ assert.equal(commands.filter(command => command === 'AUTHINFO USER').length, 1);
 });
