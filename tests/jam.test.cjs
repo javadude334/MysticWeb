@@ -190,3 +190,18 @@ test('handles short reads and closes earlier handles if a later file is missing'
   await assert.rejects(reader.readJam(root, 'area'), { code: 'UNAVAILABLE' });
   assert.equal(closed, 5);
 });
+
+test('reads declared ASCII and CP850 headers and bodies without losing legacy messages', async t => {
+  assert.equal(decodeJamText(Buffer.from([0x9b, 0x9d, 0xb5, 0xd5]), 'CP850'), 'øØÁı');
+  assert.equal(decodeJamText(Buffer.from('Plain\r\ntext'), 'US-ASCII'), 'Plain\ntext');
+  assert.throws(() => decodeJamText(Buffer.from([0x80]), 'ASCII'), { code: 'ENCODING' });
+  const root = await fixture(t, [
+    { encoding: 'ASCII', subject: 'Radio notes', body: 'Read only' },
+    { encoding: 'CP850', subject: Buffer.from([0x9b, 0xb5]), body: Buffer.from([0x9d, 0xd5]) },
+  ]);
+  const page = await readJam(root, 'area');
+  assert.equal(page.messages.length, 2);
+  assert.equal(page.skipped, 0);
+  assert.equal(page.messages[0].subject, 'øÁ');
+  assert.equal((await readJam(root, 'area', { message: 501 })).messages[0].body, 'Øı');
+});
