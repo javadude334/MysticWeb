@@ -134,3 +134,16 @@ unsupported by the capabilities established so far.
 Operator selected group 2 ACS s10 as the restoration baseline after this run;
 use s10 for future cleanup, superseding the original s20 setting.
 
+
+## File-open diagnostic without fixture edits
+
+After configuring Process Monitor for the verified sandbox listener PID and paths
+beginning E:\mystic\, enable Drop Filtered Events before capture. Do not capture
+network or process-start events or export an unfiltered log. Start capture, run
+`node scripts/sandbox-account-access.cjs --diagnostic`, and stop capture promptly.
+This mode uses the current ACS settings and one masked test-account login; it
+retains all message sharing locks and sends LIST/GROUP only, with no native
+ARTICLE/OVER or web session. Results are observations, not authorization grants.
+Inspect CreateFile failures for the fixture JAM paths and record only operation,
+JAM extension, status and requested access. A sharing violation supports the
+lock-conflict explanation; its absence alone does not certify permissions.

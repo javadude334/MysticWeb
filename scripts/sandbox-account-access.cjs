@@ -180,7 +180,7 @@ const deniedSelection = (rows, user, area) => { const r = find(rows, user, area)
 
 async function main() {
   if (process.platform !== 'win32' || path.resolve(__dirname, '..').toLowerCase() !== 'e:\\work\\javadude_dev\\mysticweb') throw new Error('Sandbox checkout required');
-  if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== '--preflight')) throw new Error('Unsupported arguments');
+  if (process.argv.length > 3 || (process.argv[2] && !['--preflight', '--diagnostic'].includes(process.argv[2]))) throw new Error('Unsupported arguments');
   const current = snapshot();
   for (const account of accounts) accountFlags(account.id);
   verifyOwner(); await acquireLocks();
@@ -191,6 +191,31 @@ async function main() {
     fixtureAreaIds: [...current.areas.keys()], userIds: [1, 2], credentialsReadFromFiles: false });
   if (process.argv[2] === '--preflight') return;
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive terminal required');
+  if (process.argv[2] === '--diagnostic') {
+    console.log('FILE_OPEN_DIAGNOSTIC: current settings only; no ACS edits, ARTICLE/OVER, or browser sessions.');
+    console.log('Authenticate disposable test account (confirmed fixture ID 1; native identity remains unverified).');
+    const DiagnosticSession = loadSession();
+    const diagnosticEndpoint = { host: '127.0.0.1', port: 8563, servername: 'mybbs.com', ca: fs.readFileSync(path.resolve(__dirname, '../.certificates/mystic-sandbox-cert.pem')) };
+    let candidate = await hiddenPassword();
+    let connection;
+    try { connection = await DiagnosticSession.login(diagnosticEndpoint, 'test', candidate); sessions.push(connection); }
+    finally { candidate = ''; }
+    const before = snapshot();
+    if (before.topology !== topology) throw new Error('Fixture topology changed');
+    const visible = await connection.groups();
+    if (visible.some(name => before.privateNames.includes(name))) throw new Error('Private metadata exposed');
+    for (const id of [2, 5]) {
+      const area = before.areas.get(id);
+      let selected = false, nativeStatus = null;
+      try { await connection.probeGroup(area.group); selected = true; }
+      catch (error) { nativeStatus = error.statusCode ?? null; if (![411, 450].includes(nativeStatus)) throw error; }
+      emit({ phase: 'FILE_OPEN_DIAGNOSTIC', fixtureUserId: 1, nativeIdentityVerified: false, areaId: id,
+        listed: visible.includes(area.group), selected, nativeStatus, authorizationCertified: false, browserEnabled: false });
+    }
+    if (snapshot().revision !== before.revision) throw new Error('Catalog changed during observation');
+    console.log('DIAGNOSTIC_COMPLETE: no permission or eligibility certification. Stop Process Monitor capture.');
+    return;
+  }
   operatorRun = true;
   const identity = { name: 'IDENTITY_AND_LIST_BASELINE', group: 's0', areas: [[2, 'u1', 'u1'], [5, 'u2', 'u2']],
     targets: [2, 5], check: rows => positive(rows, 1, 2) && positive(rows, 2, 5) && find(rows, 1, 5)?.listed === false && find(rows, 2, 2)?.listed === false };
