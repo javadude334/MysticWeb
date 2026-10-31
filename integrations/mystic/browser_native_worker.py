@@ -13,7 +13,6 @@ from __future__ import print_function
 import json
 import os
 import re
-import sys
 
 PREFIX = 'MYSTICWEB/1 '
 NONCE = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -25,10 +24,28 @@ except NameError:
     TEXT_TYPES = (str,)
 
 
-def emit(value):
-    sys.stdout.write(PREFIX + json.dumps(value, separators=(',', ':'),
-                                         sort_keys=True) + '\r\n')
-    sys.stdout.flush()
+def emit(bbs, value):
+    bbs.writeln(PREFIX + json.dumps(value, separators=(',', ':'),
+                                    sort_keys=True))
+
+
+def read_request(bbs):
+    """Bounded input via Mystic terminal API; no Python stdio dependency.
+
+    Mystic getkey echo/line semantics still require sandbox runtime testing.
+    The caller's SSH request timeout is the external deadline.
+    """
+    characters = []
+    while len(characters) <= MAX_LINE:
+        key = bbs.getkey()
+        if type(key) not in TEXT_TYPES or len(key) != 1:
+            return None
+        if key in ('\\r', '\\n'):
+            return ''.join(characters) if characters else None
+        if ord(key) < 32 or ord(key) > 126:
+            return None
+        characters.append(key)
+    return None
 
 
 def sandbox_only():
