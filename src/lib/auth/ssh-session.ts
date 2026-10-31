@@ -6,8 +6,8 @@ export type NativeSshEndpoint = {
   host: string;
   port: number;
   hostKeySha256: string;
-  // Explicit compatibility choice for a Windows-local sandbox gateway only.
-  // Absent by default. Never permit a remote-host legacy cipher fallback.
+  // Explicit compatibility choice for a explicitly approved Windows sandbox endpoints only.
+  // Absent by default. Never permit a general remote-host legacy cipher fallback.
   localCompatibility?: "aes256-cbc";
 };
 
@@ -37,7 +37,7 @@ export class NativeSshSession {
     if (!endpoint.host || !Number.isInteger(endpoint.port) || endpoint.port < 1 || endpoint.port > 65535 ||
       !/^[a-f0-9]{64}$/.test(endpoint.hostKeySha256) ||
       (endpoint.localCompatibility !== undefined &&
-        (endpoint.localCompatibility !== "aes256-cbc" || endpoint.host !== "127.0.0.1")) ||
+        (endpoint.localCompatibility !== "aes256-cbc" || !["127.0.0.1", "192.168.150.58"].includes(endpoint.host))) ||
       !username || !password || Buffer.byteLength(username) > 120 || Buffer.byteLength(password) > 256 ||
       /[\x00-\x1f\x7f]/.test(username + password) || signal.aborted) throw new NativeSshError("CONNECT");
     const client = new Client(), session = new NativeSshSession(client);
