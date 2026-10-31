@@ -147,6 +147,38 @@ yet and contains no credential form. The original dashboard remains at
 
 ## Configuration, secrets, and authentication
 
+### Private Windows gateway address
+
+Use the existing server-side `/etc/mysticweb/app.env` for the gateway location;
+there is no need for a separate properties file. The prepared settings are:
+
+```dotenv
+MYSTIC_GATEWAY_INSTANCE=mystic-sandbox
+MYSTIC_GATEWAY_URL=https://192.168.150.58:8744/v1/native
+MYSTIC_GATEWAY_CA_FILE=/etc/mysticweb/gateway/ca.pem
+MYSTIC_GATEWAY_CERT_FILE=/etc/mysticweb/gateway/ubuntu-client.pem
+MYSTIC_GATEWAY_KEY_FILE=/etc/mysticweb/gateway/ubuntu-client.key
+```
+
+The Windows host is `192.168.150.58`; Ubuntu is `192.168.150.66`. Port 8744 is the
+proposed private mTLS gateway port, separate from native SSH port 8022. The Windows
+gateway will connect to `127.0.0.1:8022` on Windows. Ubuntu must use the Windows
+LAN address, not its own localhost. See `gateway-client.example.env` and the
+planned Windows settings in `gateway-windows.example.env`.
+
+`configuredGateway()` reads these variables and validates bounded certificate
+files, CA/client roles and the client key pair before constructing an unconnected
+transport. Missing configuration stays disconnected; partial/invalid settings
+deny. A changed address must match the server certificate's IP/DNS subjectAltName.
+Never use NEXT_PUBLIC_ settings or put BBS passwords in an environment file.
+
+The service user must be able to read its key: use root ownership, the dedicated
+`mysticweb` group, mode 0640 for the key and no group/other write permissions.
+Windows equivalents require administrator-managed ACLs. Settings take effect on
+service restart when the reviewed composition consumes them. Merely supplying
+these variables does not enable authentication or install the unfinished gateway.
+Switching to D:\mystic remains a separate reviewed production transition.
+
 Deployment settings are in /etc/mysticweb/deploy.env. Runtime secrets belong
 in /etc/mysticweb/app.env (systemd KEY=value syntax, root-owned mode 0600).
 The build process does not receive app.env. Never use NEXT_PUBLIC_ for secrets.
