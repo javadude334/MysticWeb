@@ -129,7 +129,17 @@ export class NativeSshSession {
       // Mystic terminal input may echo the request. Ignore only the exact
       // nonce-bound request we just sent, never arbitrary terminal output.
       if (this.requestEcho && line === this.requestEcho) continue;
-      if (!line.startsWith("MYSTICWEB/1 ") || !this.pending) { this.requestFailure = "UNEXPECTED_OUTPUT"; this.close(); return; }
+      if (!line.startsWith("MYSTICWEB/1 ") || !this.pending) {
+        this.requestFailure = "UNEXPECTED_OUTPUT";
+        if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled") {
+          const category = line === "MYSTICWEB HOOK RETURNED" ? "HOOK_RETURNED" :
+            line.startsWith("{") ? "JSON_ECHO_OR_OUTPUT" :
+            line.startsWith("MYSTICWEB") ? "WORKER_OR_HOOK_MARKER" :
+            line.includes("\x1b") ? "TERMINAL_ESCAPE" : "OTHER_TERMINAL_TEXT";
+          console.warn("[mysticweb] unexpected terminal category:", category);
+        }
+        this.close(); return;
+      }
       try {
         const reply = JSON.parse(line.slice(12));
         if (!reply || reply.nonce !== this.pending.nonce) { this.requestFailure = "INVALID_REPLY"; this.close(); return; }
