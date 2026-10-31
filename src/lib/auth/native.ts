@@ -65,8 +65,8 @@ export function validatedNativeReply(request: NativeRequest, reply: unknown): Ob
  */
 export class NativeAccess {
   constructor(private readonly provider: NativeProvider | null, private readonly instance: string,
-    private readonly timeoutMs = 1500) {
-    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(instance) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000) throw new NativeAccessError();
+    private readonly timeoutMs = 12000) {
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(instance) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 15000) throw new NativeAccessError();
   }
 
   private async request(data: NativeOperation): Promise<ObjectValue | null> {
