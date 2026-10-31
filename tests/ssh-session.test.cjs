@@ -98,11 +98,14 @@ test('native startup receives one carriage return and a response to fragmented t
   } finally { clearTimeout(timeout); }
 });
 
-test('legacy compatibility must be explicit and is restricted to literal loopback', async t => {
+test('legacy compatibility must be explicit and restricted to approved sandbox hosts', async t => {
   const f = await fixture(t, 'legacy');
   await assert.rejects(NativeSshSession.connect(f.endpoint, 'fixture', 'synthetic', new AbortController().signal));
   assert.equal(f.attempts(), 0);
   await assert.rejects(NativeSshSession.connect({ ...f.endpoint, host: '192.0.2.1', localCompatibility: 'aes256-cbc' },
+    'fixture', 'synthetic', new AbortController().signal), error => error.stage === 'CONNECT');
+  // The configured Windows sandbox LAN address is permitted; unrelated hosts are not.
+  await assert.rejects(NativeSshSession.connect({ ...f.endpoint, host: '192.168.150.58', port: 0, localCompatibility: 'aes256-cbc' },
     'fixture', 'synthetic', new AbortController().signal), error => error.stage === 'CONNECT');
   const session = await NativeSshSession.connect({ ...f.endpoint, localCompatibility: 'aes256-cbc' },
     'fixture', 'synthetic', new AbortController().signal);
