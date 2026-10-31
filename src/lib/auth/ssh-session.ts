@@ -27,6 +27,7 @@ export class NativeSshSession {
   private closed = false;
   private busy = false;
   private ready = false;
+  private requestEcho?: string;
   private onReady?: () => void;
   private pending?: { nonce: string; resolve: (value: unknown) => void; reject: () => void };
 
@@ -124,6 +125,9 @@ export class NativeSshSession {
       // A dedicated native bridge speaks framed JSON only; arbitrary terminal
       // output or echoed requests cannot become a verified native response.
       if (!line) continue;
+      // Mystic terminal input may echo the request. Ignore only the exact
+      // nonce-bound request we just sent, never arbitrary terminal output.
+      if (this.requestEcho && line === this.requestEcho) continue;
       if (!line.startsWith("MYSTICWEB/1 ") || !this.pending) { this.close(); return; }
       try {
         const reply = JSON.parse(line.slice(12));
@@ -142,6 +146,7 @@ export class NativeSshSession {
     // Mystic getkey() terminates on the terminal Enter key (CR).
     const body = Buffer.from(JSON.stringify(data) + "\r", "utf8");
     if (body.length > 4096) { body.fill(0); throw new NativeSshError("REQUEST"); }
+    this.requestEcho = body.toString("utf8").slice(0, -1);
     this.busy = true;
     try {
       return await new Promise((resolve, reject) => {
@@ -155,7 +160,7 @@ export class NativeSshSession {
         signal.addEventListener("abort", abort, { once: true });
         this.channel!.write(body);
       });
-    } finally { body.fill(0); this.busy = false; }
+    } finally { body.fill(0); this.requestEcho = undefined; this.busy = false; }
   }
 
   close() {
