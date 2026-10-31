@@ -28,6 +28,7 @@ export class NativeSshSession {
   private busy = false;
   private ready = false;
   private requestEcho?: string;
+  private requestFailure: "TIMEOUT" | "CLOSED" | "INVALID_REPLY" | "UNEXPECTED_OUTPUT" = "CLOSED";
   private onReady?: () => void;
   private pending?: { nonce: string; resolve: (value: unknown) => void; reject: () => void };
 
@@ -128,14 +129,14 @@ export class NativeSshSession {
       // Mystic terminal input may echo the request. Ignore only the exact
       // nonce-bound request we just sent, never arbitrary terminal output.
       if (this.requestEcho && line === this.requestEcho) continue;
-      if (!line.startsWith("MYSTICWEB/1 ") || !this.pending) { this.close(); return; }
+      if (!line.startsWith("MYSTICWEB/1 ") || !this.pending) { this.requestFailure = "UNEXPECTED_OUTPUT"; this.close(); return; }
       try {
         const reply = JSON.parse(line.slice(12));
-        if (!reply || reply.nonce !== this.pending.nonce) { this.close(); return; }
+        if (!reply || reply.nonce !== this.pending.nonce) { this.requestFailure = "INVALID_REPLY"; this.close(); return; }
         const pending = this.pending;
         this.pending = undefined;
         pending.resolve(reply);
-      } catch { this.close(); return; }
+      } catch { this.requestFailure = "INVALID_REPLY"; this.close(); return; }
     }
   }
 
@@ -150,12 +151,12 @@ export class NativeSshSession {
     this.busy = true;
     try {
       return await new Promise((resolve, reject) => {
-        const abort = () => this.close();
+        const abort = () => { this.requestFailure = signal.aborted ? "CLOSED" : "TIMEOUT"; this.close(); };
         const timer = setTimeout(abort, 4000);
         const cleanup = () => { clearTimeout(timer); signal.removeEventListener("abort", abort); };
         this.pending = { nonce: data.nonce as string,
           resolve: value => { cleanup(); resolve(value); },
-          reject: () => { cleanup(); reject(new NativeSshError("REQUEST")); },
+          reject: () => { cleanup(); if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled") console.warn("[mysticweb] worker protocol failure:", this.requestFailure); reject(new NativeSshError("REQUEST")); },
         };
         signal.addEventListener("abort", abort, { once: true });
         this.channel!.write(body);
