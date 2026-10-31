@@ -44,6 +44,8 @@ before(() => {
   fs.writeFileSync(path.join(directory, 'client.ext'), 'basicConstraints=critical,CA:FALSE\nextendedKeyUsage=clientAuth\n');
   run(['x509', '-req', '-in', 'client.csr', '-CA', 'ca.pem', '-CAkey', 'ca.key', '-CAcreateserial',
     '-days', '1', '-extfile', 'client.ext', '-out', 'client.pem']);
+  // OpenSSL-created key permissions depend on umask; make fixture deterministic on POSIX.
+  if (process.platform !== 'win32') fs.chmodSync(path.join(directory, 'client.key'), 0o600);
 });
 after(() => {
   if (!directory) return;
