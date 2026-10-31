@@ -11,36 +11,56 @@ import stat
 import struct
 
 
+PROBE_STAGE = 'START'
+
+try:
+    INTEGER_TYPES = (int, long)
+except NameError:
+    INTEGER_TYPES = (int,)
+
 def positive_id(value):
-    return type(value) is int and 0 < value <= 0x7fffffff
+    return type(value) in INTEGER_TYPES and 0 < value <= 0x7fffffff
 
 
 def inspect_session(bbs, rules):
     """rules contains only operator-controlled catalog ACS, never user input."""
+    global PROBE_STAGE
+    PROBE_STAGE = 'CURRENT_USER'
     current = bbs.getuser(0)
+    is_record = type(current) is dict
+    has_id = is_record and 'id' in current
+    id_value = current.get('id') if is_record else None
+    id_kind = 'int' if type(id_value) is int else ('integer' if type(id_value) in INTEGER_TYPES else ('missing' if not has_id else 'non_integer'))
+    bbs.writeln('IDENTITY_SHAPE: dictionary=' + str(is_record) + '; id_present=' + str(has_id) + '; id_type=' + id_kind + '; positive_in_range=' + str(positive_id(id_value)))
     if type(current) is not dict or not positive_id(current.get('id')):
         raise ValueError('Identity unavailable')
     uid = current['id']
     if uid not in (1, 2):
         raise ValueError('Disposable fixture session required')
+    PROBE_STAGE = 'PERMANENT_ID_LOOKUP'
     explicit = bbs.getuserid(uid)
     if type(explicit) is not dict or explicit.get('id') != uid:
         raise ValueError('Identity lookup mismatch')
+    PROBE_STAGE = 'ACS_CONTROLS'
     if bbs.access('^') is not True or bbs.access('%') is not False:
         raise ValueError('Native ACS unavailable')
+    PROBE_STAGE = 'OWN_ID_ACS'
     if bbs.access('u' + str(uid)) is not True:
         raise ValueError('Session identity mismatch')
     other = 2 if uid == 1 else 1
+    PROBE_STAGE = 'OTHER_ID_ACS'
     if bbs.access('u' + str(other)) is not False:
         raise ValueError('Identity separation unavailable')
     result = {'probe': 'CURRENT_SESSION_CONTEXT', 'nativeSessionUserId': uid,
               'productionIdentityAdapter': False, 'eligibilityCertified': False,
               'browserEnabled': False, 'groups': [], 'areas': []}
+    PROBE_STAGE = 'GROUP_ACS'
     for group in (1, 2):
         value = bbs.access('g' + str(group))
         if type(value) is not bool:
             raise ValueError('Invalid ACS result')
         result['groups'].append({'groupId': group, 'currentContextMatches': value})
+    PROBE_STAGE = 'AREA_ACS'
     for area, list_rule, read_rule in rules:
         row = {'areaId': area}
         for name, rule in [('listInCurrentContext', list_rule), ('readInCurrentContext', read_rule)]:
@@ -49,6 +69,7 @@ def inspect_session(bbs, rules):
                 raise ValueError('Invalid ACS result')
             row[name] = value
         result['areas'].append(row)
+    PROBE_STAGE = 'IDENTITY_RECHECK'
     after = bbs.getuser(0)
     if type(after) is not dict or after.get('id') != uid:
         raise ValueError('Session identity changed')
@@ -109,16 +130,26 @@ def sandbox_rules():
 
 
 def main():
+    global PROBE_STAGE
     import mystic_bbs as bbs
     try:
+        PROBE_STAGE = 'SANDBOX_CATALOG'
         before, rules = sandbox_rules()
         result = inspect_session(bbs, rules)
+        PROBE_STAGE = 'CATALOG_RECHECK'
         if sandbox_rules()[0] != before:
             raise ValueError('Catalog changed')
         bbs.writeln(json.dumps(result, sort_keys=True))
-    except Exception:
+    except Exception as error:
         # Never print native dictionaries, exception messages or credential data.
+        safe_reasons = ('Sandbox working directory required', 'Linked path', 'Sandbox required', 'Unsupported catalog', 'Catalog changed', 'Ambiguous fixture', 'Private fixture', 'Invalid ACS', 'Missing fixture', 'Identity unavailable', 'Disposable fixture session required', 'Identity lookup mismatch', 'Native ACS unavailable', 'Session identity mismatch', 'Identity separation unavailable', 'Invalid ACS result', 'Session identity changed')
+        reason = str(error) if type(error) is ValueError and str(error) in safe_reasons else 'NATIVE_OR_RUNTIME_ERROR'
         bbs.writeln('CURRENT_SESSION_CONTEXT: UNAVAILABLE; BROWSER_LOGIN_DISABLED')
+        bbs.writeln('FAILING_STAGE: ' + PROBE_STAGE)
+        bbs.writeln('SAFE_REASON: ' + reason)
+
+    bbs.writeln('Press a key to return to the menu.')
+    bbs.getkey()
 
 
 if __name__ == '__main__':
