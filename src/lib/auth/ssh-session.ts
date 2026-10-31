@@ -110,11 +110,11 @@ export class NativeSshSession {
       this.buffer = this.buffer.replace(/\x1b\[6n/g, "");
     }
     let newline: number;
-    while ((newline = this.buffer.indexOf("\n")) !== -1) {
-      const line = this.buffer.slice(0, newline).replace(/\r$/, "");
-      this.buffer = this.buffer.slice(newline + 1);
+    while ((newline = this.buffer.search(/[\r\n]/)) !== -1) {
+      const line = this.buffer.slice(0, newline);
+      this.buffer = this.buffer.slice(newline + 1).replace(/^\n/, "");
       if (!this.ready) {
-        if (line === "MYSTICWEB/1 READY") {
+        if (line.trim() === "MYSTICWEB/1 READY") {
           this.ready = true;
           this.onReady?.();
           this.onReady = undefined;
@@ -139,7 +139,8 @@ export class NativeSshSession {
     if (this.closed || !this.ready || !this.channel || this.busy || signal.aborted ||
       typeof data.nonce !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(data.nonce) ||
       Object.hasOwn(data, "password")) throw new NativeSshError("REQUEST");
-    const body = Buffer.from(JSON.stringify(data) + "\n", "utf8");
+    // Mystic getkey() terminates on the terminal Enter key (CR).
+    const body = Buffer.from(JSON.stringify(data) + "\r", "utf8");
     if (body.length > 4096) { body.fill(0); throw new NativeSshError("REQUEST"); }
     this.busy = true;
     try {
