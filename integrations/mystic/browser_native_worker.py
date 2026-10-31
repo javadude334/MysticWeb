@@ -40,6 +40,12 @@ def read_request(bbs):
     ignored_enters = 0
     while len(characters) <= MAX_LINE and time.time() < deadline:
         key = bbs.getkey()
+        # Mystic documents getkey() as (character, boolean), not a
+        # standalone character. Accept only that exact native shape.
+        if type(key) is tuple and len(key) == 2:
+            if type(key[1]) is not bool:
+                return None, 'NON_TEXT'
+            key = key[0]
         if key is None or key == '':
             empty_reads += 1
             time.sleep(0.01)
