@@ -41,6 +41,24 @@ function active(value: unknown) {
     value.expired === false && value.passwordChangeRequired === false;
 }
 
+/** Shared web/gateway response boundary. Never forward unvalidated native data. */
+export function validatedNativeReply(request: NativeRequest, reply: unknown): ObjectValue | null {
+  if (!object(reply)) return null;
+  const extra = request.operation === "authenticate" ? ["passwordVerified"] :
+    request.operation === "authorize" ? ["areaId", "catalogRevision", "permissions"] : [];
+  if (!keys(reply, ["version", "nonce", "operation", "instance", "userId", "account", ...extra]) ||
+    reply.version !== 1 || reply.nonce !== request.nonce || reply.operation !== request.operation ||
+    reply.instance !== request.instance || !userId(reply.userId) || !active(reply.account)) return null;
+  if (request.operation === "authenticate") return reply.passwordVerified === true ? reply : null;
+  if (reply.userId !== request.userId) return null;
+  if (request.operation === "authorize" && (reply.areaId !== request.areaId || reply.catalogRevision !== request.catalogRevision ||
+    !object(reply.permissions) || !keys(reply.permissions, ["list", "read", "group", "context", "kind", "private", "personal"]) ||
+    reply.permissions.list !== true || reply.permissions.read !== true || reply.permissions.group !== true ||
+    reply.permissions.context !== true || reply.permissions.kind !== "echo" ||
+    reply.permissions.private !== false || reply.permissions.personal !== false)) return null;
+  return reply;
+}
+
 /** This is a deny-by-default protocol boundary, not a native implementation.
  * The staged HTTP service consumes this boundary, but production composition
  * remains disabled until a native provider has passed runtime checks.
@@ -63,13 +81,8 @@ export class NativeAccess {
         timer = setTimeout(() => { controller.abort(); resolve(null); }, this.timeoutMs);
       });
       const reply = await Promise.race([this.provider.request(request, { signal: controller.signal }), expired]);
-      if (performance.now() - start >= this.timeoutMs || !object(reply)) return null;
-      const extra = data.operation === "authenticate" ? ["passwordVerified"] :
-        data.operation === "authorize" ? ["areaId", "catalogRevision", "permissions"] : [];
-      if (!keys(reply, ["version", "nonce", "operation", "instance", "userId", "account", ...extra]) ||
-        reply.version !== 1 || reply.nonce !== nonce || reply.operation !== data.operation ||
-        reply.instance !== this.instance || !userId(reply.userId) || !active(reply.account)) return null;
-      return reply;
+      if (performance.now() - start >= this.timeoutMs) return null;
+      return validatedNativeReply(request, reply);
     } catch { return null; }
     finally { if (timer) clearTimeout(timer); controller.abort(); }
   }
