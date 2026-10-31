@@ -47,3 +47,7 @@ supported by older Mystic Pascal source but still needs direct A48 confirmation.
 expiration semantics, full username matching, legacy password methods, and
 live account status revalidation remain unresolved. The public login endpoint
 must remain disabled. No test account files were committed.
+
+## Synthetic regression tests (2026-10-31)
+
+Run `npm test` (or `node --test tests/native-user-login.test.cjs`) after checking out this branch and installing dependencies. The tests construct synthetic 1,536-byte A48-style method-2 user records; they exercise handle lookup, PBKDF2-SHA512 verification, rejection of locked/deleted/forced-change accounts, duplicate handles, malformed records and invalid input. These are **not** evidence of successful login against a real Mystic installation. The tests have been committed but were not executed in the GitHub connector environment. Do not enable production login until live sandbox compatibility, native account expiry semantics and safe session revalidation have been verified.
