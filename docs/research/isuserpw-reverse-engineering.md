@@ -60,3 +60,16 @@ valid = hmac.compare_digest(result, record[45:109])
 Record-relative offsets: method=8; iterations=9–12; salt=13–44; hash=45–108. The controlled files independently validate the interpretation: original password matches only before the change, replacement password matches only afterward; incorrect and unknown-user checks fail. **5/5 tests passed**. Test password values are intentionally omitted from this log and scripts.
 
 The stand-alone read-only verifier is stored at `tools/research/mystic_native_password_verify.py`. It supports method 2 only and does not validate account status, lockout, or legacy methods. Before using for real login, verify Unicode/password encoding and account-status policy.
+
+## 2026-10-31 — A48 account flags disassembled
+
+**Confirmed from the supplied Linux 32-bit A48 ELF** (static analysis; no account modifications):
+- At `0x080d7ca9` user-object DWORD `[ebx+0x540]` is read; `0x080d7caf` masks `0x1`, `0x080d7cb2` skips rejection when clear. When set, the path logs the literal `User has been locked out` (string virtual address `0x0815b56c` referenced at `0x080d7ce0`) and terminates that login path.
+- At `0x080d80db–0x080d80e6`, a `0x400` mask on the same flag DWORD triggers the `Forced password change` path.
+- At `0x080d8166–0x080d816f`, a `0x20` mask exempts the user from periodic password change; code compares a date-related DWORD at `[edx+0x931]` with the configured interval before entering the `Required password change` path at `0x080d8194`.
+- Legacy 1.10 A38 Pascal source defines `UserLockedOut=$1`, `UserDeleted=$4`, `UserNoPWChange=$20`. The 1.12 binary **independently confirms** $1 and $20 in login; $4 still needs a direct A48 login-path trace. $400 is directly confirmed in A48.
+- The user record appears embedded in the runtime object at `ebx+0x53c`; thus flags at `+0x540` imply native record offset **4**, consistent with older Pascal `PermIdx` then `Flags`. This embedding relationship is strongly supported but needs direct copy/call-site validation.
+- Both supplied sandbox user records currently have DWORD 0 at record offsets 4–7, so they cannot alone validate nonzero flag behavior.
+- The older Pascal source shows expiry may **downgrade security level** rather than simply reject: see `bbs_user.pas` lines 1273–1285. Do not assume an `expired` boolean or blindly reject all expired dates as equivalent to Mystic policy.
+
+**Next:** locate A48 deleted-account ($4) filter in user lookup; trace expiry date/security field offsets and current 1.12 downgrade behavior; create synthetic flag-mutated fixtures and test fail-closed status parser. Do not activate web login until these are verified.
