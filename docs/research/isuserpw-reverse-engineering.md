@@ -1,6 +1,6 @@
 # MysticWeb — Native Mystic authentication research
 
-Updated: 2026-10-31. Status: **research only; no validated verifier**.
+Updated: 2026-10-31. Status: **PBKDF2 method 2 verified against controlled before/after sandbox files; full login behavior pending**.
 
 ## Goal
 Reproduce Mystic BBS 1.12 A48 `isuserpw` using **read-only native .dat files**. No SSH, gateway, or second password database. Windows sandbox: `E:\mystic`. Do not modify production (`D:\mystic`).
@@ -42,3 +42,21 @@ Trace SHA-512 callers to HMAC, then PBKDF2 loop and record-field reads. Save eac
 - After user data: `f12b9f9c6ad2d0a0692c2166466eda0fa91ee4c0a3501e0c450b04744f0525e8`
 
 **Security:** Never commit raw `users.dat`, hashes, salts, credentials, or proprietary executables without explicit authorization. The test password shared during investigation must not be reused on real accounts.
+
+
+## 2026-10-31 — Breakthrough: method 2 reproduced (verified)
+
+Static i386 disassembly at `0x080721dd–0x08072295` shows that method 2 **first SHA-512 hashes the supplied password** at `0x081138c0`, then calls PBKDF2 at `0x08113bc0`. It generates a 32-byte random salt and copies fields into the output record: method byte 2, 4-byte little-endian iteration count, 32-byte salt, 64-byte derived key.
+
+**Verified formula**:
+
+```python
+prehash = hashlib.sha512(password.encode('utf-8')).digest()
+result = hashlib.pbkdf2_hmac('sha512', prehash, record[13:45],
+                           int.from_bytes(record[9:13], 'little'), 64)
+valid = hmac.compare_digest(result, record[45:109])
+```
+
+Record-relative offsets: method=8; iterations=9–12; salt=13–44; hash=45–108. The controlled files independently validate the interpretation: original password matches only before the change, replacement password matches only afterward; incorrect and unknown-user checks fail. **5/5 tests passed**. Test password values are intentionally omitted from this log and scripts.
+
+The stand-alone read-only verifier is stored at `tools/research/mystic_native_password_verify.py`. It supports method 2 only and does not validate account status, lockout, or legacy methods. Before using for real login, verify Unicode/password encoding and account-status policy.
