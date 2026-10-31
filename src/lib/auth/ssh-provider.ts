@@ -1,5 +1,5 @@
 import "server-only";
-import { NativeSshSession, type NativeSshEndpoint } from "./ssh-session";
+import { NativeSshError, NativeSshSession, type NativeSshEndpoint } from "./ssh-session";
 import type { NativeProvider, NativeRequest } from "./native";
 
 /**
@@ -20,12 +20,23 @@ export class SandboxSshProvider implements NativeProvider {
       throw new Error("Native connection unavailable");
     }
     const { username, password, ...metadata } = request;
-    const session = await NativeSshSession.connect(
-      this.endpoint, username, password, options.signal,
-    );
+    let session: NativeSshSession;
+    try {
+      session = await NativeSshSession.connect(this.endpoint, username, password, options.signal);
+    } catch (error) {
+      if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled")
+        console.warn("[mysticweb] SSH connection stage:", error instanceof NativeSshError ? error.stage : "unknown");
+      throw error;
+    }
     try {
       if (options.signal.aborted) throw new Error("Native connection unavailable");
-      return await session.request(metadata, options.signal);
+      try {
+        return await session.request(metadata, options.signal);
+      } catch (error) {
+        if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled")
+          console.warn("[mysticweb] worker request stage:", error instanceof NativeSshError ? error.stage : "unknown");
+        throw error;
+      }
     } finally {
       session.close();
     }
