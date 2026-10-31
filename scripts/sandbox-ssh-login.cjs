@@ -6,6 +6,31 @@ const { Client } = require('ssh2');
 const { hiddenPassword } = require('./sandbox-nntps-login.cjs');
 const PIN = 'd133e0feb8209cb665a525f1cfb0f95505b5aac850b720f5bab2e86d19ac6732';
 
+function analyzeNativeOutput(raw, expectedProof) {
+  const clean = raw.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+  let stage = 'NATIVE_STARTUP';
+  if (clean.includes('Enter your user name:')) stage = 'NATIVE_LOGIN_PROMPT';
+  if (clean.includes('Enter your password:')) stage = 'NATIVE_PASSWORD_PROMPT';
+  if (clean.includes('IDENTITY_SHAPE:')) stage = 'NATIVE_PROBE';
+  // An authenticated report takes precedence over any earlier prompt text.
+  for (const line of clean.split(/\r?\n/)) {
+    if (!line.startsWith('{')) continue;
+    let report; try { report = JSON.parse(line); } catch { continue; }
+    if (report.probe !== 'CURRENT_SESSION_CONTEXT' || report.nativeSessionUserId !== 2 ||
+        report.browserEnabled !== false || report.eligibilityCertified !== false ||
+        report.productionIdentityAdapter !== false || !Array.isArray(report.groups) || !Array.isArray(report.areas)) {
+      return { error: 'IDENTITY_PROOF' };
+    }
+    if (!expectedProof) return { error: 'WRONG_PASSWORD_ACCEPTED' };
+    return { proof: { userId: 2 } };
+  }
+  if (clean.includes('CURRENT_SESSION_CONTEXT: UNAVAILABLE')) return { error: 'NATIVE_PROBE' };
+  // This reports the observed unauthenticated state, not a password-engine code.
+  // Close immediately without submitting any name/password or registration input.
+  if (!expectedProof && stage === 'NATIVE_LOGIN_PROMPT') return { proof: { noSession: true, native: 'LOGIN_PROMPT' } };
+  return { stage };
+}
+
 function connect(password, expectedProof) {
   return new Promise((resolve, reject) => {
     const client = new Client();
@@ -33,22 +58,10 @@ function connect(password, expectedProof) {
           if (raw.length > 32768) { end(new Error('OUTPUT_LIMIT')); return; }
           // Answer only terminal-position detection, never BBS prompts or menus.
           if (raw.includes('\x1b[6n')) { stream.write('\x1b[25;80R'); raw = raw.replace(/\x1b\[6n/g, ''); }
-          const clean = raw.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
-          if (clean.includes('Enter your user name:')) stage = 'NATIVE_LOGIN_PROMPT';
-          if (clean.includes('Enter your password:')) stage = 'NATIVE_PASSWORD_PROMPT';
-          if (clean.includes('IDENTITY_SHAPE:')) stage = 'NATIVE_PROBE';
-          for (const line of clean.split(/\r?\n/)) {
-            if (!line.startsWith('{')) continue;
-            let report; try { report = JSON.parse(line); } catch { continue; }
-            if (report.probe !== 'CURRENT_SESSION_CONTEXT' || report.nativeSessionUserId !== 2 ||
-                report.browserEnabled !== false || report.eligibilityCertified !== false ||
-                report.productionIdentityAdapter !== false || !Array.isArray(report.groups) || !Array.isArray(report.areas)) {
-              end(new Error('IDENTITY_PROOF')); return;
-            }
-            if (!expectedProof) { end(new Error('WRONG_PASSWORD_ACCEPTED')); return; }
-            end(null, { userId: 2 }); return;
-          }
-          if (clean.includes('CURRENT_SESSION_CONTEXT: UNAVAILABLE')) end(new Error('NATIVE_PROBE'));
+          const report = analyzeNativeOutput(raw, expectedProof);
+          if (report.error) { end(new Error(report.error)); return; }
+          if (report.proof) { end(null, report.proof); return; }
+          stage = report.stage;
         });
         // Wake Mystic's terminal detection; do not answer native account/menu prompts.
         stream.write('\r');
@@ -71,7 +84,8 @@ function connect(password, expectedProof) {
 }
 
 async function main() {
-  if (process.argv.length !== 2 || !process.stdin.isTTY || !process.stdout.isTTY || process.platform !== 'win32' ||
+  const negativeOnly = process.argv.length === 3 && process.argv[2] === '--wrong-password-only';
+  if ((!negativeOnly && (process.argv.length !== 2 || !process.stdin.isTTY || !process.stdout.isTTY)) || process.platform !== 'win32' ||
       path.resolve(__dirname, '..').toLowerCase() !== 'e:\\work\\javadude_dev\\mysticweb') throw new Error('INPUT');
   for (const part of ['E:/mystic', 'E:/mystic/themes', 'E:/mystic/themes/default', 'E:/mystic/themes/default/scripts',
     'E:/mystic/themes/default/scripts/after_login.mpx']) {
@@ -80,24 +94,29 @@ async function main() {
   console.log('Sandbox automated SSH login check for javadude2. No Telnet session needed.');
   console.log('The password stays in memory; only result lines are printed.');
   console.log('Native login can update normal BBS call statistics; no message/read-pointer command is sent.');
-  let candidate = await hiddenPassword();
   let wrong = randomBytes(12).toString('hex');
-  if (wrong === candidate) wrong = 'x';
+  if (!negativeOnly) {
+    let candidate = await hiddenPassword();
+    if (wrong === candidate) wrong = 'x';
+    try {
+      const proof = await connect(candidate, true);
+      console.log('NATIVE_SSH_ACCOUNT_AND_ID: PASS; userId=' + proof.userId);
+    } finally { candidate = ''; }
+    // Give the native session time to release the sandbox's one-per-IP slot.
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
   try {
-    const proof = await connect(candidate, true);
-    console.log('NATIVE_SSH_ACCOUNT_AND_ID: PASS; userId=' + proof.userId);
-  } finally { candidate = ''; }
-  // Give the native session time to release the sandbox's one-per-IP slot.
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  try {
-    await connect(wrong, false);
-    throw new Error('WRONG_PASSWORD_ACCEPTED');
+    const control = await connect(wrong, false);
+    if (!control.noSession) throw new Error('WRONG_PASSWORD_ACCEPTED');
+    console.log('NATIVE_SSH_WRONG_PASSWORD_NO_SESSION: PASS; native=' + control.native);
   } catch (error) {
     if (error.message !== 'CREDENTIALS_REJECTED') throw error;
-    console.log('NATIVE_SSH_WRONG_PASSWORD_REJECTED: PASS');
+    console.log('NATIVE_SSH_WRONG_PASSWORD_NO_SESSION: PASS; native=SSH_AUTH_DENIED');
   } finally { wrong = ''; }
   console.log('BROWSER_LOGIN: NOT_ENABLED; account revocation and full web bridge remain separate.');
 }
+
+module.exports = { analyzeNativeOutput };
 
 if (require.main === module) main().catch(error => {
   const stages = ['INPUT', 'SANDBOX_PATH', 'HOST_KEY', 'CREDENTIALS_REJECTED', 'TRANSPORT', 'CONNECTION_CLOSED',

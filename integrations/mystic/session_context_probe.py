@@ -1,4 +1,4 @@
-"""Read-only A48 current-session feasibility probe, not an auth adapter.
+﻿"""Read-only A48 current-session feasibility probe, not an auth adapter.
 
 Run ONLY inside a normally authenticated E:\\mystic native session. No passwords,
 message opens, context changes, file writes, or network calls. Does not certify
@@ -106,7 +106,7 @@ def sandbox_rules():
     seen = set()
     for offset in range(0, len(data), 768):
         area = struct.unpack_from('<H', data, offset)[0]
-        if area not in (2, 5):
+        if area not in (2, 5, 6):
             continue
         if area in seen:
             raise ValueError('Ambiguous fixture')
@@ -124,7 +124,7 @@ def sandbox_rules():
                 raise ValueError('Invalid ACS')
             rules.append(value.decode('ascii'))
         rows.append((area, rules[0], rules[1]))
-    if seen != set((2, 5)):
+    if seen != set((2, 5, 6)):
         raise ValueError('Missing fixture')
     return data, rows
 
