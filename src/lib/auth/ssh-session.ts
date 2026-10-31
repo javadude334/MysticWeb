@@ -146,7 +146,7 @@ export class NativeSshSession {
     try {
       return await new Promise((resolve, reject) => {
         const abort = () => this.close();
-        const timer = setTimeout(abort, 1500);
+        const timer = setTimeout(abort, 4000);
         const cleanup = () => { clearTimeout(timer); signal.removeEventListener("abort", abort); };
         this.pending = { nonce: data.nonce as string,
           resolve: value => { cleanup(); resolve(value); },
