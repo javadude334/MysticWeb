@@ -16,7 +16,7 @@ export function LoginForm() {
     const form = event.currentTarget;
     const input = new FormData(form);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
       const result = await fetch("/api/auth/login", {
         method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
@@ -47,7 +47,7 @@ export function LoginForm() {
     <input id="bbs-username" name="username" autoComplete="username" maxLength={120} required disabled={pending} />
     <label htmlFor="bbs-password">Password</label>
     <input id="bbs-password" name="password" type="password" autoComplete="current-password" maxLength={256} required disabled={pending} />
-    <button type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in and read messages"}</button>
+    <button type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in to MysticWeb"}</button>
     <p role="alert" aria-live="polite">{error}</p>
   </form>;
 }
