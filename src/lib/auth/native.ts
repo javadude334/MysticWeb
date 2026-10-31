@@ -82,8 +82,10 @@ export class NativeAccess {
       });
       const reply = await Promise.race([this.provider.request(request, { signal: controller.signal }), expired]);
       if (performance.now() - start >= this.timeoutMs) return null;
-      return validatedNativeReply(request, reply);
-    } catch { return null; }
+      const verified = validatedNativeReply(request, reply);
+      if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled" && !verified) console.warn("[mysticweb] native response did not pass validation");
+      return verified;
+    } catch { if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled") console.warn("[mysticweb] native transport request failed"); return null; }
     finally { if (timer) clearTimeout(timer); controller.abort(); }
   }
 
