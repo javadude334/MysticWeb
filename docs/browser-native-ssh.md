@@ -95,8 +95,33 @@ and then tries a random wrong password. Only fixed result stages and sanitized
 identity proof are emitted. SSH authentication without the native identity report
 is not a positive result. A timeout or generic protocol failure is not wrong-
 password rejection evidence. No native message/read-pointer command is sent;
-normal native login/logout can update BBS call statistics. Real credential-bearing
-execution remains pending the operator's local input; do not send passwords in chat.
+normal native login/logout can update BBS call statistics. Do not send passwords
+in chat.
+
+### First operator SSH check and startup correction
+
+On October 31 the operator ran the checker and reported
+`NATIVE_SSH_LOGIN: UNAVAILABLE; stage=TIMEOUT`. This is not a password failure or
+acceptance result. Native logs confirmed the SSH handshake but no authenticated
+identity report. A no-real-credential inspection showed that the SSH layer also
+accepts a nonexistent account; SSH protocol acceptance must never be treated as
+BBS authentication.
+
+Before an initial carriage return, the only received terminal output was the
+mouse-mode enable sequence. With one carriage return, the nonexistent-account
+inspection advanced through ANSI detection to the native username prompt. The
+checker and session adapter now send that one startup input and answer only an
+explicit terminal-position query. They do not answer account, registration,
+password-change or message prompts. Timeout diagnostics identify SSH, shell,
+native-startup, native-login-prompt and native-probe stages without terminal dumps.
+
+Temporary native connect/startup traces logged only fixed phases and whether
+login fields were present, never their values. Both trace hooks were removed
+after verifying their source hashes and preserved outside the BBS tree. The
+existing after-login proof hook remains. Nine focused encrypted SSH tests pass,
+including a server that withholds readiness until the carriage return and a
+fragmented ANSI query are handled. Real successful BBS login, eligibility and
+wrong-password controls remain unverified pending a corrected operator run.
 
 ## Next bounded steps
 

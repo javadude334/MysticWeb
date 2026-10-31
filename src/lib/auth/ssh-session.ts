@@ -70,6 +70,9 @@ export class NativeSshSession {
             // A bridge-only native start menu must invoke the worker itself.
             // Never navigate user menus or infer success from a welcome screen.
             session.onReady = () => { cleanup(); resolve(); };
+            // Mystic waits for this initial terminal input before detection.
+            // This does not answer login, new-user, password-change or menu prompts.
+            channel.write("\r");
           });
         });
         client.connect({ host: endpoint.host, port: endpoint.port, username,
@@ -102,6 +105,10 @@ export class NativeSshSession {
     }
     this.buffer += bytes.toString("latin1");
     if (this.buffer.length > 8192) { this.close(); return; }
+    if (!this.ready && this.buffer.includes("\x1b[6n")) {
+      this.channel?.write("\x1b[25;80R");
+      this.buffer = this.buffer.replace(/\x1b\[6n/g, "");
+    }
     let newline: number;
     while ((newline = this.buffer.indexOf("\n")) !== -1) {
       const line = this.buffer.slice(0, newline).replace(/\r$/, "");

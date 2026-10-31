@@ -39,10 +39,18 @@ async function fixture(t, mode = '') {
       session.on('shell', acceptShell => {
         const stream = acceptShell();
         stream.on('error', () => {});
-        if (mode !== 'no-bridge') stream.write('MYSTICWEB/1 READY\r\n');
-        let input = '';
+        if (!['no-bridge', 'needs-wakeup'].includes(mode)) stream.write('MYSTICWEB/1 READY\r\n');
+        let input = '', startupStep = 0;
         stream.on('data', bytes => {
           input += bytes.toString('utf8');
+          if (mode === 'needs-wakeup' && startupStep === 0) {
+            assert.equal(input, '\r'); input = ''; startupStep = 1;
+            stream.write('\x1b['); setImmediate(() => stream.write('6n')); return;
+          }
+          if (mode === 'needs-wakeup' && startupStep === 1) {
+            assert.equal(input, '\x1b[25;80R'); input = ''; startupStep = 2;
+            stream.write('\r\nMYSTICWEB/1 READY\r\n'); return;
+          }
           if (!input.includes('\n')) return;
           const request = JSON.parse(input); input = '';
           if (mode === 'stalled') return;
@@ -77,6 +85,17 @@ test('wrong host pin prevents any credential authentication attempt', async t =>
   await assert.rejects(NativeSshSession.connect({ ...f.endpoint, hostKeySha256: '0'.repeat(64) },
     'fixture', 'synthetic', new AbortController().signal), error => error.stage === 'HOST_KEY');
   assert.equal(f.attempts(), 0);
+});
+
+test('native startup receives one carriage return and a response to fragmented terminal detection', async t => {
+  const f = await fixture(t, 'needs-wakeup');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2000);
+  try {
+    const session = await NativeSshSession.connect(f.endpoint, 'fixture', 'synthetic', controller.signal);
+    t.after(() => session.close());
+    assert.equal((await session.request({ nonce: 'N'.repeat(43) }, controller.signal)).fixture, true);
+  } finally { clearTimeout(timeout); }
 });
 
 test('legacy compatibility must be explicit and is restricted to literal loopback', async t => {

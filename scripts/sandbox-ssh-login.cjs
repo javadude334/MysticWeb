@@ -9,7 +9,7 @@ const PIN = 'd133e0feb8209cb665a525f1cfb0f95505b5aac850b720f5bab2e86d19ac6732';
 function connect(password, expectedProof) {
   return new Promise((resolve, reject) => {
     const client = new Client();
-    let candidate = password, attempt, raw = '', finished = false;
+    let candidate = password, attempt, raw = '', finished = false, stage = 'CONNECT';
     password = '';
     const end = (error, value) => {
       if (finished) return;
@@ -18,13 +18,15 @@ function connect(password, expectedProof) {
       client.destroy();
       if (error) reject(error); else resolve(value);
     };
-    const timer = setTimeout(() => end(new Error('TIMEOUT')), 25000);
-    client.on('error', error => end(new Error(error.level === 'client-authentication' ? 'CREDENTIALS_REJECTED' : 'TRANSPORT')));
+    const timer = setTimeout(() => end(new Error('TIMEOUT_' + stage)), 25000);
+    client.on('error', error => end(new Error(stage === 'HOST_KEY' ? 'HOST_KEY' : (error.level === 'client-authentication' ? 'CREDENTIALS_REJECTED' : 'TRANSPORT'))));
     client.on('close', () => { if (!finished) end(new Error('CONNECTION_CLOSED')); });
     client.on('ready', () => {
+      stage = 'SSH_SHELL';
       candidate = ''; if (attempt) attempt.password = '';
       client.shell({ term: 'ansi', cols: 80, rows: 25 }, (error, stream) => {
         if (error) { end(new Error('SHELL')); return; }
+        stage = 'NATIVE_STARTUP';
         stream.on('error', () => end(new Error('SHELL')));
         stream.on('data', chunk => {
           raw += chunk.toString('latin1');
@@ -32,6 +34,9 @@ function connect(password, expectedProof) {
           // Answer only terminal-position detection, never BBS prompts or menus.
           if (raw.includes('\x1b[6n')) { stream.write('\x1b[25;80R'); raw = raw.replace(/\x1b\[6n/g, ''); }
           const clean = raw.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+          if (clean.includes('Enter your user name:')) stage = 'NATIVE_LOGIN_PROMPT';
+          if (clean.includes('Enter your password:')) stage = 'NATIVE_PASSWORD_PROMPT';
+          if (clean.includes('IDENTITY_SHAPE:')) stage = 'NATIVE_PROBE';
           for (const line of clean.split(/\r?\n/)) {
             if (!line.startsWith('{')) continue;
             let report; try { report = JSON.parse(line); } catch { continue; }
@@ -45,11 +50,17 @@ function connect(password, expectedProof) {
           }
           if (clean.includes('CURRENT_SESSION_CONTEXT: UNAVAILABLE')) end(new Error('NATIVE_PROBE'));
         });
+        // Wake Mystic's terminal detection; do not answer native account/menu prompts.
+        stream.write('\r');
       });
     });
     client.connect({ host: '127.0.0.1', port: 8022, username: 'javadude2',
       readyTimeout: 20000, algorithms: { cipher: ['aes256-cbc'] },
-      hostVerifier: key => timingSafeEqual(createHash('sha256').update(key).digest(), Buffer.from(PIN, 'hex')),
+      hostVerifier: key => {
+        const accepted = timingSafeEqual(createHash('sha256').update(key).digest(), Buffer.from(PIN, 'hex'));
+        stage = accepted ? 'SSH_AUTH' : 'HOST_KEY';
+        return accepted;
+      },
       authHandler: (_methods, _partial, next) => {
         if (!candidate) { end(new Error('CREDENTIALS_REJECTED')); return; }
         attempt = { type: 'password', username: 'javadude2', password: candidate };
@@ -89,8 +100,9 @@ async function main() {
 }
 
 if (require.main === module) main().catch(error => {
-  const stages = ['INPUT', 'SANDBOX_PATH', 'TIMEOUT', 'CREDENTIALS_REJECTED', 'TRANSPORT', 'CONNECTION_CLOSED',
+  const stages = ['INPUT', 'SANDBOX_PATH', 'HOST_KEY', 'CREDENTIALS_REJECTED', 'TRANSPORT', 'CONNECTION_CLOSED',
     'WRONG_PASSWORD_ACCEPTED', 'SHELL', 'OUTPUT_LIMIT', 'IDENTITY_PROOF', 'NATIVE_PROBE'];
-  console.error('NATIVE_SSH_LOGIN: UNAVAILABLE; stage=' + (stages.includes(error.message) ? error.message : 'INPUT_OR_RUNTIME'));
+  const timeout = /^TIMEOUT_(CONNECT|HOST_KEY|SSH_AUTH|SSH_SHELL|NATIVE_STARTUP|NATIVE_LOGIN_PROMPT|NATIVE_PASSWORD_PROMPT|NATIVE_PROBE)$/.test(error.message);
+  console.error('NATIVE_SSH_LOGIN: UNAVAILABLE; stage=' + (timeout || stages.includes(error.message) ? error.message : 'INPUT_OR_RUNTIME'));
   process.exitCode = 1;
 });
