@@ -19,6 +19,10 @@ PREFIX = 'MYSTICWEB/1 '
 NONCE = re.compile(r'^[A-Za-z0-9_-]{43}$')
 INSTANCE = 'mystic-sandbox'
 MAX_LINE = 4096
+try:
+    TEXT_TYPES = (str, unicode)
+except NameError:
+    TEXT_TYPES = (str,)
 
 
 def emit(value):
@@ -55,20 +59,38 @@ def current_user(bbs):
 def handle(line, bbs):
     try:
         request = json.loads(line)
-        if type(request) is not dict or set(request) not in (
-                set(['version', 'nonce', 'operation', 'instance']),
-                set(['version', 'nonce', 'operation', 'instance', 'userId']),
-                set(['version', 'nonce', 'operation', 'instance',
-                     'userId', 'areaId', 'catalogRevision'])):
+        if type(request) is not dict:
+            return None
+        operation = request.get('operation')
+        required = {
+            'authenticate': set(['version', 'nonce', 'operation', 'instance']),
+            'account': set(['version', 'nonce', 'operation', 'instance', 'userId']),
+            'authorize': set(['version', 'nonce', 'operation', 'instance',
+                              'userId', 'areaId', 'catalogRevision'])
+        }
+        if operation not in required or set(request) != required[operation]:
             return None
         nonce = request.get('nonce')
-        if type(nonce) is not str or not NONCE.match(nonce):
+        if type(nonce) not in TEXT_TYPES or not NONCE.match(nonce):
             return None
-        if request.get('version') != 1 or request.get('instance') != INSTANCE:
+        if type(request.get('version')) is not int or request['version'] != 1:
             return None
-        if request.get('operation') not in ('authenticate', 'account', 'authorize'):
+        if request.get('instance') != INSTANCE:
             return None
+        if operation != 'authenticate':
+            user_id = request.get('userId')
+            if type(user_id) is not int or user_id < 1 or user_id > 0x7fffffff:
+                return None
+        if operation == 'authorize':
+            area_id = request.get('areaId')
+            revision = request.get('catalogRevision')
+            if (type(area_id) is not int or not 1 <= area_id <= 65535 or
+                    type(revision) not in TEXT_TYPES or
+                    not re.match(r'^[a-f0-9]{64}$', revision)):
+                return None
         uid = current_user(bbs)
+        if operation != 'authenticate' and request['userId'] != uid:
+            return None
         # Never turn an authenticated SSH shell into an eligibility assertion.
         # Explicit denial cannot pass validatedNativeReply().
         return dict(version=1, nonce=nonce, operation=request['operation'],
