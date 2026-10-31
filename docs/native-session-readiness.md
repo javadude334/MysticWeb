@@ -1,5 +1,14 @@
 # MysticWeb sandbox readiness — October 29, 2026
 
+## October 30 native-session update
+
+The operator completed all four current-session identity/ACS runs (two accounts,
+two message groups). See [the result matrix and limits](native-session-evidence-2026-10-30.md).
+This supersedes the unrun-probe statements and prepared-next-action section below.
+Python 2 `long` IDs are now handled correctly; `getkey()` holds the report on screen.
+Do not repeat these four runs. Browser composition, eligibility/revocation and the
+native-session connection remain unfinished. Historical preparation follows.
+
 ## Current result
 
 Real browser login and account-authorized message reading are **not yet verified
