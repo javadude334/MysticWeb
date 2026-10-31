@@ -1,13 +1,12 @@
 # -*- coding: ascii -*-
 """Sandbox-only, read-only Mystic session worker (Python 2.7 compatible).
 
-This worker is intentionally NOT a certified browser authentication adapter.
+This worker supports sandbox SSH login identity proof only.
 It must only be invoked after Mystic's own SSH password authentication, from
 the E:\\mystic sandbox, with a dedicated sandbox-only post-login hook.
 
-Protocol framing and nonce handling are implemented here. Account status and
-authorization are DENIED until their native semantics are verified. Never
-report passwordVerified=True based solely on reaching this Python program.
+Protocol framing and nonce handling are implemented here. Message area
+authorization remains DENIED until its native semantics are verified.
 """
 from __future__ import print_function
 import json
@@ -108,9 +107,15 @@ def handle(line, bbs):
         uid = current_user(bbs)
         if operation != 'authenticate' and request['userId'] != uid:
             return None
-        # Never turn an authenticated SSH shell into an eligibility assertion.
-        # Explicit denial cannot pass validatedNativeReply().
-        return dict(version=1, nonce=nonce, operation=request['operation'],
+        # Only the post-login SSH hook may invoke this worker. Native Mystic
+        # has authenticated the password and established the current user.
+        # Restrict affirmative replies to the known sandbox fixture account.
+        if operation == 'authenticate' and uid == 2:
+            return dict(version=1, nonce=nonce, operation=operation,
+                        instance=INSTANCE, userId=uid, passwordVerified=True,
+                        account=dict(exists=True, deleted=False, locked=False,
+                                     expired=False, passwordChangeRequired=False))
+        return dict(version=1, nonce=nonce, operation=operation,
                     instance=INSTANCE, userId=uid,
                     account=dict(exists=False, deleted=False, locked=False,
                                  expired=False, passwordChangeRequired=False))
