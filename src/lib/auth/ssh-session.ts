@@ -141,6 +141,11 @@ export class NativeSshSession {
         }
         this.close(); return;
       }
+      const workerFailure = line.slice("MYSTICWEB/1 ".length);
+      if (["INPUT_UNAVAILABLE", "REQUEST_REJECTED", "WORKER_EXCEPTION"].includes(workerFailure)) {
+        if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled") console.warn("[mysticweb] worker reported:", workerFailure);
+        this.requestFailure = "INVALID_REPLY"; this.close(); return;
+      }
       try {
         const reply = JSON.parse(line.slice(12));
         if (!reply || reply.nonce !== this.pending.nonce) { this.requestFailure = "INVALID_REPLY"; this.close(); return; }
