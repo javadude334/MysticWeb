@@ -1,0 +1,29 @@
+# Native Mystic password verification — staged integration
+
+This branch adds `src/lib/mystic/native-password.ts`, a **read-only** verifier for
+Mystic BBS 1.12 A48 password storage method 2.
+
+## Verified algorithm
+- Native user record: 1,536 bytes
+- User ID: little-endian 32-bit at offset 0
+- Method: byte at offset 8; method 2 supported
+- Iterations: little-endian 32-bit at offsets 9–12
+- Salt: bytes 13–44 (32 bytes)
+- Stored derived key: bytes 45–108 (64 bytes)
+- Derivation: `PBKDF2-HMAC-SHA512(SHA512(UTF8(password)), salt, iterations, 64)`
+- Compare with timing-safe equality
+
+## Integration boundary
+The verifier is server-only and can be called by the existing native identity
+adapter. It is **not yet connected to `productionAccess()` or the public
+`/login` form**, because doing so without the remaining account policy would
+permit locked/deleted/expired users to obtain sessions.
+
+Before enabling live sign-in:
+1. Map username/handle to permanent user ID using authoritative 1.12 record layout.
+2. Map and enforce deleted, locked, expired and password-change-required fields.
+3. Revalidate account status on every protected request and enforce area permissions.
+4. Configure the existing persistent session/rate-limit service and HTTPS origin.
+5. Test against disposable sandbox records and negative cases; never use real credentials in tests.
+
+Do not commit `users.dat`, salts, hashes, passwords, or Mystic executables.
