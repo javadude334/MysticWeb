@@ -132,7 +132,8 @@ export class NativeSshSession {
       if (!line.startsWith("MYSTICWEB/1 ") || !this.pending) {
         this.requestFailure = "UNEXPECTED_OUTPUT";
         if (process.env.MYSTICWEB_SANDBOX_LOGIN === "enabled") {
-          const category = line === "MYSTICWEB HOOK RETURNED" ? "HOOK_RETURNED" :
+          const category = ["MYSTICWEB/1 INPUT_UNAVAILABLE", "MYSTICWEB/1 REQUEST_REJECTED", "MYSTICWEB/1 WORKER_EXCEPTION"].includes(line) ? line.slice("MYSTICWEB/1 ".length) :
+            line === "MYSTICWEB HOOK RETURNED" ? "HOOK_RETURNED" :
             line.startsWith("{") ? "JSON_ECHO_OR_OUTPUT" :
             line.startsWith("MYSTICWEB") ? "WORKER_OR_HOOK_MARKER" :
             line.includes("\x1b") ? "TERMINAL_ESCAPE" : "OTHER_TERMINAL_TEXT";
