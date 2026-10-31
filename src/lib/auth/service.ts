@@ -3,6 +3,9 @@ import { allowAuthMutation, authCookie } from "./http";
 import { AuthStore, rateBucket, type Identity } from "./store";
 import { NativeAccess } from "./native";
 import { MessageReader, numericId } from "../mystic/reader";
+import { SandboxSshProvider } from "./ssh-provider";
+import { randomBytes } from "node:crypto";
+import path from "node:path";
 
 const COOKIE = "__Host-mysticweb_session";
 const HEADERS = { "Cache-Control": "private, no-store", "Pragma": "no-cache", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" };
@@ -116,5 +119,31 @@ export class WebAccess {
 
 // No setter or environment activation flag: deployment needs a reviewed native
 // driver and explicit composition after the documented end-to-end proof.
-export function productionAccess(): WebAccess | null { return null; }
+let sandboxAccess: WebAccess | null | undefined;
+/** Opt-in, HTTPS-only sandbox composition. Never auto-enable for a production BBS. */
+export function productionAccess(): WebAccess | null {
+  if (sandboxAccess !== undefined) return sandboxAccess;
+  if (process.env.MYSTICWEB_SANDBOX_LOGIN !== "enabled") return null;
+  try {
+    const host = process.env.MYSTIC_SSH_HOST;
+    const port = Number(process.env.MYSTIC_SSH_PORT);
+    const origin = process.env.MYSTICWEB_ORIGIN;
+    const file = process.env.MYSTICWEB_SESSION_DB;
+    const secret = process.env.MYSTICWEB_RATE_KEY;
+    if (host !== "192.168.150.58" || port !== 8022 || !origin ||
+      new URL(origin).protocol !== "https:" || !file || !path.isAbsolute(file) ||
+      !secret || !/^[a-f0-9]{64}$/.test(secret)) return null;
+    const provider = new SandboxSshProvider({
+      host, port, localCompatibility: "aes256-cbc",
+      hostKeySha256: "d133e0feb8209cb665a525f1cfb0f95505b5aac850b720f5bab2e86d19ac6732",
+    });
+    const native = new NativeAccess(provider, "mystic-sandbox", 12000);
+    const messages = new MessageReader(native, async () => ({
+      revision: randomBytes(32).toString("hex"), areas: [],
+    }), "/media/sf_sandbox");
+    sandboxAccess = new WebAccess(new AuthStore(file), native, messages,
+      origin, Buffer.from(secret, "hex"), () => "sandbox-shared-client");
+    return sandboxAccess;
+  } catch { return null; }
+}
 export function unavailable(): Response { return response({ error: "Access unavailable" }, 503); }
