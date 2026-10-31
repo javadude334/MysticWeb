@@ -30,32 +30,43 @@ def emit(bbs, value):
 
 
 def read_request(bbs):
-    """Read one bounded terminal request, tolerating pre-request Enter keys.
+    """Read a bounded request and return (line, non-sensitive failure category).
 
-    Mystic may pass a terminal-detection Enter to the worker, or report an
-    empty getkey result while no key is ready. Neither is a request. Never
-    log or echo the incoming JSON. The timeout bounds idle polling.
+    Diagnostic categories never include input characters, credentials, or JSON.
     """
     characters = []
     deadline = time.time() + 3.0
+    empty_reads = 0
+    ignored_enters = 0
     while len(characters) <= MAX_LINE and time.time() < deadline:
         key = bbs.getkey()
         if key is None or key == '':
+            empty_reads += 1
             time.sleep(0.01)
             continue
-        if type(key) not in TEXT_TYPES or len(key) != 1:
-            return None
-        if key in ('\r', '\n'):
+        if type(key) not in TEXT_TYPES:
+            return None, 'NON_TEXT'
+        if len(key) != 1:
+            return None, 'MULTI_CHAR'
+        if key in ('\\r', '\\n'):
             if characters:
-                return ''.join(characters)
-            # A terminal-detection Enter is not a request.
+                return ''.join(characters), None
+            ignored_enters += 1
             continue
         if ord(key) < 32 or ord(key) > 126:
-            return None
+            return None, 'CONTROL'
         characters.append(key)
-        # Once input starts, permit a bounded interval to finish the line.
         deadline = time.time() + 3.0
-    return None
+    if len(characters) > MAX_LINE:
+        return None, 'OVER_LIMIT'
+    if characters:
+        return None, 'PARTIAL'
+    if ignored_enters:
+        return None, 'ONLY_ENTER'
+    if empty_reads:
+        return None, 'EMPTY_READS'
+    return None, 'NO_INPUT'
+
 
 
 def sandbox_only():
@@ -140,9 +151,9 @@ def main():
     current_user(bbs)
     bbs.writeln('MYSTICWEB/1 READY')
     # One request per session; caller opens a fresh authenticated SSH session.
-    line = read_request(bbs)
+    line, failure = read_request(bbs)
     if line is None:
-        bbs.writeln('MYSTICWEB/1 INPUT_UNAVAILABLE')
+        bbs.writeln('MYSTICWEB/1 INPUT_UNAVAILABLE_' + failure)
         return
     reply = handle(line, bbs)
     if reply is None:
