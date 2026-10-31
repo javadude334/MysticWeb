@@ -4,7 +4,6 @@ import { AuthStore, rateBucket, type Identity } from "./store";
 import { NativeAccess } from "./native";
 import { MessageReader, numericId } from "../mystic/reader";
 import { SandboxSshProvider } from "./ssh-provider";
-import { randomBytes } from "node:crypto";
 import path from "node:path";
 
 const COOKIE = "__Host-mysticweb_session";
@@ -117,8 +116,7 @@ export class WebAccess {
   }
 }
 
-// No setter or environment activation flag: deployment needs a reviewed native
-// driver and explicit composition after the documented end-to-end proof.
+// Sandbox-only opt-in composition. Message access remains closed until native\n// account revalidation and area authorization are implemented.
 let sandboxAccess: WebAccess | null | undefined;
 /** Opt-in, HTTPS-only sandbox composition. Never auto-enable for a production BBS. */
 export function productionAccess(): WebAccess | null {
@@ -139,7 +137,7 @@ export function productionAccess(): WebAccess | null {
     });
     const native = new NativeAccess(provider, "mystic-sandbox", 12000);
     const messages = new MessageReader(native, async () => ({
-      revision: randomBytes(32).toString("hex"), areas: [],
+      revision: "0".repeat(64), areas: [],
     }), "/media/sf_sandbox");
     sandboxAccess = new WebAccess(new AuthStore(file), native, messages,
       origin, Buffer.from(secret, "hex"), () => "sandbox-shared-client");
