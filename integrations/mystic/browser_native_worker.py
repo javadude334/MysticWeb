@@ -40,7 +40,7 @@ def read_request(bbs):
         key = bbs.getkey()
         if type(key) not in TEXT_TYPES or len(key) != 1:
             return None
-        if key in ('\\r', '\\n'):
+        if key in ('\r', '\n'):
             return ''.join(characters) if characters else None
         if ord(key) < 32 or ord(key) > 126:
             return None
@@ -122,15 +122,14 @@ def main():
     import mystic_bbs as bbs
     sandbox_only()
     current_user(bbs)
-    sys.stdout.write('MYSTICWEB/1 READY\r\n')
-    sys.stdout.flush()
+    bbs.writeln('MYSTICWEB/1 READY')
     # One request per session; caller opens a fresh authenticated SSH session.
-    line = sys.stdin.readline(MAX_LINE + 1)
-    if not line or len(line) > MAX_LINE or not line.endswith('\n'):
+    line = read_request(bbs)
+    if line is None:
         return
     reply = handle(line, bbs)
     if reply is not None:
-        emit(reply)
+        emit(bbs, reply)
 
 
 if __name__ == '__main__':
