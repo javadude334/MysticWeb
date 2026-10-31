@@ -12,6 +12,7 @@ from __future__ import print_function
 import json
 import os
 import re
+import time
 
 PREFIX = 'MYSTICWEB/1 '
 NONCE = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -29,21 +30,31 @@ def emit(bbs, value):
 
 
 def read_request(bbs):
-    """Bounded input via Mystic terminal API; no Python stdio dependency.
+    """Read one bounded terminal request, tolerating pre-request Enter keys.
 
-    Mystic getkey echo/line semantics still require sandbox runtime testing.
-    The caller's SSH request timeout is the external deadline.
+    Mystic may pass a terminal-detection Enter to the worker, or report an
+    empty getkey result while no key is ready. Neither is a request. Never
+    log or echo the incoming JSON. The timeout bounds idle polling.
     """
     characters = []
-    while len(characters) <= MAX_LINE:
+    deadline = time.time() + 3.0
+    while len(characters) <= MAX_LINE and time.time() < deadline:
         key = bbs.getkey()
+        if key is None or key == '':
+            time.sleep(0.01)
+            continue
         if type(key) not in TEXT_TYPES or len(key) != 1:
             return None
         if key in ('\r', '\n'):
-            return ''.join(characters) if characters else None
+            if characters:
+                return ''.join(characters)
+            # A terminal-detection Enter is not a request.
+            continue
         if ord(key) < 32 or ord(key) > 126:
             return None
         characters.append(key)
+        # Once input starts, permit a bounded interval to finish the line.
+        deadline = time.time() + 3.0
     return None
 
 
