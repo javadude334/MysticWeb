@@ -27,3 +27,23 @@ Before enabling live sign-in:
 5. Test against disposable sandbox records and negative cases; never use real credentials in tests.
 
 Do not commit `users.dat`, salts, hashes, passwords, or Mystic executables.
+
+## 2026-10-31 — Username and status research
+
+The controlled two-record A48 sandbox file has Pascal length-prefixed handles at
+record offset **109** (maximum 30 bytes) and real names at **140** (maximum 30
+bytes). Both records consistently exhibit these positions. This is stronger
+evidence than an offset guess, but does not establish whether the BBS permits
+login by real name, handle, or both.
+
+`src/lib/mystic/native-user-login.ts` stages read-only handle lookup, method-2
+password verification and conservative rejection of locked (0x1), deleted
+(0x4), and forced-password-change (0x400) records. It rejects duplicate
+handles and unsupported non-ASCII handle encodings. The lockout and forced
+password change flags were observed in A48 machine code; deleted 0x4 is
+supported by older Mystic Pascal source but still needs direct A48 confirmation.
+
+**Not production-ready:** current A48 password-change interval and account
+expiration semantics, full username matching, legacy password methods, and
+live account status revalidation remain unresolved. The public login endpoint
+must remain disabled. No test account files were committed.
