@@ -51,3 +51,24 @@ must remain disabled. No test account files were committed.
 ## Synthetic regression tests (2026-10-31)
 
 Run `npm test` (or `node --test tests/native-user-login.test.cjs`) after checking out this branch and installing dependencies. The tests construct synthetic 1,536-byte A48-style method-2 user records; they exercise handle lookup, PBKDF2-SHA512 verification, rejection of locked/deleted/forced-change accounts, duplicate handles, malformed records and invalid input. These are **not** evidence of successful login against a real Mystic installation. The tests have been committed but were not executed in the GitHub connector environment. Do not enable production login until live sandbox compatibility, native account expiry semantics and safe session revalidation have been verified.
+
+## Staged NativeFileProvider
+
+`src/lib/auth/native-file-provider.ts` implements the existing `NativeProvider`
+interface using the direct read-only `users.dat` handle verifier. This is an
+integration seam, **not** a live authentication activation. A verified password
+does not establish the full native account state: the provider reports
+`expired: true` until A48 expiration rules are independently verified.
+Consequently `NativeAccess.authenticate()` denies a session. `account`
+and `authorize` operations also return no result, so protected message
+access stays denied. `productionAccess()` is unchanged and remains disabled.
+
+`tests/native-file-provider.test.cjs` checks that a synthetic valid password
+cannot produce an active identity, that account revalidation and area access
+are denied, and that the file is unchanged. Run `npm test` and `npm run build`
+after pulling. Neither has been run by the GitHub connector.
+
+Next research: establish account expiration and password-change state from
+controlled A48 records, then implement current-account revalidation by
+permanent user ID and duplicate-ID rejection. Only after those checks pass
+should a sandbox-only web login and persistent sessions be exercised.
