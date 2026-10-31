@@ -131,10 +131,13 @@ def main():
     # One request per session; caller opens a fresh authenticated SSH session.
     line = read_request(bbs)
     if line is None:
+        bbs.writeln('MYSTICWEB/1 INPUT_UNAVAILABLE')
         return
     reply = handle(line, bbs)
-    if reply is not None:
-        emit(bbs, reply)
+    if reply is None:
+        bbs.writeln('MYSTICWEB/1 REQUEST_REJECTED')
+        return
+    emit(bbs, reply)
 
 
 if __name__ == '__main__':
@@ -142,4 +145,8 @@ if __name__ == '__main__':
         main()
     except Exception:
         # No exception details, user records, paths, or credentials on the wire.
-        pass
+        try:
+            import mystic_bbs as bbs
+            bbs.writeln('MYSTICWEB/1 WORKER_EXCEPTION')
+        except Exception:
+            pass
