@@ -1,7 +1,6 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
 import path from "node:path";
-import { AuthStore } from "./store";
+import { AuthStore, rateBucket } from "./store";
 import { verifyMysticHandle } from "../mystic/native-user-login";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 
@@ -14,10 +13,11 @@ function config() {
   if (!allowed()) return null;
   const users = process.env.MYSTICWEB_SANDBOX_USERS_DAT;
   const db = process.env.MYSTICWEB_SANDBOX_SESSION_DB;
-  if (!users || !db || !path.isAbsolute(users) || !path.isAbsolute(db)) return null;
+  const secret = process.env.MYSTICWEB_SANDBOX_RATE_KEY;
+  if (!users || !db || !secret || !/^[a-f0-9]{64}$/i.test(secret) || !path.isAbsolute(users) || !path.isAbsolute(db)) return null;
   // The sandbox must be an explicit, distinct installation, never production.
   if (!/[/\\]data[/\\]users\.dat$/i.test(users) || !/[/\\]mystic[/\\]data[/\\]users\.dat$/i.test(users)) return null;
-  return { users, db };
+  return { users, db, secret: Buffer.from(secret, "hex") };
 }
 function sameLocalOrigin(request: Request) {
   try {
@@ -53,7 +53,7 @@ export async function sandboxLogin(request: Request): Promise<Response> {
     const store = new AuthStore(settings.db);
     try {
       // Dev-only sandbox rate limit; identity is still verified by native Mystic data.
-      const limit = store.consume(randomBytes(32).toString("hex"), 1, 60000);
+      const limit = store.consume(rateBucket(settings.secret, "sandbox_login", value.username.toLowerCase()), 5, 60000);
       if (!limit.allowed) return reply({ error: "Sign-in unavailable" }, 429);
       const match = await verifyMysticHandle(settings.users, value.username, value.password);
       if (!match) return reply({ error: "Sign-in unavailable" }, 401);
