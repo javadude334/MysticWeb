@@ -3,7 +3,7 @@ import { readFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import { plainMysticText } from "./text-format";
 
-export type MysticBulletin = { id: number; title: string; body: string; preview: string };
+export type MysticBulletin = { id: number; title: string; subject: string; body: string; preview: string };
 const titles = ["Welcome To Mystic BBS Software", "About This Bulletin Menu"];
 const MAX_BYTES = 64 * 1024;
 
@@ -27,10 +27,12 @@ export async function readMysticBulletin(id: number): Promise<MysticBulletin | n
     const subjectOffset = source.indexOf("Subject:");
     const prose = subjectOffset >= 0 ? source.slice(subjectOffset) : source;
     const normalized = prose.replace(/\r\n?/g, "\n");
+    const subjectLine = normalized.split("\n", 1)[0];
+    const subject = subjectOffset >= 0 ? subjectLine : "";
     const afterSubject = normalized.replace(/^Subject:[^\n]*\n*/i, "");
     const body = afterSubject.trim();
     const clean = plainMysticText(body);
-    return { id, title: titles[id - 1], body, preview: clean.replace(/\s+/g, " ").slice(0, 180) };
+    return { id, title: titles[id - 1], subject, body, preview: clean.replace(/\s+/g, " ").slice(0, 180) };
   } catch { return null; }
 }
 
