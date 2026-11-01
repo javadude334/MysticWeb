@@ -13,6 +13,7 @@ export default function Dashboard() {
 async function DashboardContent() {
   const widgets = await getDashboardWidgets();
   const bulletins = await listMysticBulletins();
+  const bulletinSections = [...new Set(bulletins.map(item => item.section))];
   return <Shell active="/dashboard">
     {widgets.map((widget, index) => {
       if (widget.type === "welcome") return <header key={index} className={styles.hero}>
@@ -22,9 +23,10 @@ async function DashboardContent() {
       </header>;
       if (widget.type === "bulletins") return <section key={index} aria-label={widget.title}>
         <div className={styles.sectionTitle}><h2>{widget.title}</h2><span>{bulletins.length ? "From your Mystic BBS" : "Bulletin files unavailable"}</span></div>
-        <div className={styles.announcements}><div className={styles.announcementHeader}>Announcements &amp; Welcome</div>
-          {(bulletins.length ? bulletins : []).map(item => <article key={item.id} className={styles.announcement}><h3><Link href={`/bulletins/${item.id}`}>{item.title}</Link></h3><p>{item.preview}</p><Link href={`/bulletins/${item.id}`}>Read full bulletin</Link></article>)}
-          {!bulletins.length && <p className={styles.announcement}>Default Mystic bulletin files were not found under MYSTIC_DATA_ROOT/themes/default/text.</p>}
+        <div className={styles.announcements}>
+          {bulletinSections.map(section => <div key={section}><div className={styles.announcementHeader}>{section}</div>
+            {bulletins.filter(item => item.section === section).map(item => <article key={item.id} className={styles.announcement}><h3><Link href={`/bulletins/${item.id}`}>{item.id}. {item.title}</Link></h3><p>{item.preview}</p><Link href={`/bulletins/${item.id}`}>Read full bulletin</Link></article>)}</div>)}
+          {!bulletins.length && <p className={styles.announcement}>No bulletin entries or matching files were found in the configured Mystic bulletin menu.</p>}
         </div>
       </section>;
       if (widget.type === "stat") return <section key={index} className={styles.stat} aria-label={widget.title}>
