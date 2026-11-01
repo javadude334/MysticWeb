@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:demo": "node scripts/dev-demo.cjs",
     "build": "next build",
+    "typecheck": "tsc --noEmit",
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.cjs",
