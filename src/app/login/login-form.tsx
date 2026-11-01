@@ -58,7 +58,7 @@ export function LoginForm() {
         disabled={busy} />
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <button type="submit" disabled={busy}>{busy ? "VERIFYING..." : "CONNECT TO THE BOARD  >"}</button>
-      <small>Native sign-in remains disabled on this deployment until sandbox security checks are complete.</small>
+      <small>Sandbox sign-in is available only when explicitly enabled in local development. Production sign-in remains disabled.</small>
     </form>
   );
 }
