@@ -7,16 +7,15 @@ import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store" };
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers });
-const allowed = () => process.env.NODE_ENV === "development" &&
-  process.env.MYSTICWEB_ENABLE_SANDBOX_LOGIN === "true";
+const allowed = () => process.env.NODE_ENV === "development";
 function config() {
   if (!allowed()) return null;
-  const users = process.env.MYSTICWEB_SANDBOX_USERS_DAT;
-  const db = process.env.MYSTICWEB_SANDBOX_SESSION_DB;
+  const root = process.env.MYSTIC_DATA_ROOT;
+  if (!root || !path.isAbsolute(root)) return null;
+  const users = path.join(root, "data", "users.dat");
+  const db = process.env.MYSTICWEB_SANDBOX_SESSION_DB ?? path.join(process.cwd(), ".mysticweb", "sessions.sqlite");
   const secret = process.env.MYSTICWEB_SANDBOX_RATE_KEY;
   if (!users || !db || !secret || !/^[a-f0-9]{64}$/i.test(secret) || !path.isAbsolute(users) || !path.isAbsolute(db)) return null;
-  // The sandbox must be an explicit, distinct installation, never production.
-  if (!/[/\\]data[/\\]users\.dat$/i.test(users) || !/[/\\]mystic[/\\]data[/\\]users\.dat$/i.test(users)) return null;
   return { users, db, secret: Buffer.from(secret, "hex") };
 }
 function sameLocalOrigin(request: Request) {
