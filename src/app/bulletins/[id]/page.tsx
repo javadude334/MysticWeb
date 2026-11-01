@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/shell";
 import { readMysticBulletin } from "@/lib/mystic/native-bulletins";
 
-export default async function BulletinPage({ params }: { params: Promise<{ id: string }> }) {
+export default function BulletinPage({ params }: { params: Promise<{ id: string }> }) {
+  return <Suspense fallback={<Shell active="/features/bulletins"><section className="panel">Loading bulletin...</section></Shell>}><BulletinContent params={params} /></Suspense>;
+}
+
+async function BulletinContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[12]$/.test(id)) notFound();
   const bulletin = await readMysticBulletin(Number(id));
