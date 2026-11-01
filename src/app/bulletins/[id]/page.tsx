@@ -11,7 +11,7 @@ export default function BulletinPage({ params }: { params: Promise<{ id: string 
 
 async function BulletinContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^[12]$/.test(id)) notFound();
+  if (!/^[1-9][0-9]?$/.test(id)) notFound();
   const bulletin = await readMysticBulletin(Number(id));
   if (!bulletin) notFound();
   return <Shell active="/features/bulletins"><section className="panel">
