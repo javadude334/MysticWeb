@@ -58,7 +58,7 @@ export function LoginForm() {
         disabled={busy} />
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <button type="submit" disabled={busy}>{busy ? "VERIFYING..." : "CONNECT TO THE BOARD  >"}</button>
-      <small>Sandbox sign-in is available only when explicitly enabled in local development. Production sign-in remains disabled.</small>
+      <small>Local development sign-in uses MYSTIC_DATA_ROOT. Production authentication is pending native account-policy verification.</small>
     </form>
   );
 }
