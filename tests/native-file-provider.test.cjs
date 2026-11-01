@@ -55,6 +55,7 @@ test("provider account rechecks reflect native flag changes but still deny activ
   const filename = path.join(dir, "users.dat");
   const record = Buffer.alloc(1536);
   record.writeUInt32LE(4, 0);
+  record[1006] = 10;
   writeFileSync(filename, record);
   const provider = new NativeFileProvider(filename, "sandbox");
   const makeRequest = () => ({
@@ -64,6 +65,7 @@ test("provider account rechecks reflect native flag changes but still deny activ
   let reply = await provider.request(makeRequest(), options);
   assert.equal(reply.account.locked, false);
   assert.equal(reply.account.expired, true);
+  // Security level is available in the native reader, but does not itself grant access.
   record.writeUInt32LE(0x00000001, 4);
   writeFileSync(filename, record);
   reply = await provider.request(makeRequest(), options);
