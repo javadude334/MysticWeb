@@ -10,6 +10,7 @@ const FORCE_NEW_PASSWORD = 0x00000400;
 
 export interface NativeAccountSnapshot {
   userId: number;
+  securityLevel: number;
   locked: boolean;
   deletedCandidate: boolean;
   passwordChangeRequired: boolean;
@@ -41,6 +42,7 @@ export async function readNativeAccountSnapshot(
       const flags = record.readUInt32LE(4);
       result = {
         userId,
+        securityLevel: record.readUInt8(1006),
         locked: (flags & LOCKED) !== 0,
         deletedCandidate: (flags & DELETED_CANDIDATE) !== 0,
         passwordChangeRequired: (flags & FORCE_NEW_PASSWORD) !== 0,
