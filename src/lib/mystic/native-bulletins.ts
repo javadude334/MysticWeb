@@ -20,9 +20,19 @@ export async function readMysticBulletin(id: number): Promise<MysticBulletin | n
     const stat = await lstat(filename);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_BYTES) return null;
     const raw = await readFile(filename);
-    // Mystic ANSI/ASCII artwork can include ANSI SGR and DOS line endings.
-    const body = raw.toString("latin1").replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "").replace(/\r\n?/g, "\n").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
-    const clean = body.trim();
+    // Default Mystic bulletins begin with CP437 block-art and Mystic pipe
+    // color/control directives. The readable prose begins at Subject:.
+    // Work from bytes so high-bit CP437 artwork cannot become mojibake.
+    const subject = Buffer.from("Subject:", "ascii");
+    const marker = raw.indexOf(subject);
+    const textBytes = marker >= 0 ? raw.subarray(marker) : raw;
+    const text = textBytes.toString("latin1")
+      .replace(/\\|(?:[0-9]{2}|CL|CR|PA|PN)/gi, "")
+      .replace(/\\x1b\\[[0-9;?]*[ -/]*[@-~]/g, "")
+      .replace(/\\r\\n?/g, "\\n")
+      .replace(/[\\x00-\\x08\\x0b-\\x1f\\x7f]/g, "");
+    // The Subject line is metadata, not part of the bulletin body.
+    const clean = text.replace(/^Subject:[^\\n]*\\n*/i, "").trim();
     return { id, title: titles[id - 1], body: clean, preview: clean.replace(/\s+/g, " ").slice(0, 180) };
   } catch { return null; }
 }
