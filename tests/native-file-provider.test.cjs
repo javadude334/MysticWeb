@@ -16,6 +16,7 @@ function load(folder, name) {
   m.require = id => id === "server-only" ? {} :
     id === "./native-password" ? load("mystic", "native-password") :
     id === "../mystic/native-user-login" ? load("mystic", "native-user-login") :
+    id === "../mystic/native-account-status" ? load("mystic", "native-account-status") :
     original(id);
   m._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
@@ -45,5 +46,33 @@ test("file provider verifies native credentials but cannot issue an active accou
   assert.equal(await native.authenticate("javadude2", "wrong"), null);
   assert.equal(await native.accountValid({ instance: "sandbox", userId: 2 }), false);
   await assert.rejects(native.readArea({ instance: "sandbox", userId: 2 }, 1, "a".repeat(64), async () => "should not read"));
+  assert.deepEqual(readFileSync(filename), record);
+});
+
+test("provider account rechecks reflect native flag changes but still deny active sessions", async t => {
+  const dir = mkdtempSync(path.join(tmpdir(), "mystic-account-recheck-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const filename = path.join(dir, "users.dat");
+  const record = Buffer.alloc(1536);
+  record.writeUInt32LE(4, 0);
+  writeFileSync(filename, record);
+  const provider = new NativeFileProvider(filename, "sandbox");
+  const makeRequest = () => ({
+    version: 1, nonce: "test-nonce", operation: "account", instance: "sandbox", userId: 4,
+  });
+  const options = { signal: new AbortController().signal };
+  let reply = await provider.request(makeRequest(), options);
+  assert.equal(reply.account.locked, false);
+  assert.equal(reply.account.expired, true);
+  record.writeUInt32LE(0x00000001, 4);
+  writeFileSync(filename, record);
+  reply = await provider.request(makeRequest(), options);
+  assert.equal(reply.account.locked, true);
+  record.writeUInt32LE(0x00000400, 4);
+  writeFileSync(filename, record);
+  reply = await provider.request(makeRequest(), options);
+  assert.equal(reply.account.passwordChangeRequired, true);
+  const access = new NativeAccess(provider, "sandbox");
+  assert.equal(await access.accountValid({ instance: "sandbox", userId: 4 }), false);
   assert.deepEqual(readFileSync(filename), record);
 });
