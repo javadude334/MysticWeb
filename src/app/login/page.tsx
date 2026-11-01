@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "../public.module.css";
+import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Web login" };
 
@@ -20,8 +21,11 @@ export default function Login() {
           <span className={styles.eyebrow}>DAVE&apos;S BBS / WEB ACCESS</span>
           <span className={styles.loginIcon} aria-hidden="true">[ _ ]</span>
           <h1 id="login-title">Web login</h1>
-          <span className={styles.badge}>COMING SOON</span>
-          <p>Web sign-in is being connected to Mystic accounts. It is not available yet, and this page does not collect usernames or passwords.</p>
+          <span className={styles.badge}>NATIVE ACCESS / STAGED</span>
+          <p>Use your Mystic BBS handle and password. The native server must approve sign-in; this deployment currently rejects login until sandbox integration is activated.</p>
+          <LoginForm />
+          <p>Want to explore the experience before native login is connected?</p>
+          <Link className={styles.primary} href="/dashboard">Explore BBS concept preview <span aria-hidden="true">↗</span></Link>
           <p>For traditional access, connect to Dave&apos;s BBS using your Telnet client.</p>
           <a className={styles.primary} href="telnet://davesbbs.com">Connect via Telnet <span aria-hidden="true">↗</span></a>
           <Link className={styles.back} href="/connect">Need help connecting?</Link>

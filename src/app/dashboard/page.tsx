@@ -1,20 +1,38 @@
 import Link from "next/link";
 import { Shell } from "@/components/shell";
-const areas = [
-  { href: "/messages", icon: "≡", name: "Messages", text: "Find your next conversation.", tag: "PUBLIC BOARDS" },
-  { href: "/private-mail", icon: "✉", name: "Private Mail", text: "A space for direct connections.", tag: "PERSONAL" },
-  { href: "/files", icon: "↓", name: "Files", text: "Explore the digital archive.", tag: "FILE LIBRARY" },
-  { href: "/relay-chat", icon: "#", name: "Relay Chat", text: "Drop into the conversation.", tag: "REAL TIME" },
-  { href: "/door-games", icon: "◇", name: "Door Games", text: "One more turn. One more adventure.", tag: "PLAY" },
-  { href: "/my-profile", icon: "◎", name: "My Profile", text: "Make yourself at home.", tag: "YOUR CORNER" },
-];
-export default function Dashboard() {
+import { getDashboardWidgets } from "@/lib/scripting/dashboard-runtime";
+import { defaultNavigation } from "@/lib/navigation/default-navigation";
+import styles from "./mystic-theme.module.css";
+
+export default async function Dashboard() {
+  const widgets = await getDashboardWidgets();
   return <Shell active="/dashboard">
-    <div className="eyebrow">THE BOARD / OVERVIEW</div>
-    <div className="page-heading"><div><h1>Your next connection<br /><span>starts here.</span></h1><p>Old-school spirit. A whole new front door.</p></div><span className="edition">EST. IN THE TERMINAL<br />REIMAGINED FOR THE WEB</span></div>
-    <section className="hero" aria-labelledby="welcome"><div className="hero-copy"><span className="pill">FRONTEND PREVIEW · DISCONNECTED</span><h2 id="welcome">Welcome to<br />the neighborhood.</h2><p>Good conversations, shared discoveries, and a little friendly competition. Explore the familiar world of BBS, at your own pace.</p><Link className="button" href="/messages">Explore message boards <span aria-hidden="true">↗</span></Link></div><div className="ansi" aria-hidden="true"><div className="orbit one" /><div className="orbit two" /><pre>{"     ▄▄▄       ▄▄▄\n   ▄█████▄   ▄█████▄\n  ███▀ ▀███▄███▀ ▀███\n  ███   ▀█████▀   ███\n  ███     ███     ███\n  ███             ███\n  ▀▀▀             ▀▀▀"}</pre><span>M Y S T I C / W E B</span></div></section>
-    <div className="section-heading"><h2>Find your frequency</h2><span>06 DESTINATIONS</span></div>
-    <section className="area-grid" aria-label="Explore the board">{areas.map((area) => <Link className="area-card" href={area.href} key={area.href}><div className="card-top"><span className="area-icon" aria-hidden="true">{area.icon}</span><span className="arrow" aria-hidden="true">↗</span></div><span className="eyebrow">{area.tag}</span><h3>{area.name}</h3><p>{area.text}</p><span className="card-status">Preview · not connected</span></Link>)}</section>
-    <section className="bottom-grid"><div className="panel"><span className="eyebrow">ACTIVITY FEED</span><h2>A quiet board, for now.</h2><p>No live activity is loaded. Messages, callers, and file counts will appear only after an authorized BBS connection is configured.</p><span className="empty-line"><i /> Awaiting connection</span></div><div className="panel terminal"><div className="terminal-title"><span>CONNECTION NOTES</span><span aria-hidden="true">● ● ●</span></div><p><b>&gt;</b> Interface ready to explore</p><p><b>&gt;</b> BBS connection not configured</p><p><b>&gt;</b> No account signed in</p><p className="cursor"><b>&gt;</b> The next chapter is yours<span aria-hidden="true"> ▋</span></p></div></section>
+    {widgets.map((widget, index) => {
+      if (widget.type === "welcome") return <header key={index} className={styles.hero}>
+        <span className={styles.eyebrow}>MysticWeb · Scripted Dashboard</span>
+        <h1>{widget.title}</h1><p>{widget.description}</p>
+        <div className={styles.heroActions}><Link href="/messages">Explore message boards</Link><Link href="/files">Browse files</Link></div>
+      </header>;
+      if (widget.type === "bulletins") return <section key={index} aria-label={widget.title}>
+        <div className={styles.sectionTitle}><h2>{widget.title}</h2><span>Sample bulletin summaries</span></div>
+        <div className={styles.announcements}><div className={styles.announcementHeader}>Announcements &amp; Welcome</div>
+          {widget.items.map((item, i) => <article key={i} className={styles.announcement}><h3>{item.title}</h3><p>{item.description}</p></article>)}
+        </div>
+      </section>;
+      if (widget.type === "stat") return <section key={index} className={styles.stat} aria-label={widget.title}>
+        <span>{widget.title}</span><strong>{widget.value}</strong><span>{widget.description}</span>
+      </section>;
+      return <section key={index} className={styles.announcements} aria-label={widget.title}>
+        <div className={styles.announcementHeader}>{widget.title}</div>
+        <div className={styles.announcement}><p>{widget.description}</p>{widget.items.map((item,i)=><p key={i}>{item}</p>)}</div>
+      </section>;
+    })}
+    <div className={styles.sectionTitle}><h2>Main Menu</h2><span>Independent MysticWeb navigation</span></div>
+    <nav className={styles.menuGrid} aria-label="BBS main menu">
+      {defaultNavigation.filter(item => item.enabled !== false && item.href !== "/dashboard").map(item => <Link key={item.href} href={item.href} className={styles.menuItem}>
+        <span className={styles.menuIcon} aria-hidden="true">{item.icon}</span><strong>{item.name}</strong><p>{item.description}</p>
+      </Link>)}
+    </nav>
+    <p className={styles.note}>The dashboard is generated by default-dashboard.js using placeholder core functions. The navigation is separately defined in default-navigation.ts. No live BBS data has been accessed.</p>
   </Shell>;
 }

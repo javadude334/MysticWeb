@@ -15,6 +15,7 @@ export interface MysticArea {
   id: number;
   name: string;
   jamBase: string;
+  /** Native A48 editor order: List ACS, Read ACS, Post ACS, Sysop ACS. */
   security: readonly [string, string, string, string];
   inferredGroupId: number | null;
 }
