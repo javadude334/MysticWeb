@@ -1,11 +1,16 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Shell } from "@/components/shell";
 import { getDashboardWidgets } from "@/lib/scripting/dashboard-runtime";
 import { defaultNavigation } from "@/lib/navigation/default-navigation";
 import styles from "./mystic-theme.module.css";
 import { listMysticBulletins } from "@/lib/mystic/native-bulletins";
 
-export default async function Dashboard() {
+export default function Dashboard() {
+  return <Suspense fallback={<Shell active="/dashboard"><section className="panel">Loading dashboard...</section></Shell>}><DashboardContent /></Suspense>;
+}
+
+async function DashboardContent() {
   const widgets = await getDashboardWidgets();
   const bulletins = await listMysticBulletins();
   return <Shell active="/dashboard">
