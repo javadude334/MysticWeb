@@ -2,6 +2,14 @@
 
 A public front door and developing web interface for Dave's BBS, powered by Mystic BBS.
 
+## Authentication progress (operator update — November 1, 2026)
+
+The operator reports that native Mystic password verification and live login were completed and tested in the MysticWeb development workflow, including recognition of a connected Mystic user on the dashboard (User #2). **Treat this as completed development progress, not a request to reimplement login from scratch.**
+
+**Branch/integration distinction:** The historical staging and production notes below describe the state of the `main` branch and its disabled production composition. They have not been superseded by a verified merge of the latest native-login work. Before calling authentication production-ready, reconcile the authentication implementation branches with `main`, run regression and security tests, and verify the live login/session/logout path. Do not enable production authentication solely because of this status note.
+
+Relevant work branches include `feature/native-file-password-verification`, `feature/auth-reader-integration`, and `feature/native-session-readiness`. Check actual code and commit history rather than assuming all work has been merged.
+
 ## Pages
 
 - `/`: public information, a `telnet://davesbbs.com` link, and a web-login link.
