@@ -1,6 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { verifyMysticHandle } from "../mystic/native-user-login";
+import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import type { NativeProvider, NativeRequest } from "./native";
 
 /**
@@ -21,6 +22,19 @@ export class NativeFileProvider implements NativeProvider {
 
   async request(request: NativeRequest, options: { signal: AbortSignal }): Promise<unknown> {
     if (options.signal.aborted || request.instance !== this.instance) return null;
+    if (request.operation === "account") {
+      const snapshot = await readNativeAccountSnapshot(this.usersDatPath, request.userId);
+      if (options.signal.aborted || !snapshot) return null;
+      return {
+        version: 1, nonce: request.nonce, operation: "account",
+        instance: this.instance, userId: snapshot.userId,
+        account: {
+          exists: true, deleted: snapshot.deletedCandidate,
+          locked: snapshot.locked, expired: true,
+          passwordChangeRequired: snapshot.passwordChangeRequired,
+        },
+      };
+    }
     if (request.operation !== "authenticate") return null;
     // This establishes the password/handle boundary, but cannot assert that
     // the account is non-expired. Never emit an 'active' account response.
