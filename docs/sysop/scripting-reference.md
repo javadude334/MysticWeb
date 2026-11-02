@@ -61,6 +61,10 @@ export default async function dashboard({ ui }) {
 - **Data access commands (`get*` or `list*`)** would return structured information to a script for custom display or decisions. These are a **proposed future API**, not currently implemented as operator scripting commands.
 - **Action commands** such as `launchDoor`, `readMail`, or `sendMail` would require authenticated caller context and authorization. They are **not currently available** as scripting commands. A function named `showEmail()` does **not** read private messages.
 
+## Disconnected data/action command stubs (added to source)
+
+The server-side module `src/lib/scripting/bbs-commands.ts` now defines typed, **fail-closed stubs** for `getBulletins`, `getWhosOnline`, `getLastCallers`, `listMessageAreas`, `readMessage`, `listMail`, `readMail`, `sendMail`, `getRecentFiles`, `getSystemStats`, `getDoorGames`, `launchDoor`, `getOneLiners`, `getVotes`, `getUserListing`, `getBbsListing`, `getUsageStats`, `getNodeMessages`, and `getTimeBank`. Every stub currently returns `{ status: "unavailable", reason: "..." }`; **none reads or writes Mystic data**. They are internal TypeScript contracts, not yet accessible to SysOp-authored scripts or external HTTP clients. Existing menu entries have optional command metadata, and feature-preview pages identify the reserved command. The real authorization, data adapters, and UI wiring are separate future tasks. These commits have not been regression-tested on the operator's computer.
+
 ## Proposed scripting command families (not implemented)
 
 | Category | Examples for future design | Required safeguards |
