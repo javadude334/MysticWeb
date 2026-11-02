@@ -67,6 +67,7 @@ export class MessageReader {
       if ((await this.snapshot()).revision !== catalog.revision) throw new NativeAccessError();
       return { area: { id: area.id, name: area.name }, messages: page.messages.map(m => ({
         number: m.number, author: m.author, recipient: m.recipient, subject: m.subject,
+        replyTo: m.replyTo, firstReply: m.firstReply, nextReply: m.nextReply,
         dates: m.dates, ...(m.body === undefined ? {} : { body: m.body }),
       })), nextBefore: page.nextBefore };
     });
