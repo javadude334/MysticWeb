@@ -154,3 +154,15 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .development-board button:focus-visible { outline: 3px solid #e1d5ff; outline-offset: 3px; }
 .development-board button:disabled { opacity: .55; cursor: wait; }
 .development-board li { margin: 12px 0; }
+
+
+/* Authenticated account menu */
+.account-menu { position: relative; margin-left: auto; }
+.account-menu-trigger { color: #d4dfda; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 10px 12px; font: inherit; cursor: pointer; }
+.account-menu-trigger:hover, .account-menu-trigger[aria-expanded="true"] { background: #1b302a; border-color: #304e41; }
+.account-menu-trigger span { color: var(--accent); margin-left: 9px; }
+.account-menu-panel { position: absolute; z-index: 30; right: 0; top: calc(100% + 5px); min-width: 170px; padding: 6px; border: 1px solid #365348; border-radius: 8px; background: #14201d; box-shadow: 0 12px 30px #0008; }
+.account-menu-panel a, .account-menu-panel button { display: block; width: 100%; text-align: left; border: 0; border-radius: 5px; padding: 11px 12px; color: #d4dfda; background: transparent; font: inherit; cursor: pointer; }
+.account-menu-panel a:hover, .account-menu-panel button:hover { color: var(--accent); background: #22372e; }
+.account-menu-panel button:disabled { opacity: .6; cursor: wait; }
+.account-menu-error { display: block; padding: 8px 12px; color: #ffb4aa; font-size: 11px; }
