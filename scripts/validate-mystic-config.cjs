@@ -60,9 +60,84 @@ async function main() {
   for (const stat of acsStats) {
     console.log(`${stat.label}: blank=${stat.blank}, nonblank=${stat.nonblank}, distinct_nonblank=${stat.distinct}`);
   }
+  // Inventory syntax without exposing actual ACS values, usernames or paths.
+  // This is lexical classification only, never a permission decision.
+  const fields = ["List", "Read", "Post", "Sysop"];
+  const tokens = new Map();
+  const syntax = { parentheses: 0, pipes: 0, ampersands: 0, bangs: 0, comparison: 0,
+    whitespace: 0, otherPunctuation: 0, nonAscii: 0, empty: 0 };
+  const refsByField = fields.map(() => new Set());
+  const distinctPatterns = new Set();
+  let crossFieldGroupMismatch = 0;
+  let noGroupReferences = 0;
+  let multipleGroupReferences = 0;
+  let unknownGroupReferences = 0;
+  let invalidJamNames = 0;
+  let duplicateJamNames = 0;
+  const jamNames = new Set();
+  const groupUsage = new Map();
+  const invalidName = (name) => !/^[a-zA-Z0-9_][a-zA-Z0-9_&!'.-]{0,39}$/.test(name) || name.includes("..");
+  for (const area of areas) {
+    const base = area.jamBase;
+    if (invalidName(base)) invalidJamNames++;
+    const baseKey = base.toLowerCase();
+    if (jamNames.has(baseKey)) duplicateJamNames++;
+    jamNames.add(baseKey);
+    const perAreaRefs = new Set();
+    const perFieldRefs = [];
+    for (let index = 0; index < 4; index++) {
+      const expression = area.security[index].trim();
+      if (!expression) syntax.empty++;
+      const refs = [...expression.matchAll(/g([0-9]+)/gi)].map((m) => Number(m[1]));
+      const set = new Set(refs);
+      perFieldRefs.push(set);
+      for (const id of set) {
+        perAreaRefs.add(id);
+        refsByField[index].add(id);
+      }
+      // Letter-prefixed token names are grouped by prefix only; no token
+      // parameters, group numbers, security levels or raw expressions are shown.
+      for (const match of expression.matchAll(/[A-Za-z]+/g)) {
+        const key = match[0][0].toUpperCase();
+        tokens.set(key, (tokens.get(key) || 0) + 1);
+      }
+      if (/[()]/.test(expression)) syntax.parentheses++;
+      if (expression.includes("|")) syntax.pipes++;
+      if (expression.includes("&")) syntax.ampersands++;
+      if (expression.includes("!")) syntax.bangs++;
+      if (/[<>=]/.test(expression)) syntax.comparison++;
+      if (/\s/.test(expression)) syntax.whitespace++;
+      if (/[^A-Za-z0-9\s()|&!<>=+\-]/.test(expression)) syntax.otherPunctuation++;
+      if (/[^\x00-\x7f]/.test(expression)) syntax.nonAscii++;
+      // Normalize digits and alphabetic literals to avoid emitting values.
+      distinctPatterns.add(expression.replace(/[0-9]+/g, "#").replace(/[A-Za-z]+/g, "A"));
+    }
+    if (perAreaRefs.size === 0) noGroupReferences++;
+    if (perAreaRefs.size > 1) multipleGroupReferences++;
+    if ([...perAreaRefs].some((id) => !groupIds.has(id))) unknownGroupReferences++;
+    const listRefs = perFieldRefs[0], readRefs = perFieldRefs[1];
+    if (listRefs.size && readRefs.size &&
+        (listRefs.size !== readRefs.size || [...listRefs].some((id) => !readRefs.has(id)))) {
+      crossFieldGroupMismatch++;
+    }
+    for (const id of perAreaRefs) groupUsage.set(id, (groupUsage.get(id) || 0) + 1);
+  }
+  console.log("ACS structural diagnostics (no expression values):");
+  console.log(`Distinct normalized syntax shapes: ${distinctPatterns.size}`);
+  console.log(`Leading-letter token counts: ${[...tokens].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join(", ") || "none"}`);
+  for (const key of Object.keys(syntax)) console.log(`ACS expressions containing ${key}: ${syntax[key]}`);
+  console.log(`Group references by field (distinct): ${fields.map((label, i) => `${label}=${refsByField[i].size}`).join(", ")}`);
+  console.log(`Areas without any group reference: ${noGroupReferences}`);
+  console.log(`Areas with multiple distinct group references: ${multipleGroupReferences}`);
+  console.log(`Areas referencing unknown groups: ${unknownGroupReferences}`);
+  console.log(`Areas with different List/Read group-reference sets: ${crossFieldGroupMismatch}`);
+  console.log(`Distinct referenced group IDs: ${groupUsage.size}`);
+  console.log(`Invalid JAM base names: ${invalidJamNames}`);
+  console.log(`Duplicate JAM base names (case-insensitive): ${duplicateJamNames}`);
+  console.log("NOTE: This diagnostic cannot verify user group membership, native ACS evaluation, area type or per-user permissions.");
   console.log("NOTE: ACS expressions are not evaluated; blank ACS is not an authorization grant.");
   console.log("NOTE: Group inference is not authorization; no message content was read.");
-  if (invalidRefs) process.exitCode = 1;
+  if (invalidRefs || unknownGroupReferences || invalidJamNames) process.exitCode = 1;
 }
 
 main().catch((error) => {
