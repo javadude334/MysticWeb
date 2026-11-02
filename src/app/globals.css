@@ -183,3 +183,7 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .mw-message h3 { font-size:20px; margin-bottom:10px; }
 .mw-message pre { white-space:pre-wrap; overflow-wrap:anywhere; font:14px/1.65 monospace; margin-top:18px; }
 @media(max-width:760px) { .mw-layout { grid-template-columns:1fr; } .mw-area-list { max-height:220px; } }
+
+.mw-replies { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.mw-replies button { border:1px solid #486355; border-radius:5px; background:#20382e; color:var(--accent); padding:9px 12px; cursor:pointer; }
+.mw-replies button:disabled { opacity:.5; cursor:wait; }
