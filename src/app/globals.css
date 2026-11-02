@@ -166,3 +166,20 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .account-menu-panel a:hover, .account-menu-panel button:hover { color: var(--accent); background: #22372e; }
 .account-menu-panel button:disabled { opacity: .6; cursor: wait; }
 .account-menu-error { display: block; padding: 8px 12px; color: #ffb4aa; font-size: 11px; }
+
+/* Messaging and personal mail workspaces */
+.mw-layout { display:grid; grid-template-columns:minmax(200px,280px) minmax(0,1fr); gap:18px; align-items:start; }
+.mw-panel { min-width:0; padding:22px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+.mw-panel h2 { font-size:18px; font-weight:600; margin:0 0 16px; }
+.mw-panel p { margin:10px 0; overflow-wrap:anywhere; }
+.mw-heading { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.mw-heading button, .mw-reader > button { color:var(--accent); background:transparent; border:1px solid #486355; border-radius:5px; padding:8px 10px; cursor:pointer; }
+.mw-area-list, .mw-thread-list { display:flex; flex-direction:column; gap:6px; max-height:55vh; overflow:auto; }
+.mw-area-list button, .mw-thread-list button { display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:5px; padding:12px; color:var(--text); background:transparent; border:1px solid transparent; border-radius:6px; cursor:pointer; overflow-wrap:anywhere; }
+.mw-area-list button:hover, .mw-thread-list button:hover, .mw-active { background:#20382e !important; border-color:#42614f !important; }
+.mw-thread-list button span { color:var(--muted); font-size:12px; }
+.mw-reader { min-height:320px; }
+.mw-message { margin-top:22px; padding-top:20px; border-top:1px solid var(--line); }
+.mw-message h3 { font-size:20px; margin-bottom:10px; }
+.mw-message pre { white-space:pre-wrap; overflow-wrap:anywhere; font:14px/1.65 monospace; margin-top:18px; }
+@media(max-width:760px) { .mw-layout { grid-template-columns:1fr; } .mw-area-list { max-height:220px; } }
