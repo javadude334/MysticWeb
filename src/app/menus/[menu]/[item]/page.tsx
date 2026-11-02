@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Shell } from "@/components/shell";
 import { MysticText } from "@/components/mystic-text";
-import { getSysopMenu, getSysopMenuItem } from "@/lib/scripting/sysop-menus";
+import { getSysopMenu, getSysopMenuItem, menuItemHref } from "@/lib/scripting/sysop-menus";
 import { readSysopMenuText } from "@/lib/mystic/sysop-text";
 
 export default async function SysopTextPage({ params }: { params: Promise<{ menu: string; item: string }> }) {
   const { menu: menuId, item: itemId } = await params;
   const [menu, item] = await Promise.all([getSysopMenu(menuId), getSysopMenuItem(menuId, itemId)]);
   if (!menu || !item) notFound();
+  if (item.action !== "displayText") redirect(menuItemHref(menuId, item));
   const content = await readSysopMenuText(menuId, itemId);
   return <Shell active={menuId === "news" ? "/news" : ""}>
     <div className="eyebrow">THE BOARD / {menu.title.toUpperCase()}</div>
