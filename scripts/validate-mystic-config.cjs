@@ -33,6 +33,18 @@ async function main() {
   const missingJamBase = areas.filter((area) => !area.jamBase.trim()).length;
   const invalidRefs = inferred.filter((area) => !groupIds.has(area.inferredGroupId)).length;
 
+  // Aggregate ACS inventory only. Never print expressions or assume an ACS
+  // expression can be evaluated from a numeric security level alone.
+  const acsLabels = ["List ACS", "Read ACS", "Post ACS", "Sysop ACS"];
+  const acsStats = acsLabels.map((label, index) => {
+    const values = areas.map((area) => area.security[index].trim());
+    return {
+      label,
+      blank: values.filter((value) => value.length === 0).length,
+      nonblank: values.filter((value) => value.length > 0).length,
+      distinct: new Set(values.filter(Boolean)).size,
+    };
+  });
   console.log("Mystic configuration validation (read-only)");
   console.log(`Group records: ${groups.length}`);
   console.log(`Area records: ${areas.length}`);
@@ -40,6 +52,10 @@ async function main() {
   console.log(`Areas without one unambiguous group: ${unresolved}`);
   console.log(`Areas with blank JAM base field: ${missingJamBase}`);
   console.log(`Invalid inferred group references: ${invalidRefs}`);
+  for (const stat of acsStats) {
+    console.log(`${stat.label}: blank=${stat.blank}, nonblank=${stat.nonblank}, distinct_nonblank=${stat.distinct}`);
+  }
+  console.log("NOTE: ACS expressions are not evaluated; blank ACS is not an authorization grant.");
   console.log("NOTE: Group inference is not authorization; no message content was read.");
   if (invalidRefs) process.exitCode = 1;
 }
