@@ -31,6 +31,10 @@ The [authentication session foundation](docs/auth-sessions.md) adds tested priva
 session storage, revocation, shared rate-limit primitives and request protections.
 Native account verification and endpoint integration remain disabled.
 
+## Native sandbox environment
+
+Development-only native sign-in uses exactly three MysticWeb authentication settings: `MYSTIC_DATA_ROOT` (absolute Mystic root containing `data/users.dat`), `MYSTICWEB_SESSION_DB` (absolute path to a private local SQLite session database; create and protect its parent directory first), and `MYSTICWEB_RATE_KEY` (independent 64-character hexadecimal secret). Set different values per installation. The legacy `MYSTICWEB_SANDBOX_SESSION_DB` and `MYSTICWEB_SANDBOX_RATE_KEY` names are no longer read. Production authentication remains disabled in code; configuring these values does not activate it.
+
 ## Development on Ubuntu
 
 ```bash
