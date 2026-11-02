@@ -59,8 +59,8 @@ export async function sandboxLogin(request: Request): Promise<Response> {
       const status = await readNativeAccountSnapshot(settings.users, match.userId);
       if (!status || status.locked || status.deletedCandidate || status.passwordChangeRequired)
         return reply({ error: "Sign-in unavailable" }, 401);
-      // Sandbox-only: A48 account expiration is not yet independently mapped.
-      // Never use this path to grant message-area or production permissions.
+      // Sandbox-only: this A48 installation has no separate account-expiration
+      // feature. Never use this path to grant message-area or production permissions.
       const token = store.create({ instance: "mystic_sandbox", userId: match.userId }, currentToken(request));
       const result = reply({ ok: true });
       result.headers.set("Set-Cookie", sessionCookie(token));
@@ -88,8 +88,14 @@ export async function sandboxSession(request: Request): Promise<Response> {
     try { identity = store.read(currentToken(request)); } finally { store.close(); }
     if (!identity || identity.instance !== "mystic_sandbox") return reply({ authenticated: false }, 401);
     const status = await readNativeAccountSnapshot(settings.users, identity.userId);
-    if (!status || status.locked || status.deletedCandidate || status.passwordChangeRequired)
-      return reply({ authenticated: false }, 401);
+    if (!status || status.locked || status.deletedCandidate || status.passwordChangeRequired) {
+      // A disabled account must not regain a previous session when re-enabled.
+      const revokeStore = new AuthStore(settings.db);
+      try { revokeStore.revokeIdentity(identity); } finally { revokeStore.close(); }
+      const denied = reply({ authenticated: false }, 401);
+      denied.headers.set("Set-Cookie", sessionCookie(null));
+      return denied;
+    }
     return reply({ authenticated: true, userId: identity.userId, securityLevel: status.securityLevel });
   } catch { return reply({ authenticated: false }, 401); }
 }
