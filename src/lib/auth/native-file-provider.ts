@@ -8,12 +8,19 @@ import type { NativeProvider, NativeRequest } from "./native";
  * Staged local-file adapter for the existing NativeAccess protocol.
  * This is deliberately NOT a production-ready provider.
  *
- * Password verification is established, but Mystic 1.12 A48 expiration
- * semantics are not. No account can receive a session until an independent
- * native account-policy evaluator is implemented and reviewed.
+ * Mystic 1.12 A48 has no separate account-expiration feature in this
+ * installation (operator-confirmed 2026-11-01). Eligibility still requires
+ * a fresh native status check and rejection of locked, deleted, or
+ * forced-password-change accounts. Unknown account states must not be granted.
  *
- * The provider also denies message-area authorization unconditionally.
+ * This is staged, not production-wired: message-area authorization is denied
+ * unconditionally, and productionAccess() remains disabled.
  */
+function eligible(snapshot: Awaited<ReturnType<typeof readNativeAccountSnapshot>>) {
+  return snapshot !== null && !snapshot.locked && !snapshot.deletedCandidate &&
+    !snapshot.passwordChangeRequired;
+}
+
 export class NativeFileProvider implements NativeProvider {
   constructor(private readonly usersDatPath: string, private readonly instance: string) {
     if (!path.isAbsolute(usersDatPath) ||
@@ -24,22 +31,24 @@ export class NativeFileProvider implements NativeProvider {
     if (options.signal.aborted || request.instance !== this.instance) return null;
     if (request.operation === "account") {
       const snapshot = await readNativeAccountSnapshot(this.usersDatPath, request.userId);
-      if (options.signal.aborted || !snapshot) return null;
+      if (options.signal.aborted || !eligible(snapshot)) return null;
       return {
         version: 1, nonce: request.nonce, operation: "account",
         instance: this.instance, userId: snapshot.userId,
         account: {
           exists: true, deleted: snapshot.deletedCandidate,
-          locked: snapshot.locked, expired: true,
+          locked: snapshot.locked, expired: false,
           passwordChangeRequired: snapshot.passwordChangeRequired,
         },
       };
     }
     if (request.operation !== "authenticate") return null;
-    // This establishes the password/handle boundary, but cannot assert that
-    // the account is non-expired. Never emit an 'active' account response.
+    // Recheck account state independently after password verification. The
+    // account protocol must not grant sessions based on a password match alone.
     const match = await verifyMysticHandle(this.usersDatPath, request.username, request.password);
     if (options.signal.aborted || !match) return null;
+    const snapshot = await readNativeAccountSnapshot(this.usersDatPath, match.userId);
+    if (options.signal.aborted || !eligible(snapshot)) return null;
     return {
       version: 1,
       nonce: request.nonce,
@@ -51,7 +60,7 @@ export class NativeFileProvider implements NativeProvider {
         exists: true,
         deleted: false,
         locked: false,
-        expired: true, // Fail closed until A48 expiration semantics are verified.
+        expired: false, // No separate expiration feature in verified A48 installation.
         passwordChangeRequired: false,
       },
     };
