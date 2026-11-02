@@ -25,7 +25,7 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     assert.equal(ready, true);
-    for (const [url, method] of [['/api/auth/login', 'POST'], ['/api/auth/logout', 'POST'], ['/api/messages?area=1', 'GET']]) {
+    for (const [url, method] of [['/api/auth/login', 'POST'], ['/api/auth/logout', 'POST'], ['/api/auth/session', 'GET'], ['/api/messages?area=1', 'GET']]) {
       const result = await fetch(base + url, { method, signal: AbortSignal.timeout(5000),
         ...(method === 'POST' ? { body: '{', headers: { 'content-type': 'application/json' } } : {}) });
       assert.equal(result.status, 503);
@@ -40,8 +40,12 @@ async function main() {
     }
     const login = await fetch(base + '/login', { signal: AbortSignal.timeout(5000) });
     assert.equal(login.status, 200);
-    assert.doesNotMatch(await login.text(), /<input\b/i);
-    console.log('Built app: authentication and message endpoints fail closed; no credential form.');
+    const loginHtml = await login.text();
+    assert.match(loginHtml, /<form\b/i);
+    assert.match(loginHtml, /BBS handle/);
+    assert.match(loginHtml, /type="password"/);
+    assert.match(loginHtml, /currently rejects login/);
+    console.log('Built app: staged credential form renders; production authentication and message endpoints fail closed.');
   } finally {
     child.kill();
     if (child.pid && child.exitCode === null) await new Promise(resolve => child.once('exit', resolve));
