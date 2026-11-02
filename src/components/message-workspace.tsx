@@ -38,8 +38,8 @@ export function MessageWorkspace() {
     const controller = new AbortController();
     setLoading(true); setError(""); setAreas([]);
     getJSON("/api/messages", controller.signal).then(value => {
-      if (!Array.isArray(value) || value.length > 512 || !value.every(validArea)) throw new Error("Invalid area catalog.");
-      setAreas(value);
+      if (!value || typeof value !== "object" || !("areas" in value) || !Array.isArray(value.areas) || value.areas.length > 512 || !value.areas.every(validArea)) throw new Error("Invalid area catalog.");
+      setAreas(value.areas);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Messages unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
