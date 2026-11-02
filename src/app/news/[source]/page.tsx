@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/shell";
@@ -5,7 +6,11 @@ import { MysticText } from "@/components/mystic-text";
 import { getSysopMenuItem } from "@/lib/scripting/sysop-menus";
 import { readSysopMenuText } from "@/lib/mystic/sysop-text";
 
-export default async function NewsPage({ params }: { params: Promise<{ source: string }> }) {
+export default function NewsPage({ params }: { params: Promise<{ source: string }> }) {
+  return <Suspense fallback={<section className="panel"><p>Loading news…</p></section>}><NewsPageContent params={params} /></Suspense>;
+}
+
+async function NewsPageContent({ params }: { params: Promise<{ source: string }> }) {
   const { source } = await params;
   const item = await getSysopMenuItem("news", source);
   if (!item) notFound();
