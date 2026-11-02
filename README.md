@@ -1,103 +1,47 @@
-# MysticWeb — Dave's BBS
+# MysticWeb
 
-**New to GitHub or Node.js?** Start with the [plain-language SysOp Guide](docs/sysop/README.md). It explains the current development status and safe local preview steps.
+**Bring your Mystic BBS to the web.**
 
-A public front door and developing web interface for Dave's BBS, powered by Mystic BBS.
+MysticWeb is an open-source web front end for [Mystic BBS](https://www.mysticbbs.com/), designed to give callers a browser-based experience while retaining Mystic as the underlying BBS. It is being developed alongside Dave's BBS.
 
-## Authentication progress (operator update — November 1, 2026)
+> **Development preview — not production-ready.** The `main` branch is not a finished, public-ready web BBS. Native Mystic login has been tested in development, but production integration, authorization, message posting and private mail still require validation. Do not expose development authentication or message endpoints to the internet.
 
-The operator reports that native Mystic password verification and live login were completed and tested in the MysticWeb development workflow, including recognition of a connected Mystic user on the dashboard (User #2). **Treat this as completed development progress, not a request to reimplement login from scratch.**
+## 👋 New SysOp? Start here
 
-**Branch/integration distinction:** The historical staging and production notes below describe the state of the `main` branch and its disabled production composition. They have not been superseded by a verified merge of the latest native-login work. Before calling authentication production-ready, reconcile the authentication implementation branches with `main`, run regression and security tests, and verify the live login/session/logout path. Do not enable production authentication solely because of this status note.
+You don't need to be a web developer to read the guides.
 
-Relevant work branches include `feature/native-file-password-verification`, `feature/auth-reader-integration`, and `feature/native-session-readiness`. Check actual code and commit history rather than assuming all work has been merged.
+1. **[Read the SysOp Getting Started Guide](docs/sysop/README.md)** — plain-language introduction and navigation.
+2. **[What MysticWeb does](docs/sysop/overview.md)** — what it adds to Mystic and what stays in Mystic.
+3. **[Download the source / GitHub basics](docs/sysop/github-basics.md)** — how to get the software without knowing Git.
+4. **[Try a safe local preview](docs/sysop/first-test.md)** — test without changing your live BBS.
+5. **[Troubleshooting](docs/sysop/troubleshooting.md)** — common setup questions.
 
-## Pages
+**Installation guidance:** [Windows/Linux installation plans](docs/sysop/installation-plans.md). A general-purpose production installer is **not yet available**. Advanced Ubuntu administrators can consult the [nginx/systemd deployment reference](deploy/README.md), but should not enable unfinished production features.
 
-- `/`: public information, a `telnet://davesbbs.com` link, and a web-login link.
-- `/login`: clearly marked as coming soon; no credential form or collection.
-- `/connect`: connection instructions, a copy-address button and Telnet troubleshooting; no live availability claim or credential collection.
-- `/dashboard`: the original disconnected dashboard preview.
-- Messages, Private Mail, Files, Relay Chat, Door Games, and My Profile: disconnected previews.
-- `/api/health`: uncached runtime status and deployed commit revision.
+## Features and status
 
-No live Mystic messages, files, callers, or account data are loaded. Authentication and
-server-side authorization must be implemented before connecting account features.
+| Area | Status |
+| --- | --- |
+| Public BBS homepage and connection information | Preview available |
+| Dashboard and menu previews | Available without live account data |
+| Native Mystic password verification | Tested in development; branch integration must be checked |
+| Login and authenticated sessions | Development testing; production disabled on `main` |
+| Reading message areas | Reader foundation exists; live web integration not complete |
+| Message posting and private mail | In development |
+| File areas, relay chat, and door games | Planned / previews |
+| SysOp menus and scripting | [Documentation and examples](docs/sysop/scripting-reference.md) |
 
-The server-only, read-only JAM reader and its aggregate validation command are
-documented in [Mystic integration](docs/mystic-integration.md), including current
-authentication and authorization prerequisites. Run `npm test` for synthetic JAM
-and configuration fixtures. No message content is connected to web routes yet.
+## SysOp customization
 
-The [authentication session foundation](docs/auth-sessions.md) adds tested private
-session storage, revocation, shared rate-limit primitives and request protections.
-Native account verification and endpoint integration remain disabled.
+- [Menus and dashboards](docs/sysop/customizing-menus.md)
+- [MysticWeb scripting reference](docs/sysop/scripting-reference.md)
+- [API versus scripting commands](docs/sysop/apis-and-scripting.md)
+- [Reusable menu actions](docs/sysop/menu-actions.md)
 
-## Native sandbox environment
+## Developers and contributors
 
-Development-only native sign-in uses exactly three MysticWeb authentication settings: `MYSTIC_DATA_ROOT` (absolute Mystic root containing `data/users.dat`), `MYSTICWEB_SESSION_DB` (absolute path to a private local SQLite session database; create and protect its parent directory first), and `MYSTICWEB_RATE_KEY` (independent 64-character hexadecimal secret). Set different values per installation. The legacy `MYSTICWEB_SANDBOX_SESSION_DB` and `MYSTICWEB_SANDBOX_RATE_KEY` names are no longer read. Production authentication remains disabled in code; configuring these values does not activate it.
+For development on Ubuntu or Windows, deployment, authentication branch status, testing commands, and technical limitations, read the [detailed development notes](docs/development-status-2026-11.md).
 
-## Development on Ubuntu
+Report bugs or request features through [GitHub Issues](https://github.com/javadude334/MysticWeb/issues). Include the MysticWeb revision, OS, and steps to reproduce. **Never upload passwords, session keys, Mystic user databases, or private messages.**
 
-```bash
-cd ~/projects/mysticweb
-git status --short
-git fetch origin
-git switch main
-git pull --ff-only
-source ~/.nvm/nvm.sh
-nvm use 24
-npm ci
-npm run lint
-npm run build
-npm run dev -- --hostname 0.0.0.0 --port 3000
-```
-
-Commit or stash unrelated edits before switching branches. Use the existing dev
-session or stop it first if port 3000 is occupied. Open http://ubuntu:3000 on the
-local network. Use `npm run dev -- --hostname 127.0.0.1` for localhost-only access.
-
-## Windows checkout
-
-```powershell
-cd E:\work\javadude_dev\MysticWeb
-git status --short
-git fetch origin
-git switch main
-git pull --ff-only
-npm ci
-npm run lint
-npm run build
-npm run dev
-```
-
-Use Node 24. The scaffold dependency versions and lockfile are retained.
-
-## Production deployment
-
-See [deploy/README.md](deploy/README.md) for the nginx, systemd, HTTPS, and
-CI-gated automatic deployment setup for both davesbbs.com and www.davesbbs.com.
-The administrator installer prepares inactive files. Site activation and the
-first production start are separate manual steps.
-
-Deployments build separate releases outside the development checkout. They do
-not change live Mystic files, existing nginx sites, or DNS. The original
-scaffold README is retained in ORIGINAL_README.md.
-
-## Deployment tests
-
-```bash
-for script in deploy/*.sh; do bash -n "$script"; done
-python3 -m unittest discover -s deploy/tests -v
-```
-
-Tests use temporary files, mock deployment commands, and loopback-only HTTP.
-They do not install services, execute sudo, or activate nginx.
-
-The [staged authentication and message reader](docs/auth-reader-deployment.md) adds
-fail-closed HTTP services and a BBS dispatcher contract. Production remains
-disabled pending native driver, secure invocation and end-to-end verification.
-
-## Local functional workspace
-
-See [development workspace](docs/development-workspace.md) for disposable account selection, authorized synthetic message reading, pagination and logout. Run npm run dev:demo and open http://127.0.0.1:3000/development. Native authentication remains disabled.
+The current development site is associated with Dave's BBS; it is not a general public hosted MysticWeb service.
