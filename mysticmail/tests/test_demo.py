@@ -4,7 +4,7 @@ import subprocess
 import sys
 import unittest
 
-SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "mystic" / "mysticmail_demo.mpy"
+SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "mystic" / "mysticmail.mpy"
 
 class DemoTest(unittest.TestCase):
     def test_quit(self):
