@@ -9,7 +9,7 @@ export async function readSysopMenuText(menuId: string, itemId: string): Promise
   const item = await getSysopMenuItem(menuId, itemId);
   const root = process.env.MYSTIC_DATA_ROOT;
   const theme = process.env.MYSTICWEB_BULLETIN_THEME || "default";
-  if (!item || !root || !path.isAbsolute(root) || !/^[a-z0-9_-]+$/i.test(theme)) return null;
+  if (!item || item.action !== "displayText" || !root || !path.isAbsolute(root) || !/^[a-z0-9_-]+$/i.test(theme)) return null;
   const filename = path.join(root, "themes", theme, "text", item.textFile + ".asc");
   try {
     const stat = await lstat(filename);
