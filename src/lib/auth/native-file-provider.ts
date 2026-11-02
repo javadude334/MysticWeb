@@ -31,7 +31,7 @@ export class NativeFileProvider implements NativeProvider {
     if (options.signal.aborted || request.instance !== this.instance) return null;
     if (request.operation === "account") {
       const snapshot = await readNativeAccountSnapshot(this.usersDatPath, request.userId);
-      if (options.signal.aborted || !eligible(snapshot)) return null;
+      if (options.signal.aborted || !snapshot || !eligible(snapshot)) return null;
       return {
         version: 1, nonce: request.nonce, operation: "account",
         instance: this.instance, userId: snapshot.userId,
