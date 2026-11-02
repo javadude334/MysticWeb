@@ -1,5 +1,7 @@
 # MysticWeb — Dave's BBS
 
+**New to GitHub or Node.js?** Start with the [plain-language SysOp Guide](docs/sysop/README.md). It explains the current development status and safe local preview steps.
+
 A public front door and developing web interface for Dave's BBS, powered by Mystic BBS.
 
 ## Authentication progress (operator update — November 1, 2026)
