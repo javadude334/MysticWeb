@@ -1,0 +1,31 @@
+{
+  "menus": [
+    {
+      "id": "news",
+      "title": "News",
+      "description": "Select a news source to read its locally generated Mystic news page.",
+      "items": [
+        {
+          "id": "bbc",
+          "title": "BBC World News",
+          "textFile": "world-news"
+        },
+        {
+          "id": "npr",
+          "title": "NPR News",
+          "textFile": "npr-news"
+        },
+        {
+          "id": "fox",
+          "title": "Fox News Alerts",
+          "textFile": "fox-news-alert"
+        },
+        {
+          "id": "csm",
+          "title": "Christian Science Monitor",
+          "textFile": "csm-news"
+        }
+      ]
+    }
+  ]
+}
