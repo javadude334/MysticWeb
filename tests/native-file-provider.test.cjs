@@ -25,7 +25,7 @@ function load(folder, name) {
 }
 const { NativeFileProvider } = load("auth", "native-file-provider");
 const { NativeAccess } = load("auth", "native");
-test("file provider verifies native credentials but cannot issue an active account or area permission", async t => {
+test("file provider authenticates eligible accounts but denies area permission", async t => {
   const dir = mkdtempSync(path.join(tmpdir(), "mystic-file-provider-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const filename = path.join(dir, "users.dat");
@@ -42,14 +42,14 @@ test("file provider verifies native credentials but cannot issue an active accou
   writeFileSync(filename, record);
   const provider = new NativeFileProvider(filename, "sandbox");
   const native = new NativeAccess(provider, "sandbox");
-  assert.equal(await native.authenticate("javadude2", "synthetic-secret"), null);
+  assert.deepEqual(await native.authenticate("javadude2", "synthetic-secret"), { instance: "sandbox", userId: 2 });
   assert.equal(await native.authenticate("javadude2", "wrong"), null);
-  assert.equal(await native.accountValid({ instance: "sandbox", userId: 2 }), false);
+  assert.equal(await native.accountValid({ instance: "sandbox", userId: 2 }), true);
   await assert.rejects(native.readArea({ instance: "sandbox", userId: 2 }, 1, "a".repeat(64), async () => "should not read"));
   assert.deepEqual(readFileSync(filename), record);
 });
 
-test("provider account rechecks reflect native flag changes but still deny active sessions", async t => {
+test("provider account rechecks deny locked, deleted and forced-change accounts", async t => {
   const dir = mkdtempSync(path.join(tmpdir(), "mystic-account-recheck-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const filename = path.join(dir, "users.dat");
@@ -64,17 +64,23 @@ test("provider account rechecks reflect native flag changes but still deny activ
   const options = { signal: new AbortController().signal };
   let reply = await provider.request(makeRequest(), options);
   assert.equal(reply.account.locked, false);
-  assert.equal(reply.account.expired, true);
+  assert.equal(reply.account.expired, false);
+  const access = new NativeAccess(provider, "sandbox");
+  assert.equal(await access.accountValid({ instance: "sandbox", userId: 4 }), true);
   // Security level is available in the native reader, but does not itself grant access.
   record.writeUInt32LE(0x00000001, 4);
   writeFileSync(filename, record);
   reply = await provider.request(makeRequest(), options);
-  assert.equal(reply.account.locked, true);
+  assert.equal(reply, null);
+  assert.equal(await access.accountValid({ instance: "sandbox", userId: 4 }), false);
   record.writeUInt32LE(0x00000400, 4);
   writeFileSync(filename, record);
   reply = await provider.request(makeRequest(), options);
-  assert.equal(reply.account.passwordChangeRequired, true);
-  const access = new NativeAccess(provider, "sandbox");
+  assert.equal(reply, null);
+  assert.equal(await access.accountValid({ instance: "sandbox", userId: 4 }), false);
+  record.writeUInt32LE(0x00000004, 4);
+  writeFileSync(filename, record);
+  assert.equal(await provider.request(makeRequest(), options), null);
   assert.equal(await access.accountValid({ instance: "sandbox", userId: 4 }), false);
   assert.deepEqual(readFileSync(filename), record);
 });
