@@ -24,3 +24,7 @@
 - Mark steps **tested**, **development only**, or **planned**. Never imply a disabled feature is ready.
 - Do not require operators to understand source code, Git branches, or TypeScript to use the finished product.
 - Never ask operators to post passwords, session secrets, Mystic user databases, or private mail in GitHub issues.
+
+## Examples
+
+- [Four-source News menu](news-menu-example.md) — menu choices, local Mystic text files and safe rendering.
