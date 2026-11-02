@@ -134,6 +134,54 @@ async function main() {
   console.log(`Distinct referenced group IDs: ${groupUsage.size}`);
   console.log(`Invalid JAM base names: ${invalidJamNames}`);
   console.log(`Duplicate JAM base names (case-insensitive): ${duplicateJamNames}`);
+  // Targeted exception report: numeric area IDs and structural syntax only.
+  // Never output names, paths, raw ACS values or numeric ACS operands.
+  const exceptionAreas = [];
+  const shapeCounts = new Map();
+  const fieldShapes = fields.map(() => new Map());
+  const unusualChars = new Map();
+  const exactGrammar = /^(?:[gGsS][0-9]+)+$/;
+  const grammarCounts = { matchingConcatenatedGS: 0, other: 0 };
+  for (const area of areas) {
+    const issues = [];
+    const allRefs = new Set();
+    const shapes = [];
+    for (let i = 0; i < 4; i++) {
+      const expr = area.security[i].trim();
+      const shape = expr.replace(/[0-9]+/g, "#").replace(/[A-Za-z]+/g, "A");
+      shapes.push(shape);
+      fieldShapes[i].set(shape, (fieldShapes[i].get(shape) || 0) + 1);
+      shapeCounts.set(shape, (shapeCounts.get(shape) || 0) + 1);
+      if (exactGrammar.test(expr)) grammarCounts.matchingConcatenatedGS++;
+      else {
+        grammarCounts.other++;
+        issues.push(fields[i] + " ACS outside basic G/S grammar");
+      }
+      for (const match of expr.matchAll(/g([0-9]+)/gi)) allRefs.add(Number(match[1]));
+      for (const ch of expr) {
+        if (!/[A-Za-z0-9]/.test(ch)) {
+          const code = "U+" + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+          unusualChars.set(code, (unusualChars.get(code) || 0) + 1);
+        }
+      }
+    }
+    if (allRefs.size === 0) issues.push("no G reference");
+    if (allRefs.size > 1) issues.push("multiple G references");
+    if ([...allRefs].some((id) => !groupIds.has(id))) issues.push("unknown G reference");
+    if (invalidName(area.jamBase)) issues.push("JAM base incompatible with current reader");
+    if (issues.length) exceptionAreas.push({ id: area.id, issues: [...new Set(issues)] });
+  }
+  const printShapes = (counts) => [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([shape, count]) => `${JSON.stringify(shape)}:${count}`).join(", ");
+  console.log("Targeted ACS compatibility report (values and operands redacted):");
+  console.log(`G/S concatenation grammar matches: ${grammarCounts.matchingConcatenatedGS}`);
+  console.log(`Expressions outside basic G/S grammar: ${grammarCounts.other}`);
+  console.log(`Normalized shapes across all fields: ${printShapes(shapeCounts)}`);
+  for (let i = 0; i < 4; i++) console.log(`${fields[i]} normalized shapes: ${printShapes(fieldShapes[i])}`);
+  console.log(`Non-alphanumeric ACS character codes: ${[...unusualChars].sort().map(([code, count]) => `${code}=${count}`).join(", ") || "none"}`);
+  console.log(`Exception area IDs and categories: ${exceptionAreas.length}`);
+  for (const area of exceptionAreas) console.log(`  Area #${area.id}: ${area.issues.join("; ")}`);
+  console.log("NOTE: Shape classification does not establish native ACS semantics or per-user access.");
   console.log("NOTE: This diagnostic cannot verify user group membership, native ACS evaluation, area type or per-user permissions.");
   console.log("NOTE: ACS expressions are not evaluated; blank ACS is not an authorization grant.");
   console.log("NOTE: Group inference is not authorization; no message content was read.");
