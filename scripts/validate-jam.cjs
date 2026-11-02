@@ -27,7 +27,7 @@ async function main() {
   const mysticRoot = process.env.MYSTIC_DATA_ROOT;
   if (!mysticRoot || !path.isAbsolute(mysticRoot)) throw new Error('configuration');
   stage = 'reading native configuration';
-  const nativeConfig = await fs.promises.readFile(path.join(mysticRoot, 'data', 'mystic.dat'));
+  const nativeConfig = await fs.promises.readFile(path.join(mysticRoot, 'mystic.dat'));
   if (nativeConfig.length !== 8192) throw new Error('configuration');
   const length = nativeConfig[260];
   if (!length || length > 80 || 261 + length > nativeConfig.length) throw new Error('configuration');
