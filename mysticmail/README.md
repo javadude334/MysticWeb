@@ -13,7 +13,7 @@ Unified private messaging for Mystic BBS and MysticWeb.
 
 ## Test package
 
-- `mystic/mysticmail_demo.mpy`: Python-version diagnostic and sample terminal inbox.
+- `mystic/mysticmail.mpy`: Python-version diagnostic and sample terminal inbox.
 - `SYSOP.DOC`: cautious installation and rollback instructions.
 - `tests/test_demo.py`: Python 3 standalone smoke test.
 
