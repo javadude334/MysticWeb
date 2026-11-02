@@ -101,7 +101,7 @@ export class WebAccess {
       const identity = await this.identity(request);
       if (!identity) return setCookie(response({ authenticated: false }, 401), null);
       return response({ authenticated: true, userId: identity.userId });
-    } catch { return response({ authenticated: false }, 401); }
+    } catch { return setCookie(response({ authenticated: false }, 401), null); }
   }
 
   async read(request: Request): Promise<Response> {
