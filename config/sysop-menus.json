@@ -26,6 +26,50 @@
           "textFile": "csm-news"
         }
       ]
+    },
+    {
+      "id": "demos",
+      "title": "Demos",
+      "description": "Read about available BBS demos. These entries do not launch programs.",
+      "items": [
+        {
+          "id": "about",
+          "title": "About BBS Demos",
+          "action": "displayText",
+          "textFile": "demos"
+        },
+        {
+          "id": "news",
+          "title": "Read News",
+          "action": "openMenu",
+          "menu": "news"
+        },
+        {
+          "id": "home",
+          "title": "Return to Dashboard",
+          "action": "openPage",
+          "page": "/dashboard"
+        }
+      ]
+    },
+    {
+      "id": "goodbye",
+      "title": "Goodbye",
+      "description": "A farewell message from the SysOp. This page does not end a Mystic terminal session.",
+      "items": [
+        {
+          "id": "farewell",
+          "title": "Read Goodbye Message",
+          "action": "displayText",
+          "textFile": "goodbye"
+        },
+        {
+          "id": "home",
+          "title": "Return to Dashboard",
+          "action": "openPage",
+          "page": "/dashboard"
+        }
+      ]
     }
   ]
 }
