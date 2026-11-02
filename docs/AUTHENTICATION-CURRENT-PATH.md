@@ -9,7 +9,15 @@
 - `src/lib/auth/sandbox-login.ts`: development-only browser authentication and persistent sessions.
 - `src/app/api/auth/login/route.ts`: routes development login to the sandbox implementation.
 - Configure `MYSTIC_DATA_ROOT` to point to a read-only Mystic root containing `data/users.dat`, plus a valid `MYSTICWEB_SANDBOX_RATE_KEY`. Development login requires localhost origin; access from another computer via an SSH **port-forward tunnel to the web dev server** if needed. This tunnel is transport to the website, **not Mystic SSH authentication**.
-- Development authentication is not production authorization. Complete account-expiry policy, area ACS, private-message permissions, and native write/delivery integration before granting those capabilities.
+- Development authentication is not production authorization. Preserve the previously tested native account-state behavior and finish area ACS, private-message permissions, and native write/delivery integration before granting those capabilities.
+
+## Account expiration: decision and evidence (2026-11-01)
+
+**Do not reopen the generic “does Mystic have account expiration?” investigation.** The operator confirmed that this Mystic 1.12 A48 installation does not use account expiration as a separate account lifecycle feature. The earlier account-validation work tested native password verification, account flags, and session issuance, including rejection of locked, deleted, forced-password-change, and invalid/expired-state test cases. Preserve those rejection behaviors. Do not equate an unsupported standalone expiration feature with permission to authenticate an otherwise invalid account.
+
+**Implementation mismatch to resolve:** `src/lib/mystic/native-account-status.ts` still reports `expirationVerified: false`; `src/lib/auth/native-file-provider.ts` hardcodes `expired: true` as a fail-closed placeholder. Those values are **not evidence that a real account is expired**. They block production composition until the verified native account-state rules are mapped into the provider. Replace the placeholder only with a tested account-policy implementation that continues to deny locked, deleted, forced-change and otherwise invalid accounts, and retains session revalidation. Never enable production login by simply changing `expired: true` to `false` or by bypassing account validation.
+
+The November 1 test results are the baseline; avoid asking the operator to repeat completed expiration/account-validation experiments. Production `productionAccess()` remains disabled pending reviewed wiring and independent message-area authorization.
 
 ## Obsolete — historical only
 
