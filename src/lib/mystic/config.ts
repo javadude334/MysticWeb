@@ -4,7 +4,7 @@ import path from "node:path";
 
 const GROUP_RECORD_BYTES = 206;
 const AREA_RECORD_BYTES = 768;
-const ROOT = process.env.MYSTIC_DATA_ROOT ?? "/mnt/mystic-readonly";
+const MAX_CONFIG_BYTES = 8 * 1024 * 1024;
 
 export interface MysticGroup {
   id: number;
@@ -87,10 +87,15 @@ export async function readMysticConfiguration(): Promise<{
   groups: MysticGroup[];
   areas: MysticArea[];
 }> {
+  const root = process.env.MYSTIC_DATA_ROOT;
+  if (!root || !path.isAbsolute(root)) throw new Error("MYSTIC_DATA_ROOT must be an absolute path");
   const [groupsData, areasData] = await Promise.all([
-    readFile(path.join(ROOT, "data", "groups_g.dat")),
-    readFile(path.join(ROOT, "data", "mbases.dat")),
+    readFile(path.join(root, "data", "groups_g.dat")),
+    readFile(path.join(root, "data", "mbases.dat")),
   ]);
+  if (groupsData.length > MAX_CONFIG_BYTES || areasData.length > MAX_CONFIG_BYTES) {
+    throw new Error("Mystic configuration exceeds size limit");
+  }
   const groups = parseMysticGroups(groupsData);
   const areas = parseMysticAreas(areasData);
   const ids = new Set(groups.map((group) => group.id));
