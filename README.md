@@ -101,3 +101,7 @@ disabled pending native driver, secure invocation and end-to-end verification.
 ## Local functional workspace
 
 See [development workspace](docs/development-workspace.md) for disposable account selection, authorized synthetic message reading, pagination and logout. Run npm run dev:demo and open http://127.0.0.1:3000/development. Native authentication remains disabled.
+
+## November 2 integrated testing
+
+The [integration test checklist](docs/integration-test-2026-11-02.md) covers the current mainline application plus the [MysticMail demo](mysticmail/README.md) and its [SYSOP.DOC](mysticmail/SYSOP.DOC). The MysticMail demo is synthetic and does not connect to live mail.
