@@ -2,17 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/shell";
 import { MysticText } from "@/components/mystic-text";
-import { createNewsMenu, getNewsItem } from "@/lib/scripting/news-menu";
-import { readMysticNewsPage } from "@/lib/mystic/news-text";
+import { getSysopMenuItem } from "@/lib/scripting/sysop-menus";
+import { readSysopMenuText } from "@/lib/mystic/sysop-text";
 
-export function generateStaticParams() {
-  return createNewsMenu().items.map(item => ({ source: item.id }));
-}
 export default async function NewsPage({ params }: { params: Promise<{ source: string }> }) {
   const { source } = await params;
-  const item = getNewsItem(source);
+  const item = await getSysopMenuItem("news", source);
   if (!item) notFound();
-  const content = await readMysticNewsPage(source);
+  const content = await readSysopMenuText("news", source);
   return <Shell active="/news">
     <div className="eyebrow">THE BOARD / NEWS</div>
     <div className="page-heading"><div><h1>{item.title}</h1><p>News text provided by the Mystic BBS updater.</p></div></div>
