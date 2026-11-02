@@ -1,6 +1,6 @@
 /**
- * Bundled example of a SysOp-style scripted menu. Only known, local Mystic
- * text basenames are allowed. No arbitrary paths or network fetches.
+ * Legacy static news menu reference retained for scripts that import it.
+ * The live News pages now use config/sysop-menus.json via sysop-menus.ts.
  */
 export type NewsMenuItem = { id: string; title: string; textFile: string };
 export type NewsMenu = { title: string; items: readonly NewsMenuItem[] };
