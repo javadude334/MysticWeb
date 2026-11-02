@@ -106,9 +106,9 @@ export function MessageWorkspace() {
         {selected.body === undefined ? <p>Message body not loaded.</p> : <pre>{selected.body}</pre>}
         <div className="mw-replies">
           {([["Parent message", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
-            .filter((item): item is readonly [string, number] => Number.isSafeInteger(item[1]) && (item[1] ?? 0) > 0)
-            .map(([label, number]) => <button type="button" key={label} disabled={loading}
-              onClick={() => openMessage({ number })}>{label} #{number}</button>)}
+            .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
+              ? <button type="button" key={label} disabled={loading}
+                  onClick={() => openMessage({ number })}>{label} #{number}</button> : null)}
         </div>
       </article>}
     </section>
