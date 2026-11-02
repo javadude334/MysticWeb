@@ -9,6 +9,7 @@ export const defaultNavigation: NavigationItem[] = [
   { href: "/files", name: "File Areas", icon: "↓", description: "Browse and download files", command: "getRecentFiles" },
   { href: "/door-games", name: "Door Games", icon: "◇", description: "Play door games", command: "getDoorGames" },
   { href: "/my-profile", name: "Account Settings", icon: "◎", description: "Manage your account" },
+  { href: "/news", name: "News", icon: "▤", description: "BBC, NPR, Fox News and Christian Science Monitor" },
   { href: "/features/bulletins", name: "System Bulletins", icon: "!", description: "Read system bulletins", command: "getBulletins" },
   { href: "/features/last-callers", name: "Last 10 Callers", icon: "◷", description: "Recent visitors", command: "getLastCallers" },
   { href: "/features/one-liners", name: "One Liners", icon: "❞", description: "Short community messages", command: "getOneLiners" },
