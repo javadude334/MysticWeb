@@ -8,7 +8,7 @@
 - `src/lib/mystic/native-account-status.ts`: native account status rechecks.
 - `src/lib/auth/sandbox-login.ts`: development-only browser authentication and persistent sessions.
 - `src/app/api/auth/login/route.ts`: routes development login to the sandbox implementation.
-- Configure `MYSTIC_DATA_ROOT` to point to a read-only Mystic root containing `data/users.dat`, plus a valid `MYSTICWEB_SANDBOX_RATE_KEY`. Development login requires localhost origin; access from another computer via an SSH **port-forward tunnel to the web dev server** if needed. This tunnel is transport to the website, **not Mystic SSH authentication**.
+- Configure `MYSTIC_DATA_ROOT` to point to a read-only Mystic root containing `data/users.dat`, plus an absolute `MYSTICWEB_SESSION_DB` path to a private local SQLite database directory and a valid 64-character hex `MYSTICWEB_RATE_KEY`. Development login requires localhost origin; access from another computer via an SSH **port-forward tunnel to the web dev server** if needed. This tunnel is transport to the website, **not Mystic SSH authentication**.
 - Development authentication is not production authorization. Preserve the previously tested native account-state behavior and finish area ACS, private-message permissions, and native write/delivery integration before granting those capabilities.
 
 ## Account expiration: decision and evidence (2026-11-01)
