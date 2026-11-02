@@ -62,8 +62,10 @@ def run_revision(revision, check_pages):
                 assert "currently rejects login" in login
                 assert 'href="/connect"' in login
                 _, dashboard = request(port, "/dashboard")
-                assert "DISCONNECTED" in dashboard
-                assert 'href="/dashboard"' in dashboard
+                assert "MysticWeb" in dashboard
+                assert "Main Menu" in dashboard
+                assert "Independent MysticWeb navigation" in dashboard
+                assert 'href="/messages"' in dashboard
             print(f"Built-app smoke passed for runtime revision {revision}.")
         except BaseException:
             log.seek(0)
