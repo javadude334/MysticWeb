@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Area = { id: number; name: string };
-type Message = { number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number } };
+type Message = { number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
 type Page = { area: Area; messages: Message[]; nextBefore: number | null };
 
 function validArea(value: unknown): value is Area {
@@ -63,7 +63,7 @@ export function MessageWorkspace() {
     if (!area) return;
     return load(area);
   }, [area, load]);
-  const openMessage = (message: Message) => {
+  const openMessage = (message: Pick<Message, "number">) => {
     if (!area) return;
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -104,6 +104,12 @@ export function MessageWorkspace() {
       {selected && <article className="mw-message"><h3>{selected.subject || "(No subject)"}</h3>
         <p>From: {selected.author} · To: {selected.recipient} · #{selected.number}</p>
         {selected.body === undefined ? <p>Message body not loaded.</p> : <pre>{selected.body}</pre>}
+        <div className="mw-replies">
+          {([["Parent message", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
+            .filter((item): item is readonly [string, number] => Number.isSafeInteger(item[1]) && (item[1] ?? 0) > 0)
+            .map(([label, number]) => <button type="button" key={label} disabled={loading}
+              onClick={() => openMessage({ number })}>{label} #{number}</button>)}
+        </div>
       </article>}
     </section>
   </div>;
