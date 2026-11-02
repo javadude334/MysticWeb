@@ -12,8 +12,9 @@
 4. [Common terms and troubleshooting](troubleshooting.md) — Node.js, npm, ports, terminals, and common errors.
 
 5. [Customizing menus and dashboards](customizing-menus.md) — verified source-based edits, sample scripts and current limits.
-6. [APIs and scripting reference](apis-and-scripting.md) — dashboard helpers versus HTTP endpoints.
-7. [Windows/Linux installation and maintenance plans](installation-plans.md) — future installer and daily-operations chapters.
+6. [MysticWeb Scripting Reference Manual](scripting-reference.md) — SysOp commands for bulletins, mail, callers, menus, and future actions.
+7. [HTTP APIs and scripting distinction](apis-and-scripting.md) — dashboard helpers versus HTTP endpoints.
+8. [Windows/Linux installation and maintenance plans](installation-plans.md) — future installer and daily-operations chapters.
 
 **Advanced installation:** The existing [Ubuntu deployment reference](../../deploy/README.md) is administrator-focused and describes a specific nginx/systemd installation. It is **not** a one-click production installer, and production Mystic integration is not yet enabled.
 
