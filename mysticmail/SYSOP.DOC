@@ -1,0 +1,60 @@
+MYSTICMAIL DEMONSTRATION SHELL - SYSOP GUIDE
+==========================================
+
+STATUS: DEMO ONLY. This package contains NO real mail service.
+It does not read or write Mystic users, JAM bases, NetMail, or email.
+
+PURPOSE
+-------
+Test the embedded Python interpreter and basic Mystic terminal execution.
+The shell presents a fake inbox with local, FTN, and Internet examples.
+
+INSTALLATION (TEST SYSTEM FIRST)
+--------------------------------
+1. Back up your Mystic configuration and note the current menu settings.
+2. Copy mystic/mysticmail_demo.mpy into a TEST Mystic scripts directory.
+   Example Windows: E:\mystic\scripts\mysticmail_demo.mpy
+   Example Linux: /home/mystic/scripts/mysticmail_demo.mpy
+   Adjust paths for YOUR installation.
+3. Check your Mystic documentation for the correct Python script invocation,
+   embedded interpreter configuration, and any MPY compilation requirement.
+   Do not assume that installing Python 3 system-wide changes Mystic's
+   embedded interpreter.
+4. Add a TEMPORARY sysop-only test menu entry that launches the script
+   using the verified Python/MPY command for your Mystic build.
+5. Run the test as a logged-in user. Note the displayed Python version,
+   whether text renders, whether keyboard input works, and whether Q
+   returns cleanly to the Mystic menu.
+6. Remove the temporary menu entry when testing is finished.
+
+No Mailgun keys, network service, or backend configuration is needed.
+
+EXPECTED MENU
+-------------
+1 Unified Inbox (sample)
+2 Private Mail (sample)
+3 FTN NetMail (sample)
+4 Internet Email (sample)
+5 Sent (sample)
+6 Compose (disabled)
+D Interpreter Diagnostics
+Q Quit
+
+TROUBLESHOOTING
+---------------
+- If Python fails to load: check Mystic's interpreter/library configuration,
+  the Python bitness, script path, and Mystic build-specific MPY instructions.
+- If terminal input behaves oddly: record the exact prompt and key pressed.
+- If Mystic reports unsupported syntax: record the Python version and error.
+- Do not post real user records, passwords, private mail, or API secrets.
+
+ROLLBACK
+--------
+Delete the temporary menu entry. Optionally remove the copied demo script.
+No data migration or native message-area changes are performed.
+
+FUTURE DESIGN
+-------------
+MysticMail will eventually use a shared authenticated service for local
+private mail, FTN NetMail, and Mailgun Internet email. EchoMail stays native.
+Only after end-to-end testing would the SysOp hide the old NetMail menu.
