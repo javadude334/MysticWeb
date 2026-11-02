@@ -57,8 +57,9 @@ def run_revision(revision, check_pages):
                 assert "<form" not in guide and "<input" not in guide
                 assert "does not report live BBS availability" in guide
                 _, login = request(port, "/login")
-                assert "COMING SOON" in login
-                assert "<input" not in login and "<form" not in login
+                assert "NATIVE ACCESS / STAGED" in login
+                assert "Use your Mystic BBS handle and password." in login
+                assert "currently rejects login" in login
                 assert 'href="/connect"' in login
                 _, dashboard = request(port, "/dashboard")
                 assert "DISCONNECTED" in dashboard
