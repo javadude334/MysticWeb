@@ -32,8 +32,10 @@ export class MessageReader {
     if (!/^[a-f0-9]{64}$/.test(catalog.revision) || catalog.areas.length > 512 ||
       new Set(catalog.areas.map(a => a.id)).size !== catalog.areas.length ||
       catalog.areas.some(a => !Number.isInteger(a.id) || a.id < 1 || a.id > 65535 ||
-        typeof a.name !== "string" || a.name.length > 60 || !isJamBaseName(a.jamBase))) throw new NativeAccessError();
-    return catalog;
+        typeof a.name !== "string" || a.name.length > 60 || typeof a.jamBase !== "string")) throw new NativeAccessError();
+    // A native catalog may contain non-JAM areas. Never let one unsupported
+    // base name disable the entire public reader; exclude it from exposure.
+    return { ...catalog, areas: catalog.areas.filter(a => isJamBaseName(a.jamBase)) };
   }
 
   async areas(identity: Identity) {
