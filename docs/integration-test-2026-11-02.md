@@ -20,7 +20,7 @@ npm test
 npm run build
 cd mysticmail
 py -3 -m unittest discover -s tests -v
-py -3 mystic/mysticmail_demo.mpy
+py -3 mystic/mysticmail.mpy
 ```
 
 Mystic's MPY invocation and embedded Python 3 configuration still require operator verification on the actual Mystic installation. No production login flag should be enabled on the basis of this branch alone. Do not modify the real NetMail group, live message bases, or Mailgun settings for the demo.
