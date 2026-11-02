@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/shell";
-import { getSysopMenu } from "@/lib/scripting/sysop-menus";
+import { getSysopMenu, menuItemHref } from "@/lib/scripting/sysop-menus";
 
 export default async function SysopMenuPage({ params }: { params: Promise<{ menu: string }> }) {
   const { menu: id } = await params;
@@ -11,7 +11,7 @@ export default async function SysopMenuPage({ params }: { params: Promise<{ menu
     <div className="eyebrow">THE BOARD / CUSTOM MENUS</div>
     <div className="page-heading"><div><h1>{menu.title}</h1><p>{menu.description}</p></div></div>
     <section className="panel" aria-label={menu.title}>
-      {menu.items.map(item => <p key={item.id}><Link href={`/menus/${menu.id}/${item.id}`}>{item.title}</Link></p>)}
+      {menu.items.map(item => <p key={item.id}><Link href={menuItemHref(menu.id, item)}>{item.title}</Link></p>)}
     </section>
     <p><Link href="/dashboard">Return to dashboard</Link></p>
   </Shell>;
