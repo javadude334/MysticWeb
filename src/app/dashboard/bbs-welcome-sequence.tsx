@@ -15,7 +15,7 @@ export function BbsWelcomeSequence() {
   const [step, setStep] = useState(0);
   const screen = screens[step];
   return <section className={styles.terminalFrame} aria-label="Interactive BBS welcome sequence prototype">
-    <div className={styles.terminalBar}><span>● ● ●</span><span>DAVE'S BBS / CONCEPT SESSION</span><span>ANSI STYLE</span></div>
+    <div className={styles.terminalBar}><span>● ● ●</span><span>DAVE&apos;S BBS / CONCEPT SESSION</span><span>ANSI STYLE</span></div>
     <div className={styles.screen}>
       <pre className={styles.banner}>{`╔═══════════════════════════════════════════╗
 ║            D A V E ' S   B B S          ║
