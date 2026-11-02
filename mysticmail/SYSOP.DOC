@@ -12,9 +12,9 @@ The shell presents a fake inbox with local, FTN, and Internet examples.
 INSTALLATION (TEST SYSTEM FIRST)
 --------------------------------
 1. Back up your Mystic configuration and note the current menu settings.
-2. Copy mystic/mysticmail_demo.mpy into a TEST Mystic scripts directory.
-   Example Windows: E:\mystic\scripts\mysticmail_demo.mpy
-   Example Linux: /home/mystic/scripts/mysticmail_demo.mpy
+2. Copy mystic/mysticmail.mpy into a TEST Mystic scripts directory.
+   Example Windows: E:\mystic\scripts\mysticmail.mpy
+   Example Linux: /home/mystic/scripts/mysticmail.mpy
    Adjust paths for YOUR installation.
 3. Check your Mystic documentation for the correct Python script invocation,
    embedded interpreter configuration, and any MPY compilation requirement.
