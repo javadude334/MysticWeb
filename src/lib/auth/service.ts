@@ -92,6 +92,18 @@ export class WebAccess {
     return identity;
   }
 
+  /** Revalidate the native account on every session check. Never treat a
+   * persisted session as proof of current account eligibility.
+   */
+  async session(request: Request): Promise<Response> {
+    if (request.method !== "GET") return response({ authenticated: false }, 405);
+    try {
+      const identity = await this.identity(request);
+      if (!identity) return setCookie(response({ authenticated: false }, 401), null);
+      return response({ authenticated: true, userId: identity.userId });
+    } catch { return response({ authenticated: false }, 401); }
+  }
+
   async read(request: Request): Promise<Response> {
     if (request.method !== "GET") return response({ error: "Access unavailable" }, 405);
     try {
