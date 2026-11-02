@@ -13,6 +13,7 @@ export default async function FeaturePreview({ params }: { params: Promise<{ slu
     <h1>{item?.name ?? "Feature Preview"}</h1>
     <p>{item?.description ?? "This destination has not been configured."}</p>
     <p>This MysticWeb feature is a placeholder. No native BBS action is performed.</p>
+    {item?.command && <p>Reserved scripting command: <code>{item.command}()</code> — awaiting an authorized Mystic provider.</p>}
     <Link href="/dashboard">Return to dashboard</Link>
   </section></Shell>;
 }
