@@ -4,6 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
 const ts = require('typescript');
+const { loadEnvConfig } = require('@next/env');
+
+// Match the other standalone Mystic validator: load local development settings.
+// Explicitly exported environment variables retain precedence.
+loadEnvConfig(path.resolve(__dirname, '..'), true);
 const sourceFile = path.resolve(__dirname, '../src/lib/mystic/jam.ts');
 const loaded = new Module(sourceFile, module);
 loaded.filename = sourceFile;
