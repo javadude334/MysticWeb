@@ -20,8 +20,16 @@ loaded._compile(ts.transpileModule(fs.readFileSync(sourceFile, 'utf8'), {
 }).outputText, sourceFile);
 
 async function main() {
-  const root = process.env.MYSTIC_JAM_ROOT;
-  if (!root) throw new Error('configuration');
+  // Mystic 1.12 A48 stores Message Base Path as a length-prefixed field
+  // at offset 260 of data/mystic.dat. Do not duplicate this setting in env.
+  const mysticRoot = process.env.MYSTIC_DATA_ROOT;
+  if (!mysticRoot || !path.isAbsolute(mysticRoot)) throw new Error('configuration');
+  const nativeConfig = await fs.promises.readFile(path.join(mysticRoot, 'data', 'mystic.dat'));
+  if (nativeConfig.length !== 8192) throw new Error('configuration');
+  const length = nativeConfig[260];
+  if (!length || length > 80 || 261 + length > nativeConfig.length) throw new Error('configuration');
+  const root = nativeConfig.subarray(261, 261 + length).toString('latin1');
+  if (!path.isAbsolute(root) || root.includes('\\0')) throw new Error('configuration');
   const files = await fs.promises.readdir(root);
   const totals = { bases: 0, messagesSampled: 0, scanned: 0, skipped: 0, changed: 0, unavailable: 0 };
   for (const filename of files) {
