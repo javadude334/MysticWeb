@@ -7,6 +7,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const Module = require("node:module");
 const ts = require("typescript");
+const { loadEnvConfig } = require("@next/env");
+
+// Standalone scripts do not inherit Next.js .env.local loading. Preserve
+// explicitly exported environment variables and use development env files.
+loadEnvConfig(path.resolve(__dirname, ".."), true);
 
 const sourceFile = path.resolve(__dirname, "../src/lib/mystic/config.ts");
 const source = fs.readFileSync(sourceFile, "utf8");
