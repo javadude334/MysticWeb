@@ -1,0 +1,88 @@
+# MysticMail demo shell: safe synthetic data, Python 2/3-compatible syntax.
+# No Mystic user/message files, network calls, or mail credentials.
+from __future__ import print_function
+import sys
+
+SAMPLES = [
+    ("Private", "Night Owl", "See you online tonight", "Hello from a sample local message."),
+    ("NetMail", "Sysop 1:123/456", "Network configuration", "This is simulated FTN NetMail."),
+    ("Email", "friend@example.com", "Weekend plans", "This is simulated Internet email."),
+]
+
+def line():
+    print("-" * 58)
+
+def diagnostics():
+    line()
+    print("MysticMail interpreter diagnostic")
+    print("Python: " + sys.version.replace("\n", " "))
+    print("Executable: " + str(getattr(sys, "executable", "unknown")))
+    print("Version info: " + str(sys.version_info[:3]))
+    print("This is a synthetic demo; native user API not tested.")
+    line()
+
+def show_messages(kind=None):
+    matches = [m for m in SAMPLES if kind is None or m[0] == kind]
+    line()
+    print("SAMPLE INBOX - no real messages")
+    for index, msg in enumerate(matches):
+        print("%d. [%s] %s - %s" % (index + 1, msg[0], msg[1], msg[2]))
+    if not matches:
+        print("(No sample messages)")
+    choice = input_compat("Message number to view, or Enter to return: ").strip()
+    if choice.isdigit():
+        number = int(choice)
+        if 1 <= number <= len(matches):
+            msg = matches[number - 1]
+            line()
+            print("Type: " + msg[0])
+            print("From: " + msg[1])
+            print("Subject: " + msg[2])
+            print("")
+            print(msg[3])
+            line()
+            input_compat("Press Enter to return: ")
+
+def input_compat(prompt):
+    # Python 2 raw_input avoids evaluation; Python 3 input returns text.
+    if sys.version_info[0] < 3:
+        return raw_input(prompt)
+    return input(prompt)
+
+def main():
+    while True:
+        print("")
+        line()
+        print("MYSTICMAIL - DEVELOPMENT DEMO")
+        print("1 Unified Inbox")
+        print("2 Private Mail")
+        print("3 FTN NetMail")
+        print("4 Internet Email")
+        print("5 Sent (sample empty)")
+        print("6 Compose (not implemented)")
+        print("D Python Diagnostics")
+        print("Q Quit")
+        line()
+        choice = input_compat("Select: ").strip().upper()
+        if choice == "Q":
+            print("Returning to Mystic.")
+            return
+        if choice == "D":
+            diagnostics()
+        elif choice == "1":
+            show_messages()
+        elif choice == "2":
+            show_messages("Private")
+        elif choice == "3":
+            show_messages("NetMail")
+        elif choice == "4":
+            show_messages("Email")
+        elif choice == "5":
+            show_messages("Sent")
+        elif choice == "6":
+            print("Compose is disabled in this demo.")
+        else:
+            print("Unknown selection.")
+
+if __name__ == "__main__":
+    main()
