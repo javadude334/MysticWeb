@@ -14,8 +14,7 @@ export interface NativeAccountSnapshot {
   locked: boolean;
   deletedCandidate: boolean;
   passwordChangeRequired: boolean;
-  /** A48 account expiration semantics are not established. Never infer active status. */
-  expirationVerified: false;
+  /** This installation has no separate account-expiration feature. */
 }
 
 /** Read-only lookup by permanent native user ID, not record index or handle.
@@ -46,7 +45,6 @@ export async function readNativeAccountSnapshot(
         locked: (flags & LOCKED) !== 0,
         deletedCandidate: (flags & DELETED_CANDIDATE) !== 0,
         passwordChangeRequired: (flags & FORCE_NEW_PASSWORD) !== 0,
-        expirationVerified: false,
       };
     }
     // Fail closed if file changes while reading, including same-length updates.
