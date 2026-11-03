@@ -34,6 +34,9 @@ export function MessageWorkspace() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [areasExpanded, setAreasExpanded] = useState(true);
+  const [search, setSearch] = useState("");
+  const [notice, setNotice] = useState("");
   const requestRef = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -89,39 +92,78 @@ export function MessageWorkspace() {
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   };
-  return <div className="mw-layout">
-    <aside className="mw-panel" aria-label="Message areas">
-      <div className="mw-heading"><h2>Message areas</h2><button type="button" onClick={() => { setArea(null); setPage(null); setRefresh(v => v + 1); }}>Refresh</button></div>
-      {areas.length === 0 && !loading && !error && <p>No accessible message areas.</p>}
-      <div className="mw-area-list">{areas.map(item =>
-        <button type="button" key={item.id} aria-current={area?.id === item.id ? "true" : undefined}
-          className={area?.id === item.id ? "mw-active" : ""} onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setArea(item); }}>
-          {item.name}
-        </button>)}</div>
-    </aside>
-    <section className="mw-panel mw-reader" aria-label="Message reader" aria-live="polite">
-      {loading && <p role="status">Loading…</p>}
-      {error && <p role="alert">{error}</p>}
-      {!area && !loading && <p>Select an authorized message area to read its conversations.</p>}
-      {area && <h2>{area.name}</h2>}
-      {page && <><div className="mw-thread-list">{page.messages.map(message =>
-        <button type="button" key={message.number} className={selected?.number === message.number ? "mw-active" : ""}
-          onClick={() => openMessage(message)}>
-          <strong>{message.subject || "(No subject)"}</strong><span>{message.author} · #{message.number}</span>
-        </button>)}</div>
-        {page.messages.length === 0 && <p>No readable messages in this page.</p>}
-        {page.nextBefore !== null && <button type="button" disabled={loading} onClick={() => { if (area && page.nextBefore !== null) load(area, page.nextBefore); }}>Older messages</button>}
-      </>}
-      {selected && <article className="mw-message"><h3>{selected.subject || "(No subject)"}</h3>
-        <p>From: {selected.author} · To: {selected.recipient} · #{selected.number}</p>
-        {selected.body === undefined ? <p>Message body not loaded.</p> : <pre>{selected.body}</pre>}
-        <div className="mw-replies">
-          {([["Parent message", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
-            .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
-              ? <button type="button" key={label} disabled={loading}
-                  onClick={() => openMessage({ number })}>{label} #{number}</button> : null)}
+  const filtered = page?.messages.filter(message => {
+    const query = search.trim().toLocaleLowerCase();
+    return !query || [message.subject, message.author, message.recipient].some(value => value.toLocaleLowerCase().includes(query));
+  }) ?? [];
+  return <div className="mw-mail">
+    <div className="mw-toolbar">
+      <div><strong>Message Center</strong><span>Public message areas</span></div>
+      <label className="mw-search"><span className="sr-only">Search loaded messages</span>
+        <input type="search" value={search} onChange={event => setSearch(event.target.value)}
+          placeholder="Search loaded subjects and senders…" aria-label="Search loaded messages" />
+      </label>
+      <button type="button" onClick={() => { setNotice("Posting will be available after the native Mystic writer and permissions are connected."); }}
+        aria-label="New post (not yet available)">+ New Post</button>
+    </div>
+    {notice && <p className="mw-notice" role="status">{notice} <button type="button" onClick={() => setNotice("")}>Dismiss</button></p>}
+    <div className="mw-mail-grid">
+      <aside className="mw-folders" aria-label="Message areas">
+        <div className="mw-folders-heading"><strong>Folders</strong>
+          <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
-      </article>}
-    </section>
+        <button type="button" className="mw-folder-toggle" aria-expanded={areasExpanded}
+          onClick={() => setAreasExpanded(value => !value)}>
+          <span aria-hidden="true">{areasExpanded ? "▾" : "▸"}</span> Message areas <span>({areas.length})</span>
+        </button>
+        {areasExpanded && <div className="mw-area-list">{areas.map(item =>
+          <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
+            className={area?.id === item.id ? "mw-active" : ""}
+            onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setSearch(""); setArea(item); }}>
+            {item.name}
+          </button>)}</div>}
+        {!loading && !error && areas.length === 0 && <p>No accessible message areas.</p>}
+      </aside>
+      <section className="mw-message-list" aria-label="Message list">
+        <div className="mw-pane-heading"><strong>{area?.name ?? "Select a message area"}</strong>
+          <span>{page ? `${page.messages.length} loaded` : "Messages"}</span>
+        </div>
+        {loading && <p role="status">Loading messages…</p>}
+        {error && <p role="alert">{error}</p>}
+        {!area && !loading && <p>Choose a message area on the left.</p>}
+        {page && <div className="mw-thread-list">
+          {filtered.map(message => <button type="button" key={message.number}
+            className={selected?.number === message.number ? "mw-active" : ""}
+            aria-current={selected?.number === message.number ? "true" : undefined}
+            onClick={() => openMessage(message)}>
+            <span className="mw-thread-from">{message.author}</span>
+            <strong>{message.subject || "(No subject)"}</strong>
+            <span>To: {message.recipient} · #{message.number}</span>
+          </button>)}
+          {filtered.length === 0 && <p>{search ? "No matches among loaded messages." : "No messages in this page."}</p>}
+          {page.nextBefore !== null && <button type="button" className="mw-load-more" disabled={loading}
+            onClick={() => { if (area && page.nextBefore !== null) load(area, page.nextBefore); }}>Older messages</button>}
+        </div>}
+      </section>
+      <section className="mw-reading-pane" aria-label="Message reader">
+        {!selected && <div className="mw-reader-empty"><strong>No message selected</strong>
+          <p>Select a message to read it here.</p></div>}
+        {selected && <article className="mw-message">
+          <div className="mw-message-actions">
+            <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
+          </div>
+          <h2>{selected.subject || "(No subject)"}</h2>
+          <p className="mw-message-meta"><strong>{selected.author}</strong> → {selected.recipient} · Message #{selected.number}</p>
+          <pre>{selected.body ?? "Message body not loaded."}</pre>
+          <div className="mw-replies">
+            {([["Parent", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
+              .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
+                ? <button type="button" key={label} disabled={loading}
+                    onClick={() => openMessage({ number })}>{label} #{number}</button> : null)}
+          </div>
+        </article>}
+      </section>
+    </div>
+    <p className="mw-footnote">Search covers loaded message headers only. Full-text and cross-area search will require a server-side search service.</p>
   </div>;
 }
