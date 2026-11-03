@@ -27,3 +27,15 @@
 .note {font-size:12px;color:#9ab9cd;margin:20px 0;}
 @media(max-width:800px){.menuGrid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:520px){.menuGrid,.stats{grid-template-columns:1fr;}.hero{padding:24px;}}
+
+
+.dashboardSection { margin: 0 0 20px; min-width: 0; }
+.collapseHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; cursor: pointer; padding: 12px 14px; border: 1px solid #31516d; border-radius: 10px; background: #10263c; color: #e8f4ff; font-size: 20px; font-weight: 750; list-style: none; }
+.collapseHeading::-webkit-details-marker { display: none; }
+.collapseHeading::before { content: "▸"; color: #8fe4d3; font-size: 17px; transition: transform .15s ease; }
+.dashboardSection[open] > .collapseHeading::before { transform: rotate(90deg); }
+.collapseHeading span { margin-left: auto; font-size: 12px; font-weight: 400; color: #9bbfd2; }
+.collapseHeading:hover { border-color: #70c8c2; }
+.collapseHeading:focus-visible { outline: 3px solid #8fe4d3; outline-offset: 3px; }
+.dashboardSection > .announcements, .dashboardSection > .hero, .dashboardSection > .menuGrid, .dashboardSection > .stat { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .collapseHeading::before { transition: none; } }
