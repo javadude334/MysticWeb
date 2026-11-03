@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Today's News | MysticWeb extension example</title>
+<style>body{font:16px system-ui;margin:2rem auto;max-width:760px;padding:0 1rem}li{margin:1rem 0}small{color:#555}a{color:#1456a0}</style>
+<h1>Today's News</h1><p>Headlines from <a href="https://www.foxnews.com/" rel="noopener noreferrer">Fox News</a>. Select a headline to read the original article.</p>
+<p id="status">Loading saved headlines…</p><ul id="articles"></ul>
+<script type="module">
+const status = document.querySelector("#status");
+const list = document.querySelector("#articles");
+try {
+  const response = await fetch("/news.xml", { cache: "no-store" });
+  if (!response.ok) throw new Error("News has not been downloaded yet.");
+  const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error("Invalid RSS data.");
+  const items = [...xml.querySelectorAll("channel > item")].slice(0, 25);
+  for (const item of items) {
+    const title = item.querySelector("title")?.textContent?.trim() ?? "Untitled";
+    const href = item.querySelector("link")?.textContent?.trim() ?? "";
+    let url;
+    try { url = new URL(href); } catch { continue; }
+    if (url.protocol !== "https:" || !/(^|\.)foxnews\.com$/i.test(url.hostname)) continue;
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.textContent = title;
+    a.href = url.href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    li.append(a);
+    list.append(li);
+  }
+  status.textContent = `Showing ${list.children.length} saved headlines.`;
+} catch (error) { status.textContent = error.message; }
+</script></html>
