@@ -33,3 +33,12 @@
 
 ## Resume point
 Start by obtaining a read-only export of sandbox default menu definitions, **not** by changing Mystic native menus. Keep user-facing navigation compact and collapsed by default. Run typecheck/tests/build after code edits.
+
+## Default menu built-in function inventory — 2026-11-03
+
+- Parsed the uploaded `default_theme.zip` menu action records and cataloged **91 distinct Mystic command codes**. This includes built-ins, navigation (`GO`), script/external commands (`GX`, `GA`, `GV`, `GY`, `DC`, `DD`), terminal-only operations and excluded SysOp commands; **91 is not a count of web functions to implement**.
+- Created a downloadable workbook `MysticWeb_Menu_and_Function_Catalog.xlsx` with all menu items, actions, resources, cross references, a **Built-in Functions** tab with per-code observed usage, and a **Function Roadmap** tab.
+- Updated the native Google Sheet `MysticWeb — Default Menu & Resource Inventory` with **Built-in Function Codes** (91 codes) and **Function Roadmap** tabs. The native sheet has the high-level catalog; the downloadable workbook contains complete per-command source references.
+- Priority areas: native authorized message reading/posting and mail; files/browsing/upload/download; account editing; then community, voting/BBS lists, QWK, time bank, doors/scripts.
+- All inferred function meanings come from observed menu labels/action data, not independently verified Mystic command documentation. Existing MysticWeb implementation status must be checked against source before marking any function complete. Keep native ACS enforcement authoritative.
+- Next: validate command semantics, deduplicate shared services, and create a function-to-MysticWeb implementation matrix with status and tests. Do not assume each distinct native command code needs a separate API.
