@@ -45,3 +45,12 @@
 @media(max-width:760px) {
  .children .children { margin-left:10px; }
 }
+
+/* Separate the Main Menu page link from its expand/collapse control. */
+.menuHeading { display:flex; align-items:center; gap:0; }
+.menuHeading .link { flex:1; min-width:0; }
+.menuChevron { width:20px; flex:0 0 20px; padding:4px 0; border:0; background:transparent; color:#a8f0cd; cursor:pointer; }
+.menuChevron:hover { color:#fff; }
+.menuChevron:focus-visible { outline:2px solid #a8f0cd; outline-offset:2px; }
+.collapsed .menuChevron { display:none; }
+@media(max-width:760px) { .collapsed .menuChevron { display:block; } }
