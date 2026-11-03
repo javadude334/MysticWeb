@@ -39,3 +39,14 @@ A real native writer and configured auth bridge are missing from this repo; cann
 - Group association is **not authorization**. Revalidate user account and native list/read/post ACS independently for every operation. Never grant access because a group was found.
 - Current `MessageReader.areas()` exposes only `{id,name}`, and `CatalogArea` lacks group metadata. Extend the trusted catalog and public response only after confirming the group/config file format and ACS semantics.
 - Do not hardcode sample group names or infer membership from area titles. Unknown or ambiguous group association fails closed for navigation.
+
+## Standardized built-in functions and SysOp extension contract — 2026-11-03
+
+**Architecture decision:** MysticWeb's own UI is a consumer of the same reusable, standardized function layer that a SysOp extension can invoke. Navigation and menus are configurable; the behavior of built-in functions is not individually customizable.
+
+- Keep domain operations independent of React components and menu definitions. Message operations currently include `listGroups`, `listAreasByGroup`, `listMessagesByGroup`, `listMessages`, and `displayMessage` on `MessageReader`.
+- Assign stable, versioned public function IDs and typed input/output contracts before exposing these operations to user-authored JavaScript; do not expose internal TypeScript classes or filesystem paths as public APIs.
+- Built-in UI routes, menu function actions, and custom scripts must invoke a common application service/dispatcher and pass through the same account, ACS, validation, and audit boundaries. Never allow a menu choice or script to bypass the server's authorization checks.
+- SysOps may change navigation labels, hierarchy, placement, and which registered functions are linked. They cannot change a built-in function's implementation via menu configuration. Custom behavior belongs in a separate extension with explicit capabilities.
+- Design each future feature (message posting, replies, search, files, private mail) as a reusable service first; then build its standard UI using that service.
+- A secure script sandbox and documented extension API are future work, **not** an assertion that arbitrary SysOp JavaScript is already safely executable.
