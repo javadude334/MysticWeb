@@ -15,7 +15,7 @@ function validArea(value: unknown): value is Area {
 function validPage(value: unknown): value is Page {
   if (!value || typeof value !== "object") return false;
   const page = value as Page;
-  return validArea(page.area) && Array.isArray(page.messages) && page.messages.length <= 50 &&
+  return !!page.area && Number.isSafeInteger(page.area.id) && page.area.id > 0 && typeof page.area.name === "string" && Array.isArray(page.messages) && page.messages.length <= 50 &&
     (page.nextBefore === null || (Number.isSafeInteger(page.nextBefore) && page.nextBefore > 0)) &&
     page.messages.every(m => Number.isSafeInteger(m.number) && m.number > 0 &&
       typeof m.author === "string" && typeof m.recipient === "string" && typeof m.subject === "string" &&
