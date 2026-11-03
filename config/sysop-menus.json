@@ -24,6 +24,12 @@
           "id": "csm",
           "title": "Christian Science Monitor",
           "textFile": "csm-news"
+        },
+        {
+          "id": "fox-web-example",
+          "title": "Today's News — Fox News (JavaScript example)",
+          "action": "openPage",
+          "page": "/examples/fox-news"
         }
       ]
     },
