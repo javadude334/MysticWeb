@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type Area = { id: number; name: string };
+type Area = { id: number; name: string; groupIds: number[] };
+type Group = { id: number; name: string };
 type Message = { number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
 type Page = { area: Area; messages: Message[]; nextBefore: number | null };
 
 function validArea(value: unknown): value is Area {
   return !!value && typeof value === "object" && Number.isSafeInteger((value as Area).id) &&
-    (value as Area).id > 0 && typeof (value as Area).name === "string";
+    (value as Area).id > 0 && typeof (value as Area).name === "string" &&
+    Array.isArray((value as Area).groupIds) && (value as Area).groupIds.every(id => Number.isSafeInteger(id) && id > 0);
 }
 function validPage(value: unknown): value is Page {
   if (!value || typeof value !== "object") return false;
@@ -28,13 +30,14 @@ async function getJSON(url: string, signal: AbortSignal): Promise<unknown> {
 /** Read-only public echo reader. Server owns authentication and every authorization decision. */
 export function MessageWorkspace() {
   const [areas, setAreas] = useState<Area[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<number[]>([]);
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [areasExpanded, setAreasExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const requestRef = useRef<AbortController | null>(null);
@@ -43,12 +46,13 @@ export function MessageWorkspace() {
     // Schedule the request state transition outside the effect body.
     Promise.resolve().then(() => {
       if (controller.signal.aborted) return;
-      setLoading(true); setError(""); setAreas([]);
+      setLoading(true); setError(""); setAreas([]); setGroups([]);
       return getJSON("/api/messages", controller.signal);
     }).then(value => {
       if (controller.signal.aborted || value === undefined) return;
-      if (!value || typeof value !== "object" || !("areas" in value) || !Array.isArray(value.areas) || value.areas.length > 512 || !value.areas.every(validArea)) throw new Error("Invalid area catalog.");
-      setAreas(value.areas);
+      if (!value || typeof value !== "object" || !("areas" in value) || !Array.isArray(value.areas) || value.areas.length > 512 || !value.areas.every(validArea) || !("groups" in value) || !Array.isArray(value.groups) || value.groups.length > 128 || !value.groups.every((g: unknown) => !!g && typeof g === "object" && Number.isSafeInteger((g as Group).id) && (g as Group).id > 0 && typeof (g as Group).name === "string")) throw new Error("Invalid area catalog.");
+      setAreas(value.areas as Area[]);
+      setGroups(value.groups as Group[]);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Messages unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -112,16 +116,22 @@ export function MessageWorkspace() {
         <div className="mw-folders-heading"><strong>Folders</strong>
           <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
-        <button type="button" className="mw-folder-toggle" aria-expanded={areasExpanded}
-          onClick={() => setAreasExpanded(value => !value)}>
-          <span aria-hidden="true">{areasExpanded ? "▾" : "▸"}</span> Message areas <span>({areas.length})</span>
-        </button>
-        {areasExpanded && <div className="mw-area-list">{areas.map(item =>
-          <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
-            className={area?.id === item.id ? "mw-active" : ""}
-            onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setSearch(""); setArea(item); }}>
-            {item.name}
-          </button>)}</div>}
+        {groups.map(group => {
+          const members = areas.filter(item => item.groupIds.includes(group.id));
+          const expanded = !collapsedGroups.includes(group.id);
+          return <div key={group.id}>
+            <button type="button" className="mw-folder-toggle" aria-expanded={expanded}
+              onClick={() => setCollapsedGroups(current => expanded ? [...current, group.id] : current.filter(id => id !== group.id))}>
+              <span aria-hidden="true">{expanded ? "▾" : "▸"}</span> {group.name} <span>({members.length})</span>
+            </button>
+            {expanded && <div className="mw-area-list">{members.map(item =>
+              <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
+                className={area?.id === item.id ? "mw-active" : ""}
+                onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setSearch(""); setArea(item); }}>
+                {item.name}
+              </button>)}</div>}
+          </div>;
+        })}
         {!loading && !error && areas.length === 0 && <p>No accessible message areas.</p>}
       </aside>
       <section className="mw-message-list" aria-label="Message list">
