@@ -1,5 +1,6 @@
 import "server-only";
 import path from "node:path";
+import { sandboxOriginAllowed } from "./sandbox-origin";
 import { AuthStore, rateBucket } from "./store";
 import { verifyMysticHandle } from "../mystic/native-user-login";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
@@ -18,16 +19,6 @@ function config() {
   if (!users || !db || !secret || !/^[a-f0-9]{64}$/i.test(secret) || !path.isAbsolute(users) || !path.isAbsolute(db)) return null;
   return { users, db, secret: Buffer.from(secret, "hex") };
 }
-function sameLocalOrigin(request: Request) {
-  try {
-    const url = new URL(request.url);
-    const origin = request.headers.get("origin");
-    return url.hostname === "localhost" &&
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      origin === url.origin &&
-      (!request.headers.has("sec-fetch-site") || request.headers.get("sec-fetch-site") === "same-origin");
-  } catch { return false; }
-}
 function currentToken(request: Request) {
   const values = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim()).filter(x => x.startsWith(COOKIE + "="));
   return values.length === 1 ? values[0].slice(COOKIE.length + 1) : undefined;
@@ -37,7 +28,7 @@ function sessionCookie(token: string | null) {
 }
 export async function sandboxLogin(request: Request): Promise<Response> {
   const settings = config();
-  if (!settings || request.method !== "POST" || !sameLocalOrigin(request)) return reply({ error: "Sandbox sign-in unavailable" }, 503);
+  if (!settings || request.method !== "POST" || !sandboxOriginAllowed(request, true)) return reply({ error: "Sandbox sign-in unavailable" }, 503);
   try {
     if (request.headers.get("content-type") !== "application/json") return reply({ error: "Invalid request" }, 400);
     const raw = await request.text();
@@ -70,7 +61,7 @@ export async function sandboxLogin(request: Request): Promise<Response> {
 }
 export async function sandboxLogout(request: Request): Promise<Response> {
   const settings = config();
-  if (!settings || request.method !== "POST" || !sameLocalOrigin(request)) return reply({ error: "Sandbox logout unavailable" }, 503);
+  if (!settings || request.method !== "POST" || !sandboxOriginAllowed(request, true)) return reply({ error: "Sandbox logout unavailable" }, 503);
   try {
     const store = new AuthStore(settings.db);
     try { store.revoke(currentToken(request)); } finally { store.close(); }
@@ -81,7 +72,7 @@ export async function sandboxLogout(request: Request): Promise<Response> {
 }
 export async function sandboxSession(request: Request): Promise<Response> {
   const settings = config();
-  if (!settings || new URL(request.url).hostname !== "localhost") return reply({ authenticated: false }, 401);
+  if (!settings || !sandboxOriginAllowed(request, false)) return reply({ authenticated: false }, 401);
   try {
     const store = new AuthStore(settings.db);
     let identity;
