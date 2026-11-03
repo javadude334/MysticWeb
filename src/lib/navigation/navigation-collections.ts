@@ -14,8 +14,9 @@ export const navigationCollections: readonly CollectionFolder[] = [
     { type: "link", href: "/messages" }, { type: "link", href: "/private-mail" },
   ] },
   { type: "collection", id: "files", title: "Files & Downloads", icon: "▣", children: [
-    { type: "link", href: "/files" }, { type: "link", href: "/door-games" },
+    { type: "link", href: "/files" },
   ] },
+  { type: "link", href: "/door-games" },
   { type: "collection", id: "community", title: "Community", icon: "♧", children: [
     { type: "collection", id: "community-presence", title: "Callers & Chat", icon: "●", children: [
       { type: "link", href: "/features/whos-online" }, { type: "link", href: "/features/last-callers" },
