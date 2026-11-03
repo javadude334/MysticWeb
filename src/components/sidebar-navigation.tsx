@@ -73,6 +73,12 @@ export function SidebarNavigation({ active }: { active: string }) {
       </div>
       <nav id="mysticweb-sidebar-folders" aria-label="Main navigation" className={`${styles.navigation} ${mobileOpen ? styles.mobileOpen : ""}`}>
         <Link href="/dashboard" title="Dashboard" aria-current={selected("/dashboard") ? "page" : undefined} className={`${styles.link} ${selected("/dashboard") ? styles.active : ""}`}><span aria-hidden="true" className={styles.symbol}>▦</span><span className={styles.linkText}>Dashboard</span></Link>
+        <Link href="/main-menu" title="Main Menu" aria-current={selected("/main-menu") ? "page" : undefined}
+          className={`${styles.link} ${selected("/main-menu") ? styles.active : ""}`}
+          onClick={() => setMobileOpen(false)}>
+          <span aria-hidden="true" className={styles.symbol}>☷</span>
+          <span className={styles.linkText}>Main Menu</span>
+        </Link>
         {navigationCollections.map(node => renderNode(node, 0))}
       </nav>
     </aside>
