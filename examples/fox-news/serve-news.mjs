@@ -16,7 +16,7 @@ async function refreshNews() {
   });
   if (!response.ok) throw new Error("News source unavailable");
   const xml = await response.text();
-  if (xml.length > 2_000_000 || !/<rss\\b/i.test(xml) || !/<channel\\b/i.test(xml)) throw new Error("Invalid RSS response");
+  if (xml.length > 2_000_000 || !/<rss\b/i.test(xml) || !/<channel\b/i.test(xml)) throw new Error("Invalid RSS response");
   const directory = join(here, "data");
   await mkdir(directory, { recursive: true });
   const temp = join(directory, `latest-${process.pid}.tmp`);
