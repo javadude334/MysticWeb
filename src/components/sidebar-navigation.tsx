@@ -43,7 +43,7 @@ export function SidebarNavigation({ active }: { active: string }) {
       <div className={styles.heading}>
         <Link href="/dashboard" className={styles.brand} aria-label="MysticWeb dashboard"><span className={styles.mark}>M</span><span className={styles.brandText}>Mystic<span>Web</span><small>A NEW WAY TO BBS</small></span></Link>
         <button type="button" className={styles.toggle} onClick={() => setCollapsed(v => !v)} aria-label={collapsed ? "Expand navigation sidebar" : "Collapse navigation sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}>{collapsed ? "»" : "«"}</button>
-        <button type="button" className={styles.mobileToggle} onClick={() => setMobileOpen(v => !v)} aria-expanded={mobileOpen} aria-controls="mysticweb-sidebar-folders"}>{mobileOpen ? "Close menu" : "Menu ☰"}</button>
+        <button type="button" className={styles.mobileToggle} onClick={() => setMobileOpen(v => !v)} aria-expanded={mobileOpen} aria-controls="mysticweb-sidebar-folders">{mobileOpen ? "Close menu" : "Menu ☰"}</button>
       </div>
       <nav id="mysticweb-sidebar-folders" aria-label="Main navigation" className={`${styles.navigation} ${mobileOpen ? styles.mobileOpen : ""}`}>
         <Link href="/dashboard" title="Dashboard" aria-current={selected("/dashboard") ? "page" : undefined} className={`${styles.link} ${selected("/dashboard") ? styles.active : ""}`}><span aria-hidden="true" className={styles.symbol}>▦</span><span className={styles.linkText}>Dashboard</span></Link>
