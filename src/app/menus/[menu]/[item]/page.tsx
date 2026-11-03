@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Shell } from "@/components/shell";
@@ -5,7 +6,13 @@ import { MysticText } from "@/components/mystic-text";
 import { getSysopMenu, getSysopMenuItem, menuItemHref } from "@/lib/scripting/sysop-menus";
 import { readSysopMenuText } from "@/lib/mystic/sysop-text";
 
-export default async function SysopTextPage({ params }: { params: Promise<{ menu: string; item: string }> }) {
+export default function SysopTextPage({ params }: { params: Promise<{ menu: string; item: string }> }) {
+  return <Suspense fallback={<section className="panel"><p>Loading menu…</p></section>}>
+    <SysopTextPageContent params={params} />
+  </Suspense>;
+}
+
+async function SysopTextPageContent({ params }: { params: Promise<{ menu: string; item: string }> }) {
   const { menu: menuId, item: itemId } = await params;
   const [menu, item] = await Promise.all([getSysopMenu(menuId), getSysopMenuItem(menuId, itemId)]);
   if (!menu || !item) notFound();

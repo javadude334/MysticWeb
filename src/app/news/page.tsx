@@ -1,8 +1,13 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Shell } from "@/components/shell";
 import { getSysopMenu } from "@/lib/scripting/sysop-menus";
 
-export default async function NewsMenuPage() {
+export default function NewsMenuPage() {
+  return <Suspense fallback={<section className="panel"><p>Loading news…</p></section>}><NewsMenuPageContent  /></Suspense>;
+}
+
+async function NewsMenuPageContent() {
   const menu = await getSysopMenu("news");
   return <Shell active="/news">
     <div className="eyebrow">THE BOARD / NEWS</div>

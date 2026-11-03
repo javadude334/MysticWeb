@@ -1,0 +1,108 @@
+# MysticMail synthetic demo. Supports Mystic embedded Python 2 and console Python 2/3.
+# No real mail, network, credentials, or BBS file changes.
+from __future__ import print_function
+import sys
+
+try:
+    from mystic_bbs import write as bbs_write, writeln as bbs_writeln, onekey as bbs_onekey, getstr as bbs_getstr
+    IN_MYSTIC = True
+except ImportError:
+    IN_MYSTIC = False
+
+SAMPLES = [
+    ("Private", "Night Owl", "See you online tonight", "Hello from a sample local message."),
+    ("NetMail", "Sysop 1:123/456", "Network configuration", "This is simulated FTN NetMail."),
+    ("Email", "friend@example.com", "Weekend plans", "This is simulated Internet email."),
+]
+
+def output(text=""):
+    if IN_MYSTIC:
+        bbs_writeln(str(text))
+    else:
+        print(text)
+
+def prompt(text, valid=None):
+    if IN_MYSTIC:
+        bbs_write(text)
+        if valid:
+            answer = bbs_onekey(valid, True)
+            output("")
+            return str(answer or "")
+        return str(bbs_getstr(1, 8, 120, "") or "")
+    if sys.version_info[0] < 3:
+        return raw_input(text)
+    return input(text)
+
+def line():
+    output("-" * 58)
+
+def diagnostics():
+    line()
+    output("MysticMail interpreter diagnostic")
+    output("Python: " + sys.version.replace("\n", " "))
+    output("Executable: " + str(getattr(sys, "executable", "unknown")))
+    output("Mystic terminal API: " + ("active" if IN_MYSTIC else "console"))
+    output("Synthetic demo only; no native mail or user data accessed.")
+    line()
+    prompt("Press Enter to return: ", "\r")
+
+def show_messages(kind=None):
+    matches = [m for m in SAMPLES if kind is None or m[0] == kind]
+    line()
+    output("SAMPLE INBOX - no real messages")
+    for index, msg in enumerate(matches):
+        output("%d. [%s] %s - %s" % (index + 1, msg[0], msg[1], msg[2]))
+    if not matches:
+        output("(No sample messages)")
+        prompt("Press Enter to return: ", "\r")
+        return
+    valid = "".join(str(i) for i in range(1, min(len(matches), 9) + 1)) + "\r"
+    choice = prompt("Message number or Enter to return: ", valid)
+    if choice.isdigit():
+        number = int(choice)
+        if 1 <= number <= len(matches):
+            msg = matches[number - 1]
+            line()
+            output("Type: " + msg[0])
+            output("From: " + msg[1])
+            output("Subject: " + msg[2])
+            output("")
+            output(msg[3])
+            line()
+            prompt("Press Enter to return: ", "\r")
+
+def main():
+    while True:
+        output("")
+        line()
+        output("MYSTICMAIL - DEVELOPMENT DEMO")
+        output("1 Unified Inbox")
+        output("2 Private Mail")
+        output("3 FTN NetMail")
+        output("4 Internet Email")
+        output("5 Sent (sample empty)")
+        output("6 Compose (not implemented)")
+        output("D Python Diagnostics")
+        output("Q Quit")
+        line()
+        choice = prompt("Select: ", "123456DQ").strip().upper()
+        if choice == "Q":
+            output("Returning to Mystic.")
+            return
+        if choice == "D":
+            diagnostics()
+        elif choice == "1":
+            show_messages()
+        elif choice == "2":
+            show_messages("Private")
+        elif choice == "3":
+            show_messages("NetMail")
+        elif choice == "4":
+            show_messages("Email")
+        elif choice == "5":
+            show_messages("Sent")
+        elif choice == "6":
+            output("Compose is disabled in this demo.")
+
+if __name__ == "__main__":
+    main()

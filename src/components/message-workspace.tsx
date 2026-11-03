@@ -37,8 +37,13 @@ export function MessageWorkspace() {
   const requestRef = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true); setError(""); setAreas([]);
-    getJSON("/api/messages", controller.signal).then(value => {
+    // Schedule the request state transition outside the effect body.
+    Promise.resolve().then(() => {
+      if (controller.signal.aborted) return;
+      setLoading(true); setError(""); setAreas([]);
+      return getJSON("/api/messages", controller.signal);
+    }).then(value => {
+      if (controller.signal.aborted || value === undefined) return;
       if (!value || typeof value !== "object" || !("areas" in value) || !Array.isArray(value.areas) || value.areas.length > 512 || !value.areas.every(validArea)) throw new Error("Invalid area catalog.");
       setAreas(value.areas);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Messages unavailable."); })
@@ -61,7 +66,13 @@ export function MessageWorkspace() {
   }, []);
   useEffect(() => {
     if (!area) return;
-    return load(area);
+    // A microtask keeps state changes out of the synchronous effect body.
+    let active = true;
+    let cancel: (() => void) | undefined;
+    Promise.resolve().then(() => {
+      if (active) cancel = load(area);
+    });
+    return () => { active = false; cancel?.(); };
   }, [area, load]);
   const openMessage = (message: Pick<Message, "number">) => {
     if (!area) return;

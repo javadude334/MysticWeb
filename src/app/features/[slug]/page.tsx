@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Shell } from "@/components/shell";
 import { MysticText } from "@/components/mystic-text";
@@ -9,7 +10,13 @@ import { readMysticBulletinMenu } from "@/lib/mystic/native-bulletins";
 export function generateStaticParams() {
   return defaultNavigation.filter(item => item.href.startsWith("/features/")).map(item => ({ slug: item.href.split("/").pop()! }));
 }
-export default async function FeaturePreview({ params }: { params: Promise<{ slug: string }> }) {
+export default function FeaturePreview({ params }: { params: Promise<{ slug: string }> }) {
+  return <Suspense fallback={<section className="panel"><p>Loading feature…</p></section>}>
+    <FeaturePreviewContent params={params} />
+  </Suspense>;
+}
+
+async function FeaturePreviewContent({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const item = defaultNavigation.find(entry => entry.href === "/features/" + slug);
   if (slug === "bulletins") {
