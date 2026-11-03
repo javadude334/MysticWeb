@@ -232,3 +232,28 @@ test('development workspace isolates identities, expires/revokes sessions and st
   try { Date.now = () => now() + 3600001; assert.equal((await demo(req('', 'GET', eCookie))).status, 401); }
   finally { Date.now = now; }
 });
+
+
+test('internal caller context requires a live account and never trusts request identity', async t => {
+  const { app, state } = setup(t);
+  assert.equal(await app.currentCaller(request('/api/auth/session')), null);
+  const session = token(await login(app));
+  assert.deepEqual(await app.currentCaller(request('/api/auth/session', session)), { instance: 'vm', userId: 42 });
+  state.disabled = true;
+  assert.equal(await app.currentCaller(request('/api/auth/session', session)), null);
+  state.disabled = false;
+  assert.equal(await app.currentCaller(request('/api/auth/session', session)), null);
+});
+test('internal area authorization checks native ACS on every call and denies invalid input', async t => {
+  const { app, state } = setup(t);
+  const alice = token(await login(app));
+  const bob = token(await login(app, 'bob'));
+  assert.equal(await app.canReadMessageArea(request('/api/messages', alice), 1, revision), true);
+  assert.equal(await app.canReadMessageArea(request('/api/messages', bob), 1, revision), false);
+  state.denied = true;
+  assert.equal(await app.canReadMessageArea(request('/api/messages', alice), 1, revision), false);
+  state.denied = false;
+  assert.equal(await app.canReadMessageArea(request('/api/messages', alice), 1, 'bad'), false);
+  assert.equal(await app.canReadMessageArea(request('/api/messages', alice), 0, revision), false);
+  assert.equal(await app.canReadMessageArea(request('/api/messages'), 1, revision), false);
+});
