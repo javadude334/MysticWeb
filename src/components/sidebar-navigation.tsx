@@ -12,7 +12,7 @@ function load(): Saved | null {
   try {
     const value = JSON.parse(localStorage.getItem(storageKey) ?? "null");
     if (!value || typeof value.collapsed !== "boolean" || !Array.isArray(value.open) ||
-      !value.open.every((id: unknown) => typeof id === "string" && collectionIds().includes(id))) return null;
+      !value.open.every((id: unknown) => typeof id === "string" && (id === "main-menu" || collectionIds().includes(id)))) return null;
     return { collapsed: value.collapsed, open: value.open };
   } catch { return null; }
 }
