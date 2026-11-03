@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { defaultNavigation } from "@/lib/navigation/default-navigation";
+import { mainMenuItems } from "@/lib/navigation/menu-items";
 import styles from "./sidebar-navigation.module.css";
 import { collectionIds, navigationCollections, type CollectionNode } from "@/lib/navigation/navigation-collections";
 
@@ -95,7 +96,7 @@ export function SidebarNavigation({ active }: { active: string }) {
           </div>
           <div id="nav-group-main-menu" className={styles.children}
             hidden={!open.includes("main-menu") || collapsed}>
-            {items.filter(item => item.href !== "/dashboard" && item.href !== "/main-menu")
+            {mainMenuItems()
               .map(item => renderNode({ type: "link", href: item.href }, 1))}
           </div>
         </div>
