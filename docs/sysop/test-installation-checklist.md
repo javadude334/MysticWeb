@@ -47,3 +47,11 @@ For the next integration test, use a **separate, nonproduction Mystic 1.12 A48 i
 - [ ] No real user credentials or mail exposed in test logs.
 
 **Activation gate:** implement a reviewed native authorization driver, test it with these fixtures, and only then design explicit production composition. A successful TypeScript build or synthetic test alone does not satisfy this gate.
+
+## Operator's existing Windows test environment
+
+- **Production Mystic:** `D:\\Mystic` — live BBS; never use for development writes or test credentials.
+- **Sandbox Mystic:** `E:\\Mystic` — designated native authentication, ACS, message, and file integration test installation.
+- **MysticWeb source:** `E:\\work\\javadude_dev\\MysticWeb`.
+
+Use the sandbox for all native integration exercises. Read-only validation should come first; obtain explicit operator confirmation before any test that changes sandbox user or message data. Do not commit copies of native user databases, secrets, or private messages.
