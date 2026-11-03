@@ -92,6 +92,29 @@ export class WebAccess {
     return identity;
   }
 
+  /** Internal caller context for future server-side SysOp commands.
+   * Never accept an identity from browser input or expose this as a public route.
+   * A native account check is performed on every call; unavailable means null.
+   */
+  async currentCaller(request: Request): Promise<Readonly<Identity> | null> {
+    try { return await this.identity(request); }
+    catch { return null; }
+  }
+
+  /** Server-side read permission for a single message area. This does not
+   * authorize private mail, file areas, posting, or other resources.
+   * No permission is cached and the native provider must validate ACS.
+   */
+  async canReadMessageArea(request: Request, areaId: number, catalogRevision: string): Promise<boolean> {
+    if (!Number.isSafeInteger(areaId) || areaId < 1 || areaId > 65535 ||
+        !/^[a-f0-9]{64}$/.test(catalogRevision)) return false;
+    const caller = await this.currentCaller(request);
+    if (!caller) return false;
+    try {
+      return await this.native.readArea(caller, areaId, catalogRevision, async () => true);
+    } catch { return false; }
+  }
+
   /** Revalidate the native account on every session check. Never treat a
    * persisted session as proof of current account eligibility.
    */
