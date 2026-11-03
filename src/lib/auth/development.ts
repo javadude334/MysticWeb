@@ -8,7 +8,7 @@ const COOKIE = "mysticweb_demo";
 const revision = "d".repeat(64);
 const sessions = new Map<string, { userId: number; expires: number }>();
 const accounts = [{ userId: 42, name: "Alice" }, { userId: 73, name: "Bob" }];
-const areas = [{ id: 1, name: "Welcome board", jamBase: "welcome" }, { id: 2, name: "Alice's workshop", jamBase: "workshop" }];
+const areas = [{ id: 1, name: "Welcome board", jamBase: "welcome", kind: "echo" as const }, { id: 2, name: "Alice's workshop", jamBase: "workshop", kind: "echo" as const }];
 
 export function developmentEnabled() {
   return process.env.NODE_ENV === "development" && process.env.MYSTICWEB_DEMO === "1";
