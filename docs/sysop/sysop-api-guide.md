@@ -10,6 +10,10 @@ Inspired by the [Mystic Python functions reference](https://wiki.mysticbbs.com/d
 - **Internal disconnected stubs**: `src/lib/scripting/bbs-commands.ts` declares data/action names but returns unavailable. **Not callable by SysOp-authored scripts.**
 - **Not implemented**: a sandboxed external SysOp script runner, native message and file APIs, and production authorization for these functions.
 
+## Current security groundwork (November 3, 2026)
+
+The server-only `WebAccess` class now has internal `currentCaller(request)` and `canReadMessageArea(request, areaId, catalogRevision)` helpers. Both deny when the session or native provider is unavailable; the latter uses the existing per-area native authorization boundary. These are **not** public SysOp script methods, and `productionAccess()` still returns `null`. Tests were added for permission rejection and absent native providers; CI execution is still required.
+
 ## Planned API — ordered by dependencies
 
 | Phase | Proposed function | Purpose | Mystic inspiration | Status |
