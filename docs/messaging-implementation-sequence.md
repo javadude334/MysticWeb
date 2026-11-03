@@ -30,3 +30,12 @@ Navigation design is paused except where required for messaging. Ship authentica
 
 ## Blocking evidence and next steps
 A real native writer and configured auth bridge are missing from this repo; cannot truthfully mark posting/replies as working yet. The next code change should implement the sandbox native adapter after confirming the available Mystic runtime interface. Maintain direct-to-main workflow; verify typecheck, tests and build on Windows before deployment. Preserve deployment safety: no unreviewed live-site writes.
+
+## Message group navigation decision — 2026-11-03
+- Group-first navigation: enumerate Mystic-configured message groups in their configured order; under each group display areas with a verified matching group requirement in their native ACS/configuration.
+- Do **not** display areas without a verified group association in MysticWeb (no catch-all or "Other" folder).
+- Match group tokens structurally, never by substring (e.g. group 1 must not match group 10); distinguish `G1` from `AG1` and other ACS operators using verified Mystic syntax before enabling the mapping.
+- An area can appear under multiple groups if its verified group rules associate it with multiple groups; maintain a single underlying area identity.
+- Group association is **not authorization**. Revalidate user account and native list/read/post ACS independently for every operation. Never grant access because a group was found.
+- Current `MessageReader.areas()` exposes only `{id,name}`, and `CatalogArea` lacks group metadata. Extend the trusted catalog and public response only after confirming the group/config file format and ACS semantics.
+- Do not hardcode sample group names or infer membership from area titles. Unknown or ambiguous group association fails closed for navigation.
