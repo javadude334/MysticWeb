@@ -10,7 +10,7 @@ export type SysopMenu = { id: string; title: string; description: string; items:
 const slug = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 const MAX_CONFIG_BYTES = 64 * 1024;
 // Only internal routes explicitly approved for menu links. No external URLs.
-const allowedPages = new Set(["/dashboard", "/news", "/messages", "/files", "/door-games", "/private-mail", "/my-profile", "/features/bulletins", "/features/demos", "/features/goodbye"]);
+const allowedPages = new Set(["/dashboard", "/news", "/messages", "/files", "/door-games", "/private-mail", "/my-profile", "/features/bulletins", "/features/demos", "/features/goodbye", "/examples/fox-news"]);
 function validString(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= max;
 }
