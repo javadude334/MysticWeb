@@ -9,7 +9,7 @@ export type CollectionFolder = {
 };
 export type CollectionNode = CollectionLink | CollectionFolder;
 
-export const navigationCollections: readonly CollectionFolder[] = [
+export const navigationCollections: readonly CollectionNode[] = [
   { type: "collection", id: "messages", title: "Message Center", icon: "✉", children: [
     { type: "link", href: "/messages" }, { type: "link", href: "/private-mail" },
   ] },
