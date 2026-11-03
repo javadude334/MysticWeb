@@ -65,6 +65,48 @@ export class MessageReader {
     return { groups: (catalog.groups ?? []).filter(g => visible.some(a => a.groupIds.includes(g.id))), areas: visible };
   }
 
+  /** Authorized groups in Mystic configuration order; ungrouped areas are omitted. */
+  async listGroups(identity: Identity) {
+    return (await this.areas(identity)).groups;
+  }
+
+  /** Areas belonging to one group, after independent native read-ACS checks. */
+  async listAreasByGroup(identity: Identity, groupId: number) {
+    if (!Number.isSafeInteger(groupId) || groupId < 1 || groupId > 65535) throw new NativeAccessError();
+    const result = await this.areas(identity);
+    if (!result.groups.some(group => group.id === groupId)) throw new NativeAccessError();
+    return result.areas.filter(area => area.groupIds.includes(groupId));
+  }
+
+  /** A bounded per-area message listing. The native reader owns permissions. */
+  async listMessages(identity: Identity, areaId: number, options: { before?: number; limit?: number } = {}) {
+    return this.read(identity, areaId, options);
+  }
+
+  /** Read exactly one message with its body, under the same ACS checks. */
+  async displayMessage(identity: Identity, areaId: number, messageNumber: number) {
+    const page = await this.read(identity, areaId, { message: messageNumber });
+    if (page.messages.length !== 1 || page.messages[0].number !== messageNumber ||
+        typeof page.messages[0].body !== "string") throw new NativeAccessError();
+    return { area: page.area, message: page.messages[0] };
+  }
+
+  /** Group-wide bounded headers. Each area is read under its own native ACS.
+   * The result is grouped by area; callers must not mistake it for one globally
+   * chronological feed or for full-text search.
+   */
+  async listMessagesByGroup(identity: Identity, groupId: number, limitPerArea = 25) {
+    if (!Number.isSafeInteger(limitPerArea) || limitPerArea < 1 || limitPerArea > 50)
+      throw new NativeAccessError();
+    const areas = await this.listAreasByGroup(identity, groupId);
+    if (areas.length > 64) throw new NativeAccessError();
+    const pages = [];
+    for (const area of areas) {
+      pages.push(await this.listMessages(identity, area.id, { limit: limitPerArea }));
+    }
+    return { groupId, pages };
+  }
+
   async read(identity: Identity, areaId: number, options: { before?: number; limit?: number; message?: number }) {
     if (!Number.isInteger(areaId) || areaId < 1 || areaId > 65535 ||
       (options.before !== undefined && options.message !== undefined) ||
