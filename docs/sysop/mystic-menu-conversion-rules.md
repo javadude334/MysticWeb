@@ -18,3 +18,15 @@ These rules are approved for the MysticWeb navigation inventory and future menu 
 - The local sandbox has historical experiments involving **Change Theme** and Python test commands. Exclude those customizations from the baseline inventory and web conversion.
 - **MysticWeb will not offer themes or a Change Theme feature.** Its web interface has one standard design.
 - Do not infer that every sandbox command is stock; flag deviations and exclude the known experiments.
+
+## SysOp customization is a core requirement
+
+The stock default Mystic menus are the **initial seed**, not a restriction on what a SysOp may configure. MysticWeb has one standard visual design and **no theme switching**, but each SysOp must eventually be able to:
+
+- Create, rename, reorder, hide, and remove custom menus and navigation entries, including top-level entries and nested submenus.
+- Attach supported built-in MysticWeb functions to menu items (messages, files, door games, user features, etc.).
+- Implement custom behavior in JavaScript using a documented, versioned, permission-aware MysticWeb scripting API.
+- Configure visibility while server-side native authentication and authorization remain authoritative.
+- Preserve customization across application updates without editing bundled application source.
+
+**Implementation status:** This is an approved product requirement, not a claim that the current repository already includes a SysOp menu editor or safe JavaScript runtime. Custom JavaScript must run through a constrained execution model, not arbitrary imports or unrestricted Node.js access. Excluding the *native terminal SysOp menu* from web conversion does **not** exclude future MysticWeb SysOp administration/customization tools.
