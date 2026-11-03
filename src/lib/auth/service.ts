@@ -134,7 +134,13 @@ export class WebAccess {
       if (!identity) return response({ error: "Access unavailable" }, 401);
       const query = new URL(request.url).searchParams;
       const names = [...query.keys()];
-      if (new Set(names).size !== names.length || names.some(k => !["area", "before", "limit", "message"].includes(k))) throw new Error();
+      if (new Set(names).size !== names.length || names.some(k => !["area", "group", "before", "limit", "message"].includes(k))) throw new Error();
+      if (query.has("group")) {
+        if (query.has("area") || query.has("before") || query.has("message")) throw new Error();
+        const groupId = numericId(query.get("group"), 65535);
+        if (query.has("limit")) return response(await this.messages.listMessagesByGroup(identity, groupId, numericId(query.get("limit"), 50)));
+        return response({ groupId, areas: await this.messages.listAreasByGroup(identity, groupId) });
+      }
       if (!query.has("area")) {
         if (names.length) throw new Error();
         return response(await this.messages.areas(identity));
@@ -144,7 +150,12 @@ export class WebAccess {
         ...(query.has("message") ? { message: numericId(query.get("message")) } : {}),
         ...(query.has("limit") ? { limit: numericId(query.get("limit"), 50) } : {}),
       };
-      return response(await this.messages.read(identity, numericId(query.get("area"), 65535), options));
+      const areaId = numericId(query.get("area"), 65535);
+      if (options.message !== undefined) {
+        const result = await this.messages.displayMessage(identity, areaId, options.message);
+        return response({ area: result.area, messages: [result.message], nextBefore: null });
+      }
+      return response(await this.messages.listMessages(identity, areaId, options));
     } catch { return response({ error: "Access unavailable" }, 404); }
   }
 }
