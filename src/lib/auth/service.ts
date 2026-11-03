@@ -137,7 +137,7 @@ export class WebAccess {
       if (new Set(names).size !== names.length || names.some(k => !["area", "before", "limit", "message"].includes(k))) throw new Error();
       if (!query.has("area")) {
         if (names.length) throw new Error();
-        return response({ areas: await this.messages.areas(identity) });
+        return response(await this.messages.areas(identity));
       }
       const options = {
         ...(query.has("before") ? { before: numericId(query.get("before")) } : {}),
