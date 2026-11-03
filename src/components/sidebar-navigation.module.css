@@ -36,3 +36,12 @@
  .collapsed .children { display:flex; }
  .collapsed .children[hidden] { display:none; }
 }
+
+/* Nested navigation collections retain their tree hierarchy. */
+.children .groupButton { font-size:12px; min-height:36px; }
+.children .children { margin-left:10px; padding-left:9px; }
+.children .link { font-size:12px; min-height:36px; }
+.groupButton[aria-expanded="true"] { color:#eaf0ed; }
+@media(max-width:760px) {
+ .children .children { margin-left:10px; }
+}
