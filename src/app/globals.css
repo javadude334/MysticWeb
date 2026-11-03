@@ -187,3 +187,13 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .mw-replies { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
 .mw-replies button { border:1px solid #486355; border-radius:5px; background:#20382e; color:var(--accent); padding:9px 12px; cursor:pointer; }
 .mw-replies button:disabled { opacity:.5; cursor:wait; }
+
+/* Shared sidebar navigation: compact mode expands workspace without a rerender. */
+.app-shell:has(> div:first-of-type > aside) { grid-template-columns: 244px minmax(0,1fr); }
+.app-shell:has(> div:first-of-type > aside) { transition: grid-template-columns .15s ease; }
+.app-shell:has(> div:first-of-type > aside) {} 
+.app-shell:has(> div:first-of-type > aside) > .workspace { min-width:0; }
+.app-shell:has(> div:first-of-type > aside) > div:first-of-type:has(.collapsed) { width:68px; }
+.app-shell:has(> div:first-of-type > aside):has(> div:first-of-type.collapsed) { grid-template-columns:68px minmax(0,1fr); }
+@media(max-width:1100px) and (min-width:761px) { .app-shell:not(:has(> div:first-of-type.collapsed)) { grid-template-columns:210px minmax(0,1fr); } }
+@media(max-width:760px) { .app-shell:has(> div:first-of-type > aside) { display:block; } }
