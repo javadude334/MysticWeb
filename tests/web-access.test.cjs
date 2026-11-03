@@ -48,7 +48,7 @@ function setup(t, exactAccounts = false) {
     return reply;
   } }, 'vm');
   const reader = new MessageReader(native, async () => ({ revision: state.changed ? 'b'.repeat(64) : revision,
-    areas: [{ id: 1, name: 'Board', jamBase: 'echo' }] }), dir, async (_, base, opts) => {
+    areas: [{ id: 1, name: 'Board', jamBase: 'echo', kind: 'echo' }] }), dir, async (_, base, opts) => {
     state.reads++;
     assert.equal(base, 'echo');
     return { messages: [{ number: opts.message || 9, author: 'Test', recipient: 'All', subject: '<script>',
@@ -168,11 +168,11 @@ test('invalid catalog mapping and catalog changes cannot disclose storage result
   const { native } = setup(t);
   const identity = { instance: 'vm', userId: 42 };
   let reads = 0;
-  const invalid = new MessageReader(native, async () => ({ revision, areas: [{ id: 1, name: 'Board', jamBase: '../secret' }] }), '/unused', async () => { reads++; });
+  const invalid = new MessageReader(native, async () => ({ revision, areas: [{ id: 1, name: 'Board', jamBase: '../secret', kind: 'echo' }] }), '/unused', async () => { reads++; });
   await assert.rejects(invalid.read(identity, 1, {}));
   assert.equal(reads, 0);
   let changed = false;
-  const race = new MessageReader(native, async () => ({ revision: changed ? 'b'.repeat(64) : revision, areas: [{ id: 1, name: 'Board', jamBase: 'echo' }] }), '/unused', async () => { changed = true; return { messages: [], nextBefore: null }; });
+  const race = new MessageReader(native, async () => ({ revision: changed ? 'b'.repeat(64) : revision, areas: [{ id: 1, name: 'Board', jamBase: 'echo', kind: 'echo' }] }), '/unused', async () => { changed = true; return { messages: [], nextBefore: null }; });
   await assert.rejects(race.read(identity, 1, {}));
 });
 test('forged and ambiguous session cookies cannot reach native work', async t => {
