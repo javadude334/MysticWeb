@@ -30,3 +30,6 @@
 - [Four-source News menu](news-menu-example.md) — menu choices, local Mystic text files and safe rendering.
 
 - [Reusable menu actions](menu-actions.md) — displayText, openMenu, openPage; Bulletins, Demos and Goodbye.
+
+- [SysOp API roadmap](sysop-api-guide.md) — planned functions, status, phases and security gates.
+- [Nonproduction test checklist](test-installation-checklist.md) — baseline validation and Mystic integration checks.
