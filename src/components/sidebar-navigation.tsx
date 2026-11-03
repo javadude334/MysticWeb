@@ -6,7 +6,7 @@ import { defaultNavigation } from "@/lib/navigation/default-navigation";
 import styles from "./sidebar-navigation.module.css";
 import { collectionIds, navigationCollections, type CollectionNode } from "@/lib/navigation/navigation-collections";
 
-const storageKey = "mysticweb:sidebar:v2";
+const storageKey = "mysticweb:sidebar:v3";
 type Saved = { collapsed: boolean; open: string[] };
 function load(): Saved | null {
   try {
@@ -18,7 +18,7 @@ function load(): Saved | null {
 }
 export function SidebarNavigation({ active }: { active: string }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [open, setOpen] = useState<string[]>(collectionIds());
+  const [open, setOpen] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
@@ -73,12 +73,32 @@ export function SidebarNavigation({ active }: { active: string }) {
       </div>
       <nav id="mysticweb-sidebar-folders" aria-label="Main navigation" className={`${styles.navigation} ${mobileOpen ? styles.mobileOpen : ""}`}>
         <Link href="/dashboard" title="Dashboard" aria-current={selected("/dashboard") ? "page" : undefined} className={`${styles.link} ${selected("/dashboard") ? styles.active : ""}`}><span aria-hidden="true" className={styles.symbol}>▦</span><span className={styles.linkText}>Dashboard</span></Link>
-        <Link href="/main-menu" title="Main Menu" aria-current={selected("/main-menu") ? "page" : undefined}
-          className={`${styles.link} ${selected("/main-menu") ? styles.active : ""}`}
-          onClick={() => setMobileOpen(false)}>
-          <span aria-hidden="true" className={styles.symbol}>☷</span>
-          <span className={styles.linkText}>Main Menu</span>
-        </Link>
+        <div className={styles.group}>
+          <div className={styles.menuHeading}>
+            <button type="button" className={styles.menuChevron}
+              aria-label={open.includes("main-menu") ? "Collapse Main Menu" : "Expand Main Menu"}
+              aria-expanded={!collapsed && open.includes("main-menu")} aria-controls="nav-group-main-menu"
+              onClick={() => {
+                if (collapsed) setCollapsed(false);
+                setOpen(previous => previous.includes("main-menu")
+                  ? previous.filter(id => id !== "main-menu") : [...previous, "main-menu"]);
+              }}>
+              {open.includes("main-menu") ? "▾" : "▸"}
+            </button>
+            <Link href="/main-menu" title="Open Main Menu"
+              aria-current={selected("/main-menu") ? "page" : undefined}
+              className={`${styles.link} ${selected("/main-menu") ? styles.active : ""}`}
+              onClick={() => setMobileOpen(false)}>
+              <span aria-hidden="true" className={styles.symbol}>☷</span>
+              <span className={styles.linkText}>Main Menu</span>
+            </Link>
+          </div>
+          <div id="nav-group-main-menu" className={styles.children}
+            hidden={!open.includes("main-menu") || collapsed}>
+            {items.filter(item => item.href !== "/dashboard" && item.href !== "/main-menu")
+              .map(item => renderNode({ type: "link", href: item.href }, 1))}
+          </div>
+        </div>
         {navigationCollections.map(node => renderNode(node, 0))}
       </nav>
     </aside>
