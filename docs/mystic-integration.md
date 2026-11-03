@@ -8,6 +8,22 @@ area authorization are verified. See [staged deployment](auth-reader-deployment.
 No message-base writes or last-read writes are performed. No password collection
 or authentication fallback is enabled.
 
+## Message area classification gate (November 3, 2026)
+
+`MessageReader` now requires each trusted catalog entry to carry an explicit
+`kind` of `echo`, `netmail`, `private`, or `unknown`. Only `echo` may reach the
+native per-user ACS authorization check or JAM storage; all other kinds are
+excluded from lists and direct reads. Missing or invalid classification denies
+the catalog. Names and inferred ACS groups must never be used to infer the kind.
+
+**Not yet connected:** the existing A48 `mbases.dat` parser does not establish a
+verified native area-kind field, and the native per-user ACS bridge is still
+fail-closed. A trusted native catalog loader must classify the record's real
+area type and verify group/ListACS/ReadACS before connecting the sandbox
+`/api/messages` route. Do not populate every area as `echo` as a shortcut.
+The current browser message menu therefore remains unavailable until that
+native authorization work is completed.
+
 ## JAM reader
 
 `src/lib/mystic/jam.ts` implements the JAM-001 revision 1 fixed header, index,
