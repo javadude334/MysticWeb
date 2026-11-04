@@ -18,7 +18,7 @@ function load(relative) {
   mod._compile(compiled, filename);
   return mod.exports;
 }
-const { inspectJamReadProgress } = load("jam-read-progress.ts");
+const { inspectJamReadProgress, inspectVerifiedJamReadProgress } = load("jam-read-progress.ts");
 function pointer(id, last, high = last) {
   const b = Buffer.alloc(16);
   b.writeUInt32LE(123, 0);
@@ -55,4 +55,40 @@ test("diagnostic leaves both input buffers unchanged", () => {
   inspectJamReadProgress(i, p, 5);
   assert.deepEqual(i, a);
   assert.deepEqual(p, b);
+});
+
+function fixture(count, first = 1) {
+  const header = Buffer.alloc(1024 + count * 76);
+  header.write("JAM", 0, "latin1");
+  header.writeUInt32LE(first, 20);
+  const entries = Buffer.alloc(count * 8);
+  for (let slot = 0; slot < count; slot++) {
+    const offset = 1024 + slot * 76;
+    entries.writeUInt32LE(offset, slot * 8 + 4);
+    header.write("JAM", offset, "latin1");
+    header.writeUInt16LE(1, offset + 4);
+    header.writeUInt32LE(first + slot, offset + 48);
+    header.writeUInt32LE(0xffffffff, offset + 68);
+  }
+  return { header, entries };
+}
+test("verified header numbers yield 53 candidate new messages", () => {
+  const { header, entries } = fixture(134);
+  const progress = inspectVerifiedJamReadProgress(header, entries, pointer(5, 81), 5);
+  assert.equal(progress.candidateNewCount, 53);
+  assert.equal(progress.exact, false);
+});
+test("header mismatch and hidden messages suppress provisional counts", () => {
+  const { header, entries } = fixture(4);
+  header.writeUInt32LE(99, 1024 + 2 * 76 + 48);
+  assert.equal(inspectVerifiedJamReadProgress(header, entries, pointer(5, 1), 5).candidateNewCount, null);
+  header.writeUInt32LE(3, 1024 + 2 * 76 + 48);
+  header.writeUInt32LE(4, 1024 + 2 * 76 + 52);
+  assert.equal(inspectVerifiedJamReadProgress(header, entries, pointer(5, 1), 5).candidateNewCount, null);
+});
+test("non-one first message number uses actual JAM numbers", () => {
+  const { header, entries } = fixture(4, 100);
+  // Older diagnostic deliberately cannot determine the correct count here.
+  const result = inspectVerifiedJamReadProgress(header, entries, pointer(5, 101), 5);
+  assert.equal(result.candidateNewCount, null);
 });
