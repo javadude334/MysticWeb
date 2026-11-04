@@ -7,6 +7,13 @@ type Group = { id: number; name: string };
 type Message = { number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
 type Page = { area: Area; messages: Message[]; nextBefore: number | null };
 
+function formatMysticDate(timestamp: number | undefined): string {
+  if (!Number.isSafeInteger(timestamp) || !timestamp || timestamp < 0 || timestamp > 0xffffffff) return "Date unavailable";
+  // JAM timestamps are BBS-local wall times; avoid asserting a timezone.
+  const date = new Date(timestamp * 1000);
+  return Number.isNaN(date.getTime()) ? "Date unavailable" :
+    `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")} ${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")} (BBS time)`;
+}
 function validArea(value: unknown): value is Area {
   return !!value && typeof value === "object" && Number.isSafeInteger((value as Area).id) &&
     (value as Area).id > 0 && typeof (value as Area).name === "string" &&
@@ -19,7 +26,8 @@ function validPage(value: unknown): value is Page {
     (page.nextBefore === null || (Number.isSafeInteger(page.nextBefore) && page.nextBefore > 0)) &&
     page.messages.every(m => Number.isSafeInteger(m.number) && m.number > 0 &&
       typeof m.author === "string" && typeof m.recipient === "string" && typeof m.subject === "string" &&
-      (m.body === undefined || typeof m.body === "string"));
+      (m.body === undefined || typeof m.body === "string") && !!m.dates &&
+      Number.isSafeInteger(m.dates.written) && m.dates.written >= 0 && m.dates.written <= 0xffffffff);
 }
 async function getJSON(url: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { credentials: "same-origin", cache: "no-store", signal });
@@ -149,7 +157,7 @@ export function MessageWorkspace() {
             onClick={() => openMessage(message)}>
             <span className="mw-thread-from">{message.author}</span>
             <strong>{message.subject || "(No subject)"}</strong>
-            <span>To: {message.recipient} · #{message.number}</span>
+            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}</span>
           </button>)}
           {filtered.length === 0 && <p>{search ? "No matches among loaded messages." : "No messages in this page."}</p>}
           {pageHistory.length > 0 && <button type="button" className="mw-load-more" disabled={loading}
@@ -166,7 +174,7 @@ export function MessageWorkspace() {
             <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
-          <p className="mw-message-meta"><strong>{selected.author}</strong> → {selected.recipient} · Message #{selected.number}</p>
+          <p className="mw-message-meta"><strong>{selected.author}</strong> → {selected.recipient} · Message #{selected.number} · {formatMysticDate(selected.dates.written)}</p>
           <pre>{selected.body ?? "Message body not loaded."}</pre>
           <div className="mw-replies">
             {([["Parent", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
