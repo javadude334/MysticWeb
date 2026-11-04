@@ -54,3 +54,10 @@
 .menuChevron:focus-visible { outline:2px solid #a8f0cd; outline-offset:2px; }
 .collapsed .menuChevron { display:none; }
 @media(max-width:760px) { .collapsed .menuChevron { display:block; } }
+
+@media (min-width:761px) {
+ .collapsed .sidebar { padding:12px 5px; }
+ .collapsed .mark { width:34px; height:36px; }
+ .collapsed .toggle { padding:5px; }
+ .collapsed .symbol { flex-basis:20px; }
+}
