@@ -41,3 +41,19 @@ export function inspectAreaAcs(list: string, read: string): AcsCandidate {
   return { supported: true, groupId: a.groupId,
     minimumSecurity: Math.max(a.minimumSecurity, b.minimumSecurity) };
 }
+
+/**
+ * Diagnostic-only comparison against a known security-level snapshot.
+ * This does not check group Access/Hidden, account flags, message-base type,
+ * or full native ACS semantics and MUST NOT authorize storage access.
+ */
+export function candidateMeetsSecurityLevel(
+  list: string, read: string, securityLevel: number,
+): { candidate: boolean; groupId: number | null } {
+  if (!Number.isSafeInteger(securityLevel) || securityLevel < 0 || securityLevel > 255)
+    return { candidate: false, groupId: null };
+  const parsed = inspectAreaAcs(list, read);
+  if (!parsed.supported || securityLevel < parsed.minimumSecurity)
+    return { candidate: false, groupId: null };
+  return { candidate: true, groupId: parsed.groupId };
+}
