@@ -6,25 +6,13 @@ import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
-import { candidateMeetsSecurityLevel } from "../mystic/acs-candidate";
+import { MessageAccess } from "../mystic/message-access";
 import { searchMessages } from "../mystic/search-messages";
 
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers });
 
-/** Conservative sandbox catalog filter. Netmail is not public EchoMail.
- * This is not a substitute for decoding native area kind and group ACS.
- */
-function isNetmailNamedGroup(name: string): boolean {
-  return /(?:^|[\\s_\\-])netmail(?:$|[\\s_\\-])/i.test(name);
-}
-
-
-/** Explicit operator-approved, read-only preview. NOT a Mystic ACS implementation.
- * The allowlist is required so an authenticated user never gains access merely
- * because an area happens to have a readable JAM file.
- */
 export async function sandboxMessages(request: Request): Promise<Response> {
   if (process.env.NODE_ENV !== "development" || !sandboxOriginAllowed(request, false))
     return json({ error: "Unavailable" }, 404);
@@ -53,23 +41,13 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
-    // Do not reveal high-security or known Netmail groups/areas to this user.
-    // Native group ACS and area-kind certification are still outstanding.
-    const eligibleGroups = groups.filter(g => !isNetmailNamedGroup(g.name));
-    const eligibleIds = new Set(eligibleGroups.map(g => g.id));
-    const eligibleAreas = areas.filter(a => a.inferredGroupId !== null &&
-      eligibleIds.has(a.inferredGroupId) && isJamBaseName(a.jamBase) &&
-      candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).groupId === a.inferredGroupId &&
-      !isNetmailNamedGroup(a.name));
-    // Development-only: eligible areas are readable without a numeric allowlist.
-    // JAM independently rejects protected/private/netmail message records.
-    const visible = eligibleAreas;
-    // Catalog and reading use the same current-account eligibility filter.
-    const catalogAreas = eligibleAreas
-      .map(a => ({
-        id: a.id, name: a.name, groupIds: [a.inferredGroupId as number],
-        readable: visible.some(v => v.id === a.id),
-      }));
+    const access = new MessageAccess(groups, areas, account.securityLevel);
+    const eligibleGroups = access.getGroups();
+    const visible = eligibleGroups.flatMap(group => access.getMessageAreas(group.id));
+    const catalogAreas = visible.map(area => ({
+      id: area.id, name: area.name, groupIds: [area.inferredGroupId as number],
+      readable: true,
+    }));
     if (params.has("search")) {
       if (keys.some(key => !["search", "groupName", "allGroups"].includes(key)))
         return json({ error: "Invalid search request" }, 400);
@@ -96,13 +74,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (!relative || relative === ".." || relative.startsWith(".." + path.sep) ||
           path.isAbsolute(relative))
         return json({ error: "Sandbox JAM directory must be inside the sandbox" }, 503);
-      const authorizedAreas = visible.flatMap(area => {
-        const group = groups.find(group => group.id === area.inferredGroupId);
-        return group ? [{
-          id: area.id, name: area.name, groupId: group.id,
-          groupName: group.name, jamBase: area.jamBase,
-        }] : [];
-      });
+      const authorizedAreas = access.getSearchAreas(groupName, allGroups);
       return json(await searchMessages(query, groupName, allGroups, authorizedAreas, jamReal));
     }
     if (params.has("group")) {
@@ -118,7 +90,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       const groupId = Number(groupValue);
       if (!eligibleGroups.some(group => group.id === groupId))
         return json({ error: "Group unavailable" }, 404);
-      return json({ groupId, areas: catalogAreas.filter(area => area.groupIds.includes(groupId)) });
+      return json({ groupId, areas: access.getMessageAreas(groupId).map(area => ({ id: area.id, name: area.name, groupIds: [groupId], readable: true })) });
     }
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
@@ -127,7 +99,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         areas: catalogAreas });
     }
     const id = Number(params.get("area"));
-    const area = visible.find(a => a.id === id);
+    const area = access.getArea(id);
     if (!area || !Number.isSafeInteger(id)) return json({ error: "Area unavailable" }, 404);
     const integer = (key: string, max: number) => {
       const value = params.get(key);
