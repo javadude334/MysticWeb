@@ -13,7 +13,7 @@ const mod = new Module(filename, module);
 mod.filename = filename;
 mod.paths = Module._nodeModulePaths(path.dirname(filename));
 mod._compile(compiled, filename);
-const { parseJamLastRead, findJamLastRead } = mod.exports;
+const { parseJamLastRead, findJamLastRead, prepareJamLastReadAdvance } = mod.exports;
 
 function record(crc, userId, last, high) {
   const b = Buffer.alloc(16);
@@ -54,4 +54,16 @@ test("parsing does not mutate the input bytes", () => {
   const original = Buffer.from(bytes);
   parseJamLastRead(bytes);
   assert.deepEqual(bytes, original);
+});
+
+test("prepares a contiguous JAM read-pointer update for only the authenticated record", () => {
+  const original = Buffer.concat([record(111, 5, 4, 9), record(222, 7, 3, 3)]);
+  const result = prepareJamLastReadAdvance(original, 7, 4);
+  assert.equal(result.readUInt32LE(16 + 8), 4);
+  assert.equal(result.readUInt32LE(16 + 12), 4);
+  assert.deepEqual(result.subarray(0, 16), original.subarray(0, 16));
+  assert.equal(original.readUInt32LE(16 + 8), 3);
+  assert.deepEqual(prepareJamLastReadAdvance(original, 7, 6), null);
+  assert.deepEqual(prepareJamLastReadAdvance(original, 99, 4), null);
+  assert.deepEqual(prepareJamLastReadAdvance(original, 7, 2), original);
 });
