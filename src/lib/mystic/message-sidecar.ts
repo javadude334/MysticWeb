@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, realpath, lstat } from "node:fs/promises";
+import { readFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import type { JamMessage } from "./jam";
 
@@ -32,10 +32,6 @@ function areaDir(root: string, instanceId: string, areaId: number) {
   validate(instanceId, areaId);
   if (!path.isAbsolute(root)) throw new Error("Absolute metadata root required");
   return path.join(root, "v1", "instances", instanceId, "areas", String(areaId));
-}
-function identity(m: MessageSidecar) {
-  return [m.origin.instanceId, m.origin.areaId, m.origin.jamBase, m.origin.jamNumber,
-    m.origin.jamMessageId ?? "", m.dates.writtenRaw].join("\u0000");
 }
 export function newMessageSidecar(instanceId: string, areaId: number, jamBase: string, msg: JamMessage, now = new Date()): MessageSidecar {
   validate(instanceId, areaId);
@@ -69,36 +65,6 @@ async function readJSON(file: string): Promise<unknown | null> {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw e;
   }
-}
-async function atomicNew(file: string, value: unknown): Promise<void> {
-  const temporary = file + "." + randomUUID() + ".tmp";
-  const h = await open(temporary, "wx", 0o600);
-  try { await h.writeFile(JSON.stringify(value, null, 2) + "\n"); await h.sync(); }
-  finally { await h.close(); }
-  try { await rename(temporary, file); }
-  catch (error) { const { unlink } = await import("node:fs/promises"); await unlink(temporary).catch(() => {}); throw error; }
-}
-/** Import only into an operator-controlled private metadata root; serialize imports externally. */
-export async function importMessageSidecar(root: string, instanceId: string, areaId: number, jamBase: string, msg: JamMessage): Promise<MessageSidecar> {
-  const candidate = newMessageSidecar(instanceId, areaId, jamBase, msg);
-  const dir = path.join(areaDir(root, instanceId, areaId), "messages");
-  await mkdir(dir, { recursive: true, mode: 0o700 });
-  if ((await realpath(dir)) !== path.resolve(dir)) throw new Error("Metadata directory alias not allowed");
-  // No implicit reuse of a JAM number after packing: collisions are unresolved.
-  const index = path.join(areaDir(root, instanceId, areaId), "message-index.json");
-  const existing = await readJSON(index) as { schemaVersion: number; records: MessageSidecar[] } | null;
-  if (existing && (existing.schemaVersion !== 1 || !Array.isArray(existing.records) || existing.records.length > 100000))
-    throw new Error("Invalid message index");
-  const records = (existing?.records ?? []).map(parseMessage);
-  const sameLocator = records.filter(r => r.origin.jamBase === jamBase && r.origin.jamNumber === msg.number);
-  if (sameLocator.length) {
-    if (sameLocator.length !== 1 || identity(sameLocator[0]) !== identity(candidate))
-      throw new Error("JAM locator changed; reconcile before importing");
-    return sameLocator[0];
-  }
-  // This initial implementation deliberately avoids unsafe index rewrites or concurrent imports.
-  // Persisting index updates needs a cross-process lock; until then do not mutate.
-  throw new Error("Message sidecar import requires coordinated index writer");
 }
 /** Read an existing per-user supplemental receipt, never infer read from absence. */
 export async function readUserMessageReceipt(root: string, instanceId: string, areaId: number, userId: number): Promise<UserMessageReceipt | null> {
