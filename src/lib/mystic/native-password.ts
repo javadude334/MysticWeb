@@ -37,12 +37,20 @@ export async function verifyMysticPasswordFile(
   const handle = await open(usersDatPath, "r");
   try {
     const record = Buffer.alloc(MYSTIC_USER_RECORD_SIZE);
+    let matches = 0;
+    let verified = false;
     for (let offset = 0; offset < st.size; offset += MYSTIC_USER_RECORD_SIZE) {
       const { bytesRead } = await handle.read(record, 0, record.length, offset);
       if (bytesRead !== record.length) return false;
-      if (record.readUInt32LE(0) === userId) return verifyMysticPasswordRecord(record, password);
+      if (record.readUInt32LE(0) !== userId) continue;
+      matches++;
+      if (matches > 1) return false; // duplicate native IDs are ambiguous
+      verified = verifyMysticPasswordRecord(record, password);
     }
-    return false;
+    const after = await handle.stat();
+    if (after.size !== st.size || after.mtimeMs !== st.mtimeMs ||
+        after.ctimeMs !== st.ctimeMs) return false;
+    return matches === 1 && verified;
   } finally {
     await handle.close();
   }
