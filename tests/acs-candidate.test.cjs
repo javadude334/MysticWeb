@@ -12,7 +12,7 @@ const m = new Module(file, module);
 m.filename = file;
 m.paths = Module._nodeModulePaths(path.dirname(file));
 m._compile(js, file);
-const { parseAcsCandidate, inspectAreaAcs } = m.exports;
+const { parseAcsCandidate, inspectAreaAcs, candidateMeetsSecurityLevel } = m.exports;
 
 test("recognizes the observed group and security candidate grammar", () => {
   assert.deepEqual(parseAcsCandidate("g3s20"), { supported: true, groupId: 3, minimumSecurity: 20 });
@@ -28,4 +28,11 @@ test("requires matching list/read group references", () => {
   assert.deepEqual(inspectAreaAcs("g3", "g3s20"), { supported: true, groupId: 3, minimumSecurity: 20 });
   assert.equal(inspectAreaAcs("g3", "g4").supported, false);
   assert.equal(inspectAreaAcs("g3", "").supported, false);
+});
+
+test("security threshold diagnostic excludes restricted message areas", () => {
+  assert.deepEqual(candidateMeetsSecurityLevel("s10g1", "s10g1", 20), { candidate: true, groupId: 1 });
+  assert.deepEqual(candidateMeetsSecurityLevel("s255g1", "s255g1", 20), { candidate: false, groupId: null });
+  assert.deepEqual(candidateMeetsSecurityLevel("%", "", 20), { candidate: false, groupId: null });
+  assert.deepEqual(candidateMeetsSecurityLevel("g3", "g3", -1), { candidate: false, groupId: null });
 });
