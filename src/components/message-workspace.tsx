@@ -49,6 +49,7 @@ export function MessageWorkspace() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [unreadAreaIds, setUnreadAreaIds] = useState<number[]>([]);
+  const [unreadGroupIds, setUnreadGroupIds] = useState<number[]>([]);
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
@@ -81,7 +82,7 @@ export function MessageWorkspace() {
       if (!value || typeof value !== "object" || !("areas" in value) || !Array.isArray(value.areas) || value.areas.length > 512 || !value.areas.every(validArea) || !("groups" in value) || !Array.isArray(value.groups) || value.groups.length > 128 || !value.groups.every((g: unknown) => !!g && typeof g === "object" && Number.isSafeInteger((g as Group).id) && (g as Group).id > 0 && typeof (g as Group).name === "string")) throw new Error("Invalid area catalog.");
       setAreas(value.areas as Area[]);
       setGroups(value.groups as Group[]);
-      setSelectedGroupId(current => (value.groups as Group[]).some(group => group.id === current) ? current : null);
+      setSelectedGroupId(current => (value.groups as Group[]).some(group => group.id === current) ? current : ((value.groups as Group[])[0]?.id ?? null));
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Messages unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -102,6 +103,36 @@ export function MessageWorkspace() {
     }).catch(() => { /* An unavailable pointer scan must not block reading. */ });
     return () => controller.abort();
   }, [selectedGroupId, refresh]);
+  useEffect(() => {
+    if (groups.length === 0) return;
+    const controller = new AbortController();
+    // Reuse the authenticated, bounded per-group unread scan. Keep requests
+    // sequential so opening a large catalog does not flood the JAM reader.
+    Promise.resolve().then(async () => {
+      const unread: number[] = [];
+      for (const group of groups) {
+        if (controller.signal.aborted) return;
+        try {
+          const value = await getJSON("/api/messages?unreadGroup=" + group.id, controller.signal);
+          if (value && typeof value === "object") {
+            const result = value as { groupId?: unknown; unreadAreaIds?: unknown };
+            if (result.groupId === group.id && Array.isArray(result.unreadAreaIds) &&
+                result.unreadAreaIds.length > 0 && result.unreadAreaIds.length <= 512 &&
+                result.unreadAreaIds.every(id => Number.isSafeInteger(id) && id > 0)) {
+              unread.push(group.id);
+              if (!controller.signal.aborted) setUnreadGroupIds([...unread]);
+            }
+          }
+        } catch {
+          if (controller.signal.aborted) return;
+          // Unknown state stays in normal order; never label it unread.
+        }
+      }
+    });
+    return () => controller.abort();
+  }, [groups]);
+  const orderedGroups = [...groups].sort((a, b) =>
+    Number(unreadGroupIds.includes(b.id)) - Number(unreadGroupIds.includes(a.id)));
   const load = useCallback((chosen: Area, before?: number, history: number[] = []) => {
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -213,7 +244,7 @@ export function MessageWorkspace() {
             setArea(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setError("");
           }}>
           <option value="">Select a message group</option>
-          {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+          {orderedGroups.map(group => <option key={group.id} value={group.id}>{unreadGroupIds.includes(group.id) ? "● " : ""}{group.name}</option>)}
         </select>
       </div>
       <div className="mw-toolbar mw-search-row"><div className="mw-search-container">
