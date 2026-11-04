@@ -55,7 +55,7 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
-  const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string }[] | null>(null);
+  const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<AbortController | null>(null);
@@ -137,7 +137,7 @@ export function MessageWorkspace() {
     }
     const controller = new AbortController();
     searchRef.current = controller;
-    setSearching(true); setError("");
+    setSearching(true); setError(""); setSelected(null); setSearchResults(null);
     const groupName = groups.find(group => group.id === selectedGroupId)?.name ?? "";
     const params = new URLSearchParams({ search: search.trim(), groupName, allGroups: String(searchAllGroups) });
     getJSON("/api/messages?" + params, controller.signal).then(value => {
@@ -219,7 +219,8 @@ export function MessageWorkspace() {
               setPage(null);
             }}>
             <strong>{result.subject || "(No subject)"}</strong>
-            <span>{result.author} · {result.groupName} / {result.areaName} · #{result.number}</span>
+            <span>{result.author} · {result.groupName} / {result.areaName} · #{result.number} · Match: {result.matchedField}</span>
+            {result.excerpt && <span>{result.excerpt}</span>}
           </button>)}
           {!searchResults.length && <p>No matching headers in the scanned messages.</p>}
         </div>}
@@ -258,6 +259,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">Search checks subjects, senders and recipients in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
