@@ -53,6 +53,14 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     // Require unambiguous group mapping and the exact operator-approved ID.
     const visible = areas.filter(a => approved.has(a.id) && candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate && a.inferredGroupId !== null &&
       groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase));
+    // Sandbox catalog is informational only. Exposing an area in the
+    // navigation does not authorize reading its JAM messages.
+    const catalogAreas = areas.filter(a => a.inferredGroupId !== null &&
+      groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase))
+      .map(a => ({
+        id: a.id, name: a.name, groupIds: [a.inferredGroupId as number],
+        readable: visible.some(v => v.id === a.id),
+      }));
     if (params.has("search")) {
       if (keys.some(key => !["search", "groupName", "allGroups"].includes(key)))
         return json({ error: "Invalid search request" }, 400);
@@ -101,15 +109,14 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       const groupId = Number(groupValue);
       if (!groups.some(group => group.id === groupId))
         return json({ error: "Group unavailable" }, 404);
-      return json({ groupId, areas: visible.filter(area => area.inferredGroupId === groupId)
-        .map(area => ({ id: area.id, name: area.name, groupIds: [groupId] })) });
+      return json({ groupId, areas: catalogAreas.filter(area => area.groupIds.includes(groupId)) });
     }
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
       // The development catalog may show all configured group names, but
       // individual area listings and JAM reads remain operator-allowlisted.
       return json({ groups,
-        areas: visible.map(a => ({ id: a.id, name: a.name, groupIds: [a.inferredGroupId] })) });
+        areas: catalogAreas });
     }
     const id = Number(params.get("area"));
     const area = visible.find(a => a.id === id);
