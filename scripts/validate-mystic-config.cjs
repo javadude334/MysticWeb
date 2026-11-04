@@ -220,6 +220,19 @@ async function main() {
       console.log(`  Group ID ${group.id}: candidate=${found}, observed=${expected}, difference=${found - expected}`);
     }
   }
+  // Compare the observed account security level to the structural subset.
+  // These are candidate counts only, not authorization decisions.
+  const level20Counts = new Map();
+  for (const candidate of candidates) {
+    if (candidate.minimumSecurity > 20) continue;
+    level20Counts.set(candidate.groupId, (level20Counts.get(candidate.groupId) || 0) + 1);
+  }
+  console.log("User #5 security-level 20 candidate counts (NOT permissions):");
+  for (const group of groups) {
+    const count = level20Counts.get(group.id) || 0;
+    const expected = observed.get(group.id);
+    console.log(`  Group ID ${group.id}: threshold candidates=${count}, observed=${expected ?? "unknown"}`);
+  }
   // Narrow the only observed mismatch without dumping 406 area records.
   // Do not infer an area's type, hidden status or effective permissions from
   // the G/S expression: these fields are not yet decoded from mbases.dat.
