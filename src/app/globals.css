@@ -249,3 +249,8 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .mw-message-actions button:last-child { margin-left:auto; }
 @media(max-width:1150px) { .mw-mail-grid { grid-template-columns:minmax(175px,220px) minmax(260px,1fr); } }
 @media(max-width:650px) { .mw-search-row { align-items:stretch; } .mw-search-row > button { flex:1; } }
+
+/* Compact navigation rail: 56px when collapsed on desktop. */
+@media (min-width:761px) {
+ .app-shell:has(> div:first-of-type.collapsed) { grid-template-columns:56px minmax(0,1fr); }
+}
