@@ -31,7 +31,11 @@ export class MessageAccess {
   constructor(groups: readonly MysticGroup[], areas: readonly MysticArea[], private readonly securityLevel: number, groupThresholds: ReadonlyMap<number, number> = new Map()) {
     if (!Number.isInteger(securityLevel) || securityLevel < 0 || securityLevel > 255)
       throw new Error("Invalid account security");
-    this.groups = groups.filter(g => {\n      const required = groupThresholds.get(g.id);\n      return required !== undefined && Number.isInteger(required) && required >= 0 && required <= 255 &&\n        securityLevel >= required && !/(?:^|[\\s_-])netmail(?:$|[\\s_-])/i.test(g.name);\n    });
+    this.groups = groups.filter(g => {
+      const required = groupThresholds.get(g.id);
+      return required !== undefined && Number.isInteger(required) && required >= 0 && required <= 255 &&
+        securityLevel >= required && !/(?:^|[\s_-])netmail(?:$|[\s_-])/i.test(g.name);
+    });
     const ids = new Set(this.groups.map(g => g.id));
     this.areas = areas.filter(a => a.inferredGroupId !== null && ids.has(a.inferredGroupId) &&
       !/(?:^|[\s_-])netmail(?:$|[\s_-])/i.test(a.name) && isJamBaseName(a.jamBase) &&
