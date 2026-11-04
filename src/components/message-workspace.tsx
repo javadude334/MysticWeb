@@ -59,6 +59,7 @@ export function MessageWorkspace() {
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<AbortController | null>(null);
+  const pendingSearchMessage = useRef<{ areaId: number; number: number } | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -87,6 +88,18 @@ export function MessageWorkspace() {
     getJSON("/api/messages?" + params.toString(), controller.signal).then(value => {
       if (!validPage(value) || value.area.id !== chosen.id) throw new Error("Invalid message response.");
       setPage(value); setSelected(null); setPageHistory(history);
+      const pending = pendingSearchMessage.current;
+      if (pending?.areaId === chosen.id) {
+        pendingSearchMessage.current = null;
+        // The message may be older than the loaded page; fetch by JAM number.
+        const messageParams = new URLSearchParams({ area: String(chosen.id), message: String(pending.number) });
+        getJSON("/api/messages?" + messageParams, controller.signal).then(detail => {
+          if (!validPage(detail) || detail.area.id !== chosen.id || detail.messages.length !== 1 ||
+              detail.messages[0].number !== pending.number || typeof detail.messages[0].body !== "string")
+            throw new Error("Search result message unavailable.");
+          if (!controller.signal.aborted) setSelected(detail.messages[0]);
+        }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); });
+      }
     }).catch(e => { if (!controller.signal.aborted) { setPage(null); setSelected(null); setError(e instanceof Error ? e.message : "Messages unavailable."); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -150,6 +163,8 @@ export function MessageWorkspace() {
         <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
           onChange={event => {
             requestRef.current?.abort();
+            pendingSearchMessage.current = null;
+            setSearchResults(null);
             setSelectedGroupId(event.target.value ? Number(event.target.value) : null);
             setArea(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setError("");
           }}>
@@ -176,7 +191,7 @@ export function MessageWorkspace() {
           {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).map(item =>
             <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
               className={area?.id === item.id ? "mw-active" : ""}
-              onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
+              onClick={() => { requestRef.current?.abort(); pendingSearchMessage.current = null; setSearchResults(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
               {item.name}
             </button>)}
           {selectedGroupId === null && <p>Select a group to see its message areas.</p>}
@@ -198,6 +213,7 @@ export function MessageWorkspace() {
               const chosen = areas.find(item => item.id === result.areaId);
               if (!chosen) return;
               setSearchResults(null);
+              pendingSearchMessage.current = { areaId: result.areaId, number: result.number };
               setSelectedGroupId(chosen.groupIds[0] ?? null);
               setArea(chosen);
               setPage(null);
