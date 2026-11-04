@@ -48,6 +48,7 @@ export function MessageWorkspace() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [unreadAreaIds, setUnreadAreaIds] = useState<number[]>([]);
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
@@ -83,6 +84,22 @@ export function MessageWorkspace() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [refresh]);
+  useEffect(() => {
+    if (selectedGroupId === null) return;
+    const controller = new AbortController();
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setUnreadAreaIds([]);
+      return getJSON("/api/messages?unreadGroup=" + selectedGroupId, controller.signal);
+    }).then(value => {
+      if (controller.signal.aborted || !value || typeof value !== "object") return;
+      const result = value as { groupId?: unknown; unreadAreaIds?: unknown };
+      if (result.groupId !== selectedGroupId || !Array.isArray(result.unreadAreaIds) ||
+          result.unreadAreaIds.length > 512 ||
+          !result.unreadAreaIds.every(id => Number.isSafeInteger(id) && id > 0)) return;
+      setUnreadAreaIds(result.unreadAreaIds);
+    }).catch(() => { /* An unavailable pointer scan must not block reading. */ });
+    return () => controller.abort();
+  }, [selectedGroupId, refresh]);
   const load = useCallback((chosen: Area, before?: number, history: number[] = []) => {
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -185,6 +202,7 @@ export function MessageWorkspace() {
             requestRef.current?.abort();
             pendingSearchMessage.current = null;
             setSearchResults(null);
+            setUnreadAreaIds([]);
             setSelectedGroupId(event.target.value ? Number(event.target.value) : null);
             setArea(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setError("");
           }}>
@@ -216,7 +234,7 @@ export function MessageWorkspace() {
               disabled={item.readable === false}
               title={item.readable === false ? "Catalog only: not approved for sandbox reading" : undefined}
               onClick={() => { requestRef.current?.abort(); pendingSearchMessage.current = null; setSearchResults(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
-              {item.name}{item.readable === false ? " · Restricted" : ""}
+              <span className="mw-area-name">{item.name}</span>{unreadAreaIds.includes(item.id) && <span className="mw-area-unread-dot" role="img" aria-label="New messages" title="New messages since your Mystic last-read pointer" />}{item.readable === false ? " · Restricted" : ""}
             </button>)}
           {selectedGroupId === null && <p>Select a group to see its message areas.</p>}
           {selectedGroupId !== null && !areas.some(item => item.groupIds.includes(selectedGroupId)) && <p>No configured areas in this group.</p>}
