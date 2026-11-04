@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MysticText } from "@/components/mystic-text";
 
 type Area = { id: number; name: string; groupIds: number[] };
 type Group = { id: number; name: string };
@@ -229,7 +230,7 @@ export function MessageWorkspace() {
             }}>
             <strong>{result.subject || "(No subject)"}</strong>
             <span>{result.author} · {result.groupName} / {result.areaName} · #{result.number} · Match: {result.matchedField}</span>
-            {result.excerpt && <span>{result.excerpt}</span>}
+            {result.excerpt && <span><MysticText text={result.excerpt} /></span>}
           </button>)}
           {!searchResults.length && <p>No matching headers in the scanned messages.</p>}
         </div>}
@@ -258,7 +259,7 @@ export function MessageWorkspace() {
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
           <p className="mw-message-meta"><strong>{selected.author}</strong> → {selected.recipient} · Message #{selected.number} · {formatMysticDate(selected.dates.written)}</p>
-          <pre>{selected.body ?? "Message body not loaded."}</pre>
+          <pre><MysticText text={selected.body ?? "Message body not loaded."} /></pre>
           <div className="mw-replies">
             {([["Parent", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
               .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
