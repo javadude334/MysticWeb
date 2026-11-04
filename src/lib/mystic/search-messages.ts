@@ -1,5 +1,6 @@
 import "server-only";
 import { readJam } from "./jam";
+import { plainMysticText } from "./text-format";
 
 /** Unicode-aware, case-insensitive matching with a small typo tolerance.
  * Fuzzy matching is limited to individual words to avoid unrelated matches.
