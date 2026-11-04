@@ -1,9 +1,11 @@
 import { connection } from "next/server";
+import { sandboxMessages } from "@/lib/auth/sandbox-messages";
 import { productionAccess, unavailable } from "@/lib/auth/service";
 
 export async function GET(request: Request): Promise<Response> {
   // Cache Components: never prerender or cache identity-dependent reads.
   await connection();
+  if (process.env.NODE_ENV === "development") return sandboxMessages(request);
   const access = productionAccess();
   return access ? access.read(request) : unavailable();
 }
