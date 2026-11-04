@@ -30,10 +30,10 @@ export class MessageAccess {
       throw new Error("Invalid account security");
     this.groups = groups.filter(g =>
       groupAccessAllowed(g.access, securityLevel) &&
-      !/(?:^|[\\s_-])netmail(?:$|[\\s_-])/i.test(g.name));
+      !/(?:^|[\s_-])netmail(?:$|[\s_-])/i.test(g.name));
     const ids = new Set(this.groups.map(g => g.id));
     this.listed = areas.filter(a => a.inferredGroupId !== null && ids.has(a.inferredGroupId) &&
-      !/(?:^|[\\s_-])netmail(?:$|[\\s_-])/i.test(a.name) && isJamBaseName(a.jamBase) &&
+      !/(?:^|[\s_-])netmail(?:$|[\s_-])/i.test(a.name) && isJamBaseName(a.jamBase) &&
       areaOperationAllowed(a.security[0], a.inferredGroupId, securityLevel));
     this.readable = this.listed.filter(a =>
       areaOperationAllowed(a.security[1], a.inferredGroupId as number, securityLevel));
