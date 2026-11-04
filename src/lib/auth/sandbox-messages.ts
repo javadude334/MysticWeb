@@ -38,7 +38,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const params = new URL(request.url).searchParams;
     const keys = [...params.keys()];
     if (new Set(keys).size !== keys.length ||
-        keys.some(k => !["area", "group", "message", "before", "limit", "search", "groupName", "allGroups"].includes(k)) ||
+        keys.some(k => !["area", "group", "message", "before", "limit", "search", "groupName", "allGroups", "unreadGroup"].includes(k)) ||
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
@@ -49,6 +49,44 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       id: area.id, name: area.name, groupIds: [area.inferredGroupId as number],
       readable: access.canRead(area.id),
     }));
+    if (params.has("unreadGroup")) {
+      if (keys.length !== 1 || !/^[1-9][0-9]*$/.test(params.get("unreadGroup") ?? ""))
+        return json({ error: "Invalid request" }, 400);
+      const groupId = Number(params.get("unreadGroup"));
+      if (!Number.isSafeInteger(groupId) || groupId > 65535 ||
+          !eligibleGroups.some(group => group.id === groupId))
+        return json({ error: "Group unavailable" }, 404);
+      const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
+      if (!jamRoot || !path.isAbsolute(jamRoot)) return json({ error: "Sandbox JAM root not configured" }, 503);
+      const [sandboxStat, jamStat] = await Promise.all([lstat(root), lstat(jamRoot)]);
+      if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
+          !jamStat.isDirectory() || jamStat.isSymbolicLink())
+        return json({ error: "Unsafe sandbox directory" }, 503);
+      const [sandboxReal, jamReal] = await Promise.all([realpath(root), realpath(jamRoot)]);
+      const relative = path.relative(sandboxReal, jamReal);
+      if (!relative || relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative))
+        return json({ error: "Unsafe sandbox JAM directory" }, 503);
+      const eligible = access.getMessageAreas(groupId).filter(a => access.canRead(a.id) && isJamBaseName(a.jamBase));
+      const unreadAreaIds: number[] = [];
+      // Bound concurrency and report only positive evidence, never guess that
+      // a missing/ambiguous pointer means all messages are unread.
+      for (let start = 0; start < eligible.length; start += 8) {
+        const matches = await Promise.all(eligible.slice(start, start + 8).map(async area => {
+          try {
+            const filename = await realpath(path.join(jamReal, area.jamBase + ".jlr"));
+            if (path.dirname(filename) !== jamReal) return null;
+            const info = await lstat(filename);
+            if (!info.isFile() || info.size > 1048576) return null;
+            const state = getJamMessageReadState(await readFile(filename), identity.userId);
+            if (!state) return null;
+            const latest = await readJam(jamReal, area.jamBase, { limit: 1 });
+            return latest.messages.some(m => classifyJamMessage(state, m.number) === "after-pointer") ? area.id : null;
+          } catch { return null; }
+        }));
+        for (const id of matches) if (id !== null) unreadAreaIds.push(id);
+      }
+      return json({ groupId, unreadAreaIds });
+    }
     if (params.has("search")) {
       if (keys.some(key => !["search", "groupName", "allGroups"].includes(key)))
         return json({ error: "Invalid search request" }, 400);
