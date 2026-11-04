@@ -13,6 +13,14 @@ const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers });
 
+/** Conservative sandbox catalog filter. Netmail is not public EchoMail.
+ * This is not a substitute for decoding native area kind and group ACS.
+ */
+function isNetmailNamedGroup(name: string): boolean {
+  return /(?:^|[\\s_\\-])netmail(?:$|[\\s_\\-])/i.test(name);
+}
+
+
 /** Explicit operator-approved, read-only preview. NOT a Mystic ACS implementation.
  * The allowlist is required so an authenticated user never gains access merely
  * because an area happens to have a readable JAM file.
@@ -50,13 +58,19 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
-    // Require unambiguous group mapping and the exact operator-approved ID.
-    const visible = areas.filter(a => approved.has(a.id) && candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate && a.inferredGroupId !== null &&
-      groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase));
+    // Do not reveal high-security or known Netmail groups/areas to this user.
+    // Native group ACS and area-kind certification are still outstanding.
+    const eligibleGroups = groups.filter(g => !isNetmailNamedGroup(g.name));
+    const eligibleIds = new Set(eligibleGroups.map(g => g.id));
+    const eligibleAreas = areas.filter(a => a.inferredGroupId !== null &&
+      eligibleIds.has(a.inferredGroupId) && isJamBaseName(a.jamBase) &&
+      candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate &&
+      !isNetmailNamedGroup(a.name));
+    // JAM access remains independently limited by the operator allowlist.
+    const visible = eligibleAreas.filter(a => approved.has(a.id));
     // Sandbox catalog is informational only. Exposing an area in the
     // navigation does not authorize reading its JAM messages.
-    const catalogAreas = areas.filter(a => a.inferredGroupId !== null &&
-      groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase))
+    const catalogAreas = eligibleAreas
       .map(a => ({
         id: a.id, name: a.name, groupIds: [a.inferredGroupId as number],
         readable: visible.some(v => v.id === a.id),
@@ -71,7 +85,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
           (allGroupsValue !== "true" && allGroupsValue !== "false"))
         return json({ error: "Invalid search request" }, 400);
       const allGroups = allGroupsValue === "true";
-      if (!allGroups && !groups.some(group => group.name === groupName))
+      if (!allGroups && !eligibleGroups.some(group => group.name === groupName))
         return json({ error: "Group unavailable" }, 404);
       const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
       if (!jamRoot || !path.isAbsolute(jamRoot))
@@ -107,7 +121,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
           !Number.isSafeInteger(Number(groupValue)) || Number(groupValue) > 65535)
         return json({ error: "Invalid request" }, 400);
       const groupId = Number(groupValue);
-      if (!groups.some(group => group.id === groupId))
+      if (!eligibleGroups.some(group => group.id === groupId))
         return json({ error: "Group unavailable" }, 404);
       return json({ groupId, areas: catalogAreas.filter(area => area.groupIds.includes(groupId)) });
     }
@@ -115,7 +129,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (keys.length) return json({ error: "Invalid request" }, 400);
       // The development catalog may show all configured group names, but
       // individual area listings and JAM reads remain operator-allowlisted.
-      return json({ groups,
+      return json({ groups: eligibleGroups,
         areas: catalogAreas });
     }
     const id = Number(params.get("area"));
