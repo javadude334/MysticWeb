@@ -188,18 +188,6 @@ export function MessageWorkspace() {
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   };
-  const nextUnread = () => {
-    if (!page || !area || loading) return;
-    // JAM .jlr is a high-water pointer, not an individual read receipt.
-    // Messages are newest-first; advance toward newer messages from the
-    // currently selected item rather than reopening the same candidate.
-    const unread = page.messages.filter(message => message.readPosition === "after-pointer" && !viewed[area.id + ":" + message.number]);
-    const next = selected
-      ? unread.filter(message => message.number > selected.number).at(-1)
-      : unread.at(-1);
-    if (next) openMessage(next);
-    else setNotice("No further messages newer than your Mystic last-read pointer on this page.");
-  };
   const navigate = (direction: -1 | 1) => {
     if (!page || !selected || loading) return;
     const index = page.messages.findIndex(item => item.number === selected.number);
@@ -335,21 +323,18 @@ export function MessageWorkspace() {
           <div className="mw-message-actions">
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) <= 0} onClick={() => navigate(-1)}>← Previous</button>
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) < 0 || page.messages.findIndex(m => m.number === selected.number) >= page.messages.length - 1} onClick={() => navigate(1)}>Next →</button>
-            <button type="button" disabled={loading || !page || !page.messages.some(message => message.readPosition === "after-pointer" && !viewed[area!.id + ":" + message.number] && (!selected || message.number > selected.number))} title="Advance to the next newer message after your native JAM last-read pointer on this page" onClick={nextUnread}>Next Unread</button>
+            {([["Parent", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
+              .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
+                ? <button type="button" key={label} disabled={loading}
+                    onClick={() => openMessage({ number })}>{label} #{number}</button> : null)}
             <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
           <p className="mw-message-meta"><strong>{selected.author}</strong> → {selected.recipient} · Message #{selected.number} · {formatMysticDate(selected.dates.written)}</p>
           <pre><MysticText text={selected.body ?? "Message body not loaded."} /></pre>
-          <div className="mw-replies">
-            {([["Parent", selected.replyTo], ["First reply", selected.firstReply], ["Next reply", selected.nextReply]] as const)
-              .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
-                ? <button type="button" key={label} disabled={loading}
-                    onClick={() => openMessage({ number })}>{label} #{number}</button> : null)}
-          </div>
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Next Unread navigates the loaded page only. Opening a message changes its appearance to viewed for this browser session only; it does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Opening a message changes its appearance to viewed for this browser session only; it does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
