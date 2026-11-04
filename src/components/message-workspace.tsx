@@ -265,7 +265,7 @@ export function MessageWorkspace() {
           <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
         <div className="mw-area-list" aria-label="Areas in selected group">
-          {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).map(item =>
+          {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).sort((a, b) => Number(unreadAreaIds.includes(b.id)) - Number(unreadAreaIds.includes(a.id))).map(item =>
             <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
               className={area?.id === item.id ? "mw-active" : ""}
               disabled={item.readable === false}
