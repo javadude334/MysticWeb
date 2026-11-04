@@ -7,13 +7,31 @@ import type { MysticArea, MysticGroup } from "./config";
  * must be decoded before this can be used as production authorization.
  * No client-supplied security level or group list is trusted.
  */
+/** Temporary sandbox gate until native group List ACS offsets are verified.
+ * Each group must have an operator-declared minimum security level. Missing,
+ * malformed, or duplicate rules deny access; no group name is trusted.
+ * This is an additional restriction, never a replacement for native ACS.
+ */
+export function sandboxGroupThresholds(value: string | undefined): ReadonlyMap<number, number> {
+  const rules = new Map<number, number>();
+  if (!value) return rules;
+  for (const part of value.split(",")) {
+    const match = /^([1-9][0-9]{0,4}):([0-9]{1,3})$/.exec(part.trim());
+    if (!match) throw new Error("Invalid sandbox group security policy");
+    const id = Number(match[1]), level = Number(match[2]);
+    if (id > 65535 || level > 255 || rules.has(id)) throw new Error("Invalid sandbox group security policy");
+    rules.set(id, level);
+  }
+  return rules;
+}
+
 export class MessageAccess {
   private readonly groups: MysticGroup[];
   private readonly areas: MysticArea[];
-  constructor(groups: readonly MysticGroup[], areas: readonly MysticArea[], private readonly securityLevel: number) {
+  constructor(groups: readonly MysticGroup[], areas: readonly MysticArea[], private readonly securityLevel: number, groupThresholds: ReadonlyMap<number, number> = new Map()) {
     if (!Number.isInteger(securityLevel) || securityLevel < 0 || securityLevel > 255)
       throw new Error("Invalid account security");
-    this.groups = groups.filter(g => !/(?:^|[\s_-])netmail(?:$|[\s_-])/i.test(g.name));
+    this.groups = groups.filter(g => {\n      const required = groupThresholds.get(g.id);\n      return required !== undefined && Number.isInteger(required) && required >= 0 && required <= 255 &&\n        securityLevel >= required && !/(?:^|[\\s_-])netmail(?:$|[\\s_-])/i.test(g.name);\n    });
     const ids = new Set(this.groups.map(g => g.id));
     this.areas = areas.filter(a => a.inferredGroupId !== null && ids.has(a.inferredGroupId) &&
       !/(?:^|[\s_-])netmail(?:$|[\s_-])/i.test(a.name) && isJamBaseName(a.jamBase) &&
