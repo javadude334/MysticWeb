@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MysticText } from "@/components/mystic-text";
 
-type Area = { id: number; name: string; groupIds: number[] };
+type Area = { id: number; name: string; groupIds: number[]; readable?: boolean };
 type Group = { id: number; name: string };
 type Message = { number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
 type Page = { area: Area; messages: Message[]; nextBefore: number | null };
@@ -18,6 +18,7 @@ function formatMysticDate(timestamp: number | undefined): string {
 function validArea(value: unknown): value is Area {
   return !!value && typeof value === "object" && Number.isSafeInteger((value as Area).id) &&
     (value as Area).id > 0 && typeof (value as Area).name === "string" &&
+    ((value as Area).readable === undefined || typeof (value as Area).readable === "boolean") &&
     Array.isArray((value as Area).groupIds) && (value as Area).groupIds.every(id => Number.isSafeInteger(id) && id > 0);
 }
 function validPage(value: unknown): value is Page {
@@ -194,13 +195,15 @@ export function MessageWorkspace() {
           {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).map(item =>
             <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
               className={area?.id === item.id ? "mw-active" : ""}
+              disabled={item.readable === false}
+              title={item.readable === false ? "Catalog only: not approved for sandbox reading" : undefined}
               onClick={() => { requestRef.current?.abort(); pendingSearchMessage.current = null; setSearchResults(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
-              {item.name}
+              {item.name}{item.readable === false ? " · Restricted" : ""}
             </button>)}
           {selectedGroupId === null && <p>Select a group to see its message areas.</p>}
-          {selectedGroupId !== null && !areas.some(item => item.groupIds.includes(selectedGroupId)) && <p>No accessible areas in this group.</p>}
+          {selectedGroupId !== null && !areas.some(item => item.groupIds.includes(selectedGroupId)) && <p>No configured areas in this group.</p>}
         </div>
-        {!loading && !error && areas.length === 0 && <p>No accessible message areas.</p>}
+        {!loading && !error && areas.length === 0 && <p>No configured message areas.</p>}
       </aside>
       <section className="mw-message-list" aria-label="Message list">
         <div className="mw-pane-heading"><strong>{area?.name ?? "Select a message area"}</strong>
@@ -269,6 +272,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
