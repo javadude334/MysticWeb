@@ -106,8 +106,9 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     }
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
-      const ids = new Set(visible.map(a => a.inferredGroupId));
-      return json({ groups: groups.filter(g => ids.has(g.id)),
+      // The development catalog may show all configured group names, but
+      // individual area listings and JAM reads remain operator-allowlisted.
+      return json({ groups,
         areas: visible.map(a => ({ id: a.id, name: a.name, groupIds: [a.inferredGroupId] })) });
     }
     const id = Number(params.get("area"));
