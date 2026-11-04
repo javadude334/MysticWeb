@@ -6,19 +6,9 @@ const GROUP_RECORD_BYTES = 206;
 const AREA_RECORD_BYTES = 768;
 const MAX_CONFIG_BYTES = 8 * 1024 * 1024;
 
-export interface MysticGroup {
-  id: number;
-  name: string;
-}
-
-export interface MysticArea {
-  id: number;
-  name: string;
-  jamBase: string;
-  /** Native A48 editor order: List ACS, Read ACS, Post ACS, Sysop ACS. */
-  security: readonly [string, string, string, string];
-  inferredGroupId: number | null;
-}
+import type { MysticMessageArea, MysticMessageGroup, MysticFileGroup } from "./area-types";
+export type MysticGroup = MysticMessageGroup;
+export type MysticArea = MysticMessageArea;
 
 function field(record: Buffer, offset: number, capacity: number): string {
   if (offset < 0 || capacity < 0 || offset + capacity + 1 > record.length) {
@@ -43,10 +33,15 @@ function splitRecords(data: Buffer, size: number): Buffer[] {
   return records;
 }
 
-export function parseMysticGroups(data: Buffer): MysticGroup[] {
+export function parseMysticGroups(data: Buffer, kind: "message"): MysticMessageGroup[];
+export function parseMysticGroups(data: Buffer, kind: "file"): MysticFileGroup[];
+export function parseMysticGroups(data: Buffer, kind: "message" | "file" = "message"): MysticMessageGroup[] | MysticFileGroup[];
+export function parseMysticGroups(data: Buffer, kind: "message" | "file" = "message"): MysticMessageGroup[] | MysticFileGroup[] {
   const groups = splitRecords(data, GROUP_RECORD_BYTES).map((record) => ({
     id: record.readUInt32LE(0),
     name: field(record, 4, 60),
+    access: field(record, 167, 30),
+    kind,
   }));
   if (new Set(groups.map((group) => group.id)).size !== groups.length) {
     throw new Error("Duplicate Mystic group identifiers");
@@ -66,6 +61,7 @@ export function parseMysticAreas(data: Buffer): MysticArea[] {
       }
     }
     return {
+      kind: "message" as const,
       id: record.readUInt16LE(0),
       name: field(record, 2, 60),
       jamBase: field(record, 138, 40),
@@ -96,7 +92,7 @@ export async function readMysticConfiguration(): Promise<{
   if (groupsData.length > MAX_CONFIG_BYTES || areasData.length > MAX_CONFIG_BYTES) {
     throw new Error("Mystic configuration exceeds size limit");
   }
-  const groups = parseMysticGroups(groupsData);
+  const groups = parseMysticGroups(groupsData, "message");
   const areas = parseMysticAreas(areasData);
   const ids = new Set(groups.map((group) => group.id));
   for (const area of areas) {
