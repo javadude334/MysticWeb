@@ -37,3 +37,26 @@ export function findJamLastRead(records: readonly JamLastReadRecord[], userId: n
   if (!Number.isSafeInteger(userId) || userId < 1 || userId > 0xffffffff) return undefined;
   return records.find(record => record.userId === userId);
 }
+
+/**
+ * Prepare a byte-for-byte-preserving update to an EXISTING user's JAM record.
+ * No file I/O is performed here. Callers must hold a verified native-compatible
+ * exclusive lock and re-read the record under that lock before committing.
+ *
+ * Only the immediately following message can advance the contiguous pointer:
+ * jumping ahead would falsely mark intervening messages as read.
+ */
+export function prepareJamLastReadAdvance(data: Buffer, userId: number, messageNumber: number): Buffer | null {
+  if (!Number.isSafeInteger(messageNumber) || messageNumber < 1 || messageNumber > 0xffffffff)
+    throw new RangeError("Invalid JAM message number");
+  const records = parseJamLastRead(data);
+  const record = findJamLastRead(records, userId);
+  if (!record || record.highReadMsg < record.lastReadMsg) return null;
+  if (messageNumber <= record.lastReadMsg) return Buffer.from(data);
+  if (messageNumber !== record.lastReadMsg + 1) return null;
+  const offset = records.findIndex(item => item.userId === userId) * JAM_LAST_READ_RECORD_BYTES;
+  const updated = Buffer.from(data);
+  updated.writeUInt32LE(messageNumber, offset + 8);
+  updated.writeUInt32LE(Math.max(record.highReadMsg, messageNumber), offset + 12);
+  return updated;
+}
