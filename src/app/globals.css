@@ -272,3 +272,12 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
     min-width: 0;
   }
 }
+
+/* Native JAM last-read position: visually distinct from the selected-message state. */
+.mw-message-list .mw-thread-list button.mw-unread { background:#123b3d; border-left:4px solid #36d6c3; padding-left:8px; }
+.mw-message-list .mw-thread-list button.mw-unread strong { color:#eafffb; font-weight:750; }
+.mw-message-list .mw-thread-list button.mw-unread .mw-thread-from { color:#a8f3e9!important; }
+.mw-message-list .mw-thread-list button.mw-read { opacity:.82; }
+.mw-message-list .mw-thread-list button.mw-unread.mw-active { background:#205149!important; border-color:#59ddc9!important; }
+.mw-message-list .mw-thread-list button.mw-read.mw-active { opacity:1; }
+.mw-message-list .mw-thread-list button.mw-unread:hover { background:#1b4d49!important; }
