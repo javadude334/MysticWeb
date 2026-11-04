@@ -62,10 +62,15 @@ export class ApplicationSecurity {
    */
   async authorize(identity: Identity, target: SecurityResource): Promise<boolean> {
     if (!identity || !(await this.native.accountValid(identity))) return false;
-    // The existing native protocol has only an echo-area read authorization
-    // response, and it cannot safely authorize other resources or operations.
-    void target;
-    return false;
+    // Only echo-area reads are represented by the existing verified protocol.
+    // Every other resource/action remains denied until its native rules exist.
+    if (target.resource !== "message-area" || target.action !== "read") return false;
+    try {
+      await this.native.readArea(identity, target.resourceId, target.catalogRevision, async () => undefined);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async readMessageArea<T>(
