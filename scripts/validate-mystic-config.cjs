@@ -220,6 +220,19 @@ async function main() {
       console.log(`  Group ID ${group.id}: candidate=${found}, observed=${expected}, difference=${found - expected}`);
     }
   }
+  // Narrow the only observed mismatch without dumping 406 area records.
+  // Do not infer an area's type, hidden status or effective permissions from
+  // the G/S expression: these fields are not yet decoded from mbases.dat.
+  const defaultGroupCandidates = candidates.filter((candidate) => candidate.groupId === 1)
+    .sort((a, b) => a.id - b.id);
+  console.log("Default Message Group discrepancy details (read-only, not permissions):");
+  for (const candidate of defaultGroupCandidates) {
+    const area = areas.find((item) => item.id === candidate.id);
+    const shape = (expression) => expression.trim()
+      .replace(/[0-9]+/g, "#").replace(/[A-Za-z]+/g, "A");
+    console.log(`  Area ID ${candidate.id}: List shape=${shape(area.security[0])}, Read shape=${shape(area.security[1])}, minimum candidate security=${candidate.minimumSecurity}`);
+  }
+  console.log("NOTE: Message-base hidden/type flags and message-group Access/Hidden are not decoded; no explanation for the extra area is asserted.");
   console.log("NOTE: Group-selector rows do not prove Read ACS eligibility or correct Mystic ACS semantics.");
   console.log("NOTE: Shape classification does not establish native ACS semantics or per-user access.");
   console.log("NOTE: This diagnostic cannot verify user group membership, native ACS evaluation, area type or per-user permissions.");
