@@ -23,9 +23,16 @@ export function SidebarNavigation({ active }: { active: string }) {
   const [ready, setReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
-    const saved = load();
-    if (saved) { setCollapsed(saved.collapsed); setOpen(saved.open); }
-    setReady(true);
+    // Restore browser-only preferences after hydration without a synchronous
+    // state transition inside the effect. Ignore a cancelled mount.
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      const saved = load();
+      if (saved) { setCollapsed(saved.collapsed); setOpen(saved.open); }
+      setReady(true);
+    });
+    return () => { active = false; };
   }, []);
   useEffect(() => {
     if (!ready) return;
