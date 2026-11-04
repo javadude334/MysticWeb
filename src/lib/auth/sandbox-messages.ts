@@ -7,6 +7,7 @@ import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
 import { candidateMeetsSecurityLevel } from "../mystic/acs-candidate";
+import { searchMessages } from "../mystic/search-messages";
 
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
@@ -45,13 +46,48 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const params = new URL(request.url).searchParams;
     const keys = [...params.keys()];
     if (new Set(keys).size !== keys.length ||
-        keys.some(k => !["area", "group", "message", "before", "limit"].includes(k)) ||
+        keys.some(k => !["area", "group", "message", "before", "limit", "search", "groupName", "allGroups"].includes(k)) ||
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
     // Require unambiguous group mapping and the exact operator-approved ID.
     const visible = areas.filter(a => approved.has(a.id) && candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate && a.inferredGroupId !== null &&
       groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase));
+    if (params.has("search")) {
+      if (keys.some(key => !["search", "groupName", "allGroups"].includes(key)))
+        return json({ error: "Invalid search request" }, 400);
+      const query = params.get("search") ?? "";
+      const groupName = params.get("groupName") ?? "";
+      const allGroupsValue = params.get("allGroups");
+      if (query.trim().length < 2 || query.length > 120 ||
+          (allGroupsValue !== "true" && allGroupsValue !== "false"))
+        return json({ error: "Invalid search request" }, 400);
+      const allGroups = allGroupsValue === "true";
+      if (!allGroups && !groups.some(group => group.name === groupName))
+        return json({ error: "Group unavailable" }, 404);
+      const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
+      if (!jamRoot || !path.isAbsolute(jamRoot))
+        return json({ error: "Sandbox JAM root not configured" }, 503);
+      const sandboxStat = await lstat(root);
+      const jamStat = await lstat(jamRoot);
+      if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
+          !jamStat.isDirectory() || jamStat.isSymbolicLink())
+        return json({ error: "Unsafe sandbox directory" }, 503);
+      const sandboxReal = await realpath(root);
+      const jamReal = await realpath(jamRoot);
+      const relative = path.relative(sandboxReal, jamReal);
+      if (!relative || relative === ".." || relative.startsWith(".." + path.sep) ||
+          path.isAbsolute(relative))
+        return json({ error: "Sandbox JAM directory must be inside the sandbox" }, 503);
+      const authorizedAreas = visible.flatMap(area => {
+        const group = groups.find(group => group.id === area.inferredGroupId);
+        return group ? [{
+          id: area.id, name: area.name, groupId: group.id,
+          groupName: group.name, jamBase: area.jamBase,
+        }] : [];
+      });
+      return json(await searchMessages(query, groupName, allGroups, authorizedAreas, jamReal));
+    }
     if (params.has("group")) {
       // Match the production reader's group-selection API. The operator
       // allowlist and conservative ACS threshold remain mandatory.
