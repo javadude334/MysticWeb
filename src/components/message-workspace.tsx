@@ -118,6 +118,20 @@ export function MessageWorkspace() {
   return <div className="mw-mail">
     <div className="mw-toolbar">
       <div><strong>Message Center</strong><span>Public message areas</span></div>
+    </div>
+    <div className="mw-toolbar">
+      <div className="mw-group-control">
+        <label htmlFor="mw-group-select">Message group</label>
+        <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
+          onChange={event => {
+            requestRef.current?.abort();
+            setSelectedGroupId(event.target.value ? Number(event.target.value) : null);
+            setArea(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setError("");
+          }}>
+          <option value="">Select a message group</option>
+          {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+        </select>
+      </div>
       <label className="mw-search"><span className="sr-only">Search loaded messages</span>
         <input type="search" value={search} onChange={event => setSearch(event.target.value)}
           placeholder="Search loaded subjects and senders…" aria-label="Search loaded messages" />
@@ -131,16 +145,6 @@ export function MessageWorkspace() {
         <div className="mw-folders-heading"><strong>Folders</strong>
           <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
-        <label htmlFor="mw-group-select">Message group</label>
-        <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
-          onChange={event => {
-            requestRef.current?.abort();
-            setSelectedGroupId(event.target.value ? Number(event.target.value) : null);
-            setArea(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setError("");
-          }}>
-          <option value="">Select a message group</option>
-          {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
-        </select>
         <div className="mw-area-list" aria-label="Areas in selected group">
           {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).map(item =>
             <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
