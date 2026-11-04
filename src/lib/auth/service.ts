@@ -145,6 +145,8 @@ export class WebAccess {
         if (names.length) throw new Error();
         return response(await this.messages.areas(identity));
       }
+      // A direct message lookup cannot also request backward pagination.
+      if (query.has("message") && query.has("before")) throw new Error();
       const options = {
         ...(query.has("before") ? { before: numericId(query.get("before")) } : {}),
         ...(query.has("message") ? { message: numericId(query.get("message")) } : {}),
