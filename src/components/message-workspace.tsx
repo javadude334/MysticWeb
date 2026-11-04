@@ -58,8 +58,8 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
-  // Native pointer writes remain unavailable; read-only position labels are advisory.
-  const [readStateAvailable] = useState(false);
+  // Native pointer writes remain unavailable until Mystic-compatible locking is certified.
+  const readStateAvailable = false;
   const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -133,6 +133,15 @@ export function MessageWorkspace() {
       setSelected(value.messages[0]);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+  };
+  const nextUnread = () => {
+    if (!page || !area || loading) return;
+    // JAM .jlr is a high-water pointer, not a per-message read receipt.
+    // The page is newest-first; choose the oldest newer message on this page.
+    const candidates = page.messages.filter(message => message.readPosition === "after-pointer");
+    const next = candidates.at(-1);
+    if (next) openMessage(next);
+    else setNotice("No messages newer than your Mystic last-read pointer on this page. Browse older pages to check further.");
   };
   const navigate = (direction: -1 | 1) => {
     if (!page || !selected || loading) return;
@@ -269,7 +278,7 @@ export function MessageWorkspace() {
           <div className="mw-message-actions">
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) <= 0} onClick={() => navigate(-1)}>← Previous</button>
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) < 0 || page.messages.findIndex(m => m.number === selected.number) >= page.messages.length - 1} onClick={() => navigate(1)}>Next →</button>
-            <button type="button" disabled={!readStateAvailable} title="Requires native Mystic read-state integration">Next Unread</button>
+            <button type="button" disabled={loading || !page || !page.messages.some(message => message.readPosition === "after-pointer")} title="Open the oldest message after your native JAM last-read pointer on this page" onClick={nextUnread}>Next Unread</button>
             <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
@@ -284,6 +293,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Reading a message here does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Next Unread navigates the loaded page only. Reading a message here does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
