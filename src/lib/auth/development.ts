@@ -8,7 +8,8 @@ const COOKIE = "mysticweb_demo";
 const revision = "d".repeat(64);
 const sessions = new Map<string, { userId: number; expires: number }>();
 const accounts = [{ userId: 42, name: "Alice" }, { userId: 73, name: "Bob" }];
-const areas = [{ id: 1, name: "Welcome board", jamBase: "welcome", kind: "echo" as const }, { id: 2, name: "Alice's workshop", jamBase: "workshop", kind: "echo" as const }];
+const groups = [{ id: 1, name: "General" }];
+const areas = [{ id: 1, name: "Welcome board", jamBase: "welcome", kind: "echo" as const, groupIds: [1] }, { id: 2, name: "Alice's workshop", jamBase: "workshop", kind: "echo" as const, groupIds: [1] }];
 
 export function developmentEnabled() {
   return process.env.NODE_ENV === "development" && process.env.MYSTICWEB_DEMO === "1";
@@ -23,7 +24,7 @@ const native = new NativeAccess({ request: async req => {
       permissions: { list: req.areaId === 1 || req.userId === 42, read: req.areaId === 1 || req.userId === 42,
         group: true, context: true, kind: "echo", private: false, personal: false } } : {}) };
 } }, "demo");
-const reader = new MessageReader(native, async () => ({ revision, areas }), "unused", async (_, base, options = {}) => {
+const reader = new MessageReader(native, async () => ({ revision, groups, areas }), "unused", async (_, base, options = {}) => {
   const messages = [3, 2, 1].filter(n => options.message ? n === options.message : !options.before || n < options.before)
     .slice(0, options.limit ?? 2).map(number => ({ number, author: "Demo operator", recipient: "All",
       subject: `${base === "welcome" ? "Welcome to MysticWeb" : "Workshop notes"} ${number}`,
@@ -71,7 +72,7 @@ export async function developmentRequest(request: Request): Promise<Response> {
     const keys = [...url.searchParams.keys()];
     if (new Set(keys).size !== keys.length || keys.some(k => !["area", "message", "before"].includes(k))) throw new Error();
     const identity = { instance: "demo", userId: session.userId };
-    if (!keys.length) return response({ account: accounts.find(a => a.userId === session.userId), areas: await reader.areas(identity) });
+    if (!keys.length) return response({ account: accounts.find(a => a.userId === session.userId), ...await reader.areas(identity) });
     return response(await reader.read(identity, numericId(url.searchParams.get("area")), {
       ...(url.searchParams.has("message") ? { message: numericId(url.searchParams.get("message")) } : {}),
       ...(url.searchParams.has("before") ? { before: numericId(url.searchParams.get("before")) } : {}) }));
