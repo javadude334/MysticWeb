@@ -53,8 +53,23 @@ export function MessageWorkspace() {
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const selectedHeaderRef = useRef<HTMLButtonElement | null>(null);
   // Visual-only viewed state until native .jlr writes are certified.
   const [viewed, setViewed] = useState<Record<string, true>>({});
+  useEffect(() => {
+    const list = messageListRef.current;
+    const header = selectedHeaderRef.current;
+    if (!list || !header || !selected) return;
+    // Scroll only the header list, not the browser page or reading pane.
+    const listRect = list.getBoundingClientRect();
+    const headerRect = header.getBoundingClientRect();
+    if (headerRect.top < listRect.top) {
+      list.scrollTop += headerRect.top - listRect.top;
+    } else if (headerRect.bottom > listRect.bottom) {
+      list.scrollTop += headerRect.bottom - listRect.bottom;
+    }
+  }, [selected, page]);
   const [pageHistory, setPageHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -300,8 +315,9 @@ export function MessageWorkspace() {
           </button>)}
           {!searchResults.length && <p>No matching headers in the scanned messages.</p>}
         </div>}
-        {!searchResults && page && <div className="mw-thread-list">
+        {!searchResults && page && <div className="mw-thread-list" ref={messageListRef}>
           {filtered.map(message => <button type="button" key={message.number}
+            ref={node => { if (selected?.number === message.number) selectedHeaderRef.current = node; }}
             className={[selected?.number === message.number ? "mw-active" : "", viewed[area?.id + ":" + message.number] ? "mw-read" : message.readPosition === "after-pointer" ? "mw-unread" : message.readPosition === "at-or-before-pointer" ? "mw-read" : "mw-read-unknown"].filter(Boolean).join(" ")}
             aria-current={selected?.number === message.number ? "true" : undefined}
             onClick={() => openMessage(message)}>
