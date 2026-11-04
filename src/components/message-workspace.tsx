@@ -44,7 +44,7 @@ async function getJSON(url: string, signal: AbortSignal): Promise<unknown> {
 export function MessageWorkspace() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [collapsedGroups, setCollapsedGroups] = useState<number[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
@@ -67,6 +67,7 @@ export function MessageWorkspace() {
       if (!value || typeof value !== "object" || !("areas" in value) || !Array.isArray(value.areas) || value.areas.length > 512 || !value.areas.every(validArea) || !("groups" in value) || !Array.isArray(value.groups) || value.groups.length > 128 || !value.groups.every((g: unknown) => !!g && typeof g === "object" && Number.isSafeInteger((g as Group).id) && (g as Group).id > 0 && typeof (g as Group).name === "string")) throw new Error("Invalid area catalog.");
       setAreas(value.areas as Area[]);
       setGroups(value.groups as Group[]);
+      setSelectedGroupId(current => (value.groups as Group[]).some(group => group.id === current) ? current : null);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Messages unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -130,22 +131,26 @@ export function MessageWorkspace() {
         <div className="mw-folders-heading"><strong>Folders</strong>
           <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
-        {groups.map(group => {
-          const members = areas.filter(item => item.groupIds.includes(group.id));
-          const expanded = !collapsedGroups.includes(group.id);
-          return <div key={group.id}>
-            <button type="button" className="mw-folder-toggle" aria-expanded={expanded}
-              onClick={() => setCollapsedGroups(current => expanded ? [...current, group.id] : current.filter(id => id !== group.id))}>
-              <span aria-hidden="true">{expanded ? "▾" : "▸"}</span> {group.name} <span>({members.length})</span>
-            </button>
-            {expanded && <div className="mw-area-list">{members.map(item =>
-              <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
-                className={area?.id === item.id ? "mw-active" : ""}
-                onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
-                {item.name}
-              </button>)}</div>}
-          </div>;
-        })}
+        <label htmlFor="mw-group-select">Message group</label>
+        <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
+          onChange={event => {
+            requestRef.current?.abort();
+            setSelectedGroupId(event.target.value ? Number(event.target.value) : null);
+            setArea(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setError("");
+          }}>
+          <option value="">Select a message group</option>
+          {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+        </select>
+        <div className="mw-area-list" aria-label="Areas in selected group">
+          {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).map(item =>
+            <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
+              className={area?.id === item.id ? "mw-active" : ""}
+              onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
+              {item.name}
+            </button>)}
+          {selectedGroupId === null && <p>Select a group to see its message areas.</p>}
+          {selectedGroupId !== null && !areas.some(item => item.groupIds.includes(selectedGroupId)) && <p>No accessible areas in this group.</p>}
+        </div>
         {!loading && !error && areas.length === 0 && <p>No accessible message areas.</p>}
       </aside>
       <section className="mw-message-list" aria-label="Message list">
