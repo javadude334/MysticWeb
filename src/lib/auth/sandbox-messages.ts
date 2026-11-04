@@ -5,6 +5,7 @@ import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
+import { candidateMeetsSecurityLevel } from "../mystic/acs-candidate";
 
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
@@ -48,7 +49,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
     // Require unambiguous group mapping and the exact operator-approved ID.
-    const visible = areas.filter(a => approved.has(a.id) && a.inferredGroupId !== null &&
+    const visible = areas.filter(a => approved.has(a.id) && candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate && a.inferredGroupId !== null &&
       groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase));
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
