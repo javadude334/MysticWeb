@@ -164,10 +164,7 @@ export function MessageWorkspace() {
     return !query || [message.subject, message.author, message.recipient].some(value => value.toLocaleLowerCase().includes(query));
   }) ?? [];
   return <div className="mw-mail">
-    <div className="mw-toolbar">
-      <div><strong>Message Center</strong><span>Public message areas</span></div>
-    </div>
-    <div className="mw-toolbar">
+    <div className="mw-controls">
       <div className="mw-group-control">
         <label htmlFor="mw-group-select">Message group</label>
         <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
@@ -182,7 +179,7 @@ export function MessageWorkspace() {
           {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
       </div>
-      <div className="mw-search-container" style={{ display: "flex", flexDirection: "column", flex: "1 1 320px", minWidth: 0, gap: "8px" }}>
+      <div className="mw-toolbar mw-search-row"><div className="mw-search-container">
         <label className="mw-search"><span>Search</span>
           <input type="search" value={search} onChange={event => { setSearch(event.target.value); setSearchResults(null); }}
             placeholder="Search subjects, senders, and bodies…" aria-label="Search" />
@@ -191,7 +188,7 @@ export function MessageWorkspace() {
       </div>
       <button type="button" disabled={searching} onClick={runSearch}>{searching ? "Searching…" : "Search"}</button>
       <button type="button" onClick={() => { setNotice("Posting will be available after the native Mystic writer and permissions are connected."); }}
-        aria-label="New post (not yet available)">+ New Post</button>
+        aria-label="New post (not yet available)">+ New Post</button></div>
     </div>
     {notice && <p className="mw-notice" role="status">{notice} <button type="button" onClick={() => setNotice("")}>Dismiss</button></p>}
     <div className="mw-mail-grid">
@@ -215,9 +212,11 @@ export function MessageWorkspace() {
       </aside>
       <section className="mw-message-list" aria-label="Message list">
         <div className="mw-pane-heading"><strong>{area?.name ?? "Select a message area"}</strong>
-          <span>{page ? `${page.messages.length} loaded` : "Messages"}</span>\n          <button type="button" disabled={!readStateAvailable} title="Available after native Mystic read-state integration">Mark All Read</button>
+          <span>{page ? `${page.messages.length} loaded` : "Messages"}</span>
+          <button type="button" disabled={!readStateAvailable} title="Available after native Mystic read-state integration">Mark All Read</button>
         </div>
-        {area && !readStateAvailable && <p className="mw-notice" role="status">Read status will appear here once native Mystic synchronization is connected. Opening messages does not yet change their read status.</p>}\n        {loading && <p role="status">Loading messages…</p>}
+
+        {loading && <p role="status">Loading messages…</p>}
         {error && <p role="alert">{error}</p>}
         {!area && !loading && !error && <p>Choose a message area on the left.</p>}
         {searchResults && <div className="mw-thread-list" aria-label="Search results">
@@ -266,6 +265,9 @@ export function MessageWorkspace() {
           <p>Select a message to read it here.</p></div>}
         {selected && <article className="mw-message">
           <div className="mw-message-actions">
+            <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) <= 0} onClick={() => navigate(-1)}>← Previous</button>
+            <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) < 0 || page.messages.findIndex(m => m.number === selected.number) >= page.messages.length - 1} onClick={() => navigate(1)}>Next →</button>
+            <button type="button" disabled={!readStateAvailable} title="Requires native Mystic read-state integration">Next Unread</button>
             <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
