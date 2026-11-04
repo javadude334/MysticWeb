@@ -48,7 +48,7 @@ function setup(t, exactAccounts = false) {
     return reply;
   } }, 'vm');
   const reader = new MessageReader(native, async () => ({ revision: state.changed ? 'b'.repeat(64) : revision,
-    areas: [{ id: 1, name: 'Board', jamBase: 'echo', kind: 'echo' }] }), dir, async (_, base, opts) => {
+    groups: [{ id: 1, name: 'General' }], areas: [{ id: 1, name: 'Board', jamBase: 'echo', kind: 'echo', groupIds: [1] }] }), dir, async (_, base, opts) => {
     state.reads++;
     assert.equal(base, 'echo');
     return { messages: [{ number: opts.message || 9, author: 'Test', recipient: 'All', subject: '<script>',
@@ -85,7 +85,7 @@ test('B password creates only B session; A password for B creates none; denied a
   assert.equal(creates, 1);
   assert.equal((await app.read(request('/api/messages?area=1', b))).status, 404);
   assert.equal((await app.read(request('/api/messages?area=1&message=9', b))).status, 404);
-  assert.deepEqual(await (await app.read(request('/api/messages', b))).json(), { areas: [] });
+  assert.deepEqual(await (await app.read(request('/api/messages', b))).json(), { groups: [], areas: [] });
   assert.equal(state.reads, 0);
 });
 test('bad credentials, disabled/expired accounts and malformed replies create no session', async t => {
@@ -118,7 +118,7 @@ test('session isolation and denied ListACS/ReadACS never touch storage or leak a
   const alice = token(await login(app)), bob = token(await login(app, 'bob'));
   assert.equal((await app.read(request('/api/messages?area=1', alice))).status, 200);
   assert.equal((await app.read(request('/api/messages?area=1', bob))).status, 404);
-  assert.deepEqual(await (await app.read(request('/api/messages', bob))).json(), { areas: [] });
+  assert.deepEqual(await (await app.read(request('/api/messages', bob))).json(), { groups: [], areas: [] });
   state.denied = true;
   assert.equal((await app.read(request('/api/messages?area=1', alice))).status, 404);
   assert.equal(state.reads, 1);
