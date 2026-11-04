@@ -31,7 +31,7 @@ const clean = (value: unknown, max: number): value is string =>
 const cleanBody = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0 && value.length <= 65536 &&
   value.trim().length > 0 &&
-  !/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f\\u202a-\\u202e\\u2066-\\u2069]/.test(value);
+  !/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/.test(value);
 
 export function validateMysticPost(
   context: MysticPostContext, draft: MysticPostDraft,
