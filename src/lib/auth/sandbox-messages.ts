@@ -6,7 +6,7 @@ import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
-import { MessageAccess } from "../mystic/message-access";
+import { MessageAccess, sandboxGroupThresholds } from "../mystic/message-access";
 import { searchMessages } from "../mystic/search-messages";
 
 const COOKIE = "__Host-mysticweb_session";
@@ -41,7 +41,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
-    const access = new MessageAccess(groups, areas, account.securityLevel);
+    const access = new MessageAccess(groups, areas, account.securityLevel,\n      sandboxGroupThresholds(process.env.MYSTICWEB_SANDBOX_GROUP_MIN_SECURITY));
     const eligibleGroups = access.getGroups();
     const visible = eligibleGroups.flatMap(group => access.getMessageAreas(group.id));
     const catalogAreas = visible.map(area => ({
