@@ -35,7 +35,7 @@ function cleanText(value: unknown, maximumBytes: number, allowNewlines: boolean)
   return typeof value === "string" && value.trim().length > 0 &&
     Buffer.byteLength(value, "utf8") <= maximumBytes &&
     !/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u202a-\u202e\u2066-\u2069]/.test(value) &&
-    (allowNewlines || !/[\r\n]/.test(value));
+    (allowNewlines ? !/\r(?!\n)/.test(value) : !/[\r\n]/.test(value));
 }
 
 /** Validate untrusted input without normalizing or changing the message body. */
