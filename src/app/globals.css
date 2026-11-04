@@ -254,3 +254,9 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 @media (min-width:761px) {
  .app-shell:has(> div:first-of-type.collapsed) { grid-template-columns:56px minmax(0,1fr); }
 }
+
+/* Override the original 68px compact rail rule (same specificity). */
+@media (min-width:761px) {
+ .app-shell:has(> div:first-of-type > aside):has(> div:first-of-type.collapsed) { grid-template-columns:56px minmax(0,1fr); }
+ .app-shell:has(> div:first-of-type > aside) > div:first-of-type.collapsed { width:56px; min-width:0; }
+}
