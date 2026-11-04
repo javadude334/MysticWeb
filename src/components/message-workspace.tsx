@@ -214,11 +214,18 @@ export function MessageWorkspace() {
             onClick={() => {
               const chosen = areas.find(item => item.id === result.areaId);
               if (!chosen) return;
-              setSearchResults(null);
-              pendingSearchMessage.current = { areaId: result.areaId, number: result.number };
-              setSelectedGroupId(chosen.groupIds[0] ?? null);
-              setArea(chosen);
-              setPage(null);
+              // Keep the search results visible while the message opens.
+              // Selecting a result from the already-open area does not change
+              // area state, so its load effect will not run again.
+              if (area?.id === chosen.id) {
+                openMessage({ number: result.number });
+              } else {
+                pendingSearchMessage.current = { areaId: result.areaId, number: result.number };
+                setSelectedGroupId(chosen.groupIds[0] ?? null);
+                setArea(chosen);
+                setPage(null);
+                setSelected(null);
+              }
             }}>
             <strong>{result.subject || "(No subject)"}</strong>
             <span>{result.author} · {result.groupName} / {result.areaName} · #{result.number} · Match: {result.matchedField}</span>
