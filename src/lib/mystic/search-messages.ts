@@ -1,6 +1,38 @@
 import "server-only";
 import { readJam } from "./jam";
 
+/** Unicode-aware, case-insensitive matching with a small typo tolerance.
+ * Fuzzy matching is limited to individual words to avoid unrelated matches.
+ */
+export function matchesMessageSearch(value: string, search: string): boolean {
+  const normalize = (text: string) => text.normalize("NFKC").toLocaleLowerCase("en-US");
+  const haystack = normalize(value);
+  const needle = normalize(search.trim());
+  if (!needle) return false;
+  if (haystack.includes(needle)) return true;
+  const words = haystack.match(/[\\p{L}\\p{N}]+/gu) ?? [];
+  const terms = needle.match(/[\\p{L}\\p{N}]+/gu) ?? [];
+  if (!terms.length) return false;
+  const similar = (a: string, b: string): boolean => {
+    if (a === b || a.includes(b)) return true;
+    if (b.length < 4 || Math.abs(a.length - b.length) > 1) return false;
+    // One insertion, deletion, substitution or adjacent transposition.
+    let i = 0, j = 0, edits = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++edits > 1) return false;
+      if (i + 1 < a.length && j + 1 < b.length && a[i] === b[j + 1] && a[i + 1] === b[j]) {
+        i += 2; j += 2; continue;
+      }
+      if (a.length > b.length) i++;
+      else if (a.length < b.length) j++;
+      else { i++; j++; }
+    }
+    return edits + Number(i < a.length || j < b.length) <= 1;
+  };
+  return terms.every(term => words.some(word => similar(word, term)));
+}
+
 export interface SearchArea {
   id: number;
   name: string;
@@ -36,7 +68,7 @@ export async function searchMessages(
   authorizedAreas: readonly SearchArea[],
   jamRoot: string,
 ): Promise<SearchMessagesResponse> {
-  const query = searchString.trim().toLocaleLowerCase();
+  const query = typeof searchString === "string" ? searchString.trim() : "";
   if (typeof searchString !== "string" || query.length < 2 || query.length > 120 ||
       typeof groupName !== "string" || groupName.length > 60 ||
       typeof allGroups !== "boolean") throw new Error("Invalid search");
@@ -54,7 +86,7 @@ export async function searchMessages(
     for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
       const page = await readJam(jamRoot, area.jamBase, { limit: 50, ...(before ? { before } : {}) });
       for (const message of page.messages) {
-        if ([message.subject, message.author, message.recipient].some(value => value.toLocaleLowerCase().includes(query))) {
+        if ([message.subject, message.author, message.recipient].some(value => matchesMessageSearch(value, query))) {
           results.push({
             areaId: area.id, areaName: area.name, groupId: area.groupId, groupName: area.groupName,
             number: message.number, author: message.author, recipient: message.recipient,
