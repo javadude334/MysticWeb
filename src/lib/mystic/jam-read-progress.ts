@@ -49,3 +49,32 @@ export async function inspectJamReadProgressFiles(root: string, base: string, us
   ]);
   return inspectJamReadProgress(index, lastRead, userId);
 }
+
+/** Validate actual JAM header message numbers and visibility before counting.
+ * The returned count is still a diagnostic: Mystic may use extra scan rules.
+ */
+export function inspectVerifiedJamReadProgress(
+  header: Buffer, index: Buffer, lastRead: Buffer, userId: number,
+): JamReadProgress {
+  const baseline = inspectJamReadProgress(index, lastRead, userId);
+  const unknown = (): JamReadProgress => ({ ...baseline, candidateNewCount: null, exact: false });
+  if (header.length < 1024 || header.toString("latin1", 0, 3) !== "JAM" ||
+      index.length / 8 > 10000) return unknown();
+  const first = header.readUInt32LE(20);
+  if (!first || first + baseline.indexedEntries - 1 > 0xffffffff) return unknown();
+  let newCount = 0;
+  for (let slot = 0; slot < baseline.indexedEntries; slot++) {
+    const offset = index.readUInt32LE(slot * 8 + 4);
+    if (offset === 0xffffffff || offset < 1024 || offset + 76 > header.length ||
+        header.toString("latin1", offset, offset + 3) !== "JAM" ||
+        header.readUInt16LE(offset + 4) !== 1 ||
+        header.readUInt32LE(offset + 48) !== first + slot ||
+        header.readUInt32LE(offset + 56) !== 0 ||
+        header.readUInt32LE(offset + 68) !== 0xffffffff) return unknown();
+    const attributes = header.readUInt32LE(offset + 52);
+    if ((attributes & 0xbe380004) !== 0) return unknown();
+    if (first + slot > baseline.lastReadMsg) newCount++;
+  }
+  if (baseline.candidateNewCount === null) return unknown();
+  return { ...baseline, candidateNewCount: newCount, exact: false };
+}
