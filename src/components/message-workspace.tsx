@@ -31,7 +31,12 @@ function validPage(value: unknown): value is Page {
 }
 async function getJSON(url: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { credentials: "same-origin", cache: "no-store", signal });
-  if (!response.ok) throw new Error("Message access is not available for this account.");
+  if (!response.ok) {
+    if (response.status === 503) throw new Error("The Mystic message service is not connected yet. This is a server configuration issue, not a problem with your account.");
+    if (response.status === 401) throw new Error("Your MysticWeb session is not authenticated. Sign in and try again.");
+    if (response.status === 403) throw new Error("Your Mystic account does not have permission to access these messages.");
+    throw new Error("Message access is unavailable. Please try again later.");
+  }
   return response.json();
 }
 
@@ -149,7 +154,7 @@ export function MessageWorkspace() {
         </div>
         {loading && <p role="status">Loading messages…</p>}
         {error && <p role="alert">{error}</p>}
-        {!area && !loading && <p>Choose a message area on the left.</p>}
+        {!area && !loading && !error && <p>Choose a message area on the left.</p>}
         {page && <div className="mw-thread-list">
           {filtered.map(message => <button type="button" key={message.number}
             className={selected?.number === message.number ? "mw-active" : ""}
