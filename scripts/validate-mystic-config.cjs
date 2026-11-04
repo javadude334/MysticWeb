@@ -181,6 +181,46 @@ async function main() {
   console.log(`Non-alphanumeric ACS character codes: ${[...unusualChars].sort().map(([code, count]) => `${code}=${count}`).join(", ") || "none"}`);
   console.log(`Exception area IDs and categories: ${exceptionAreas.length}`);
   for (const area of exceptionAreas) console.log(`  Area #${area.id}: ${area.issues.join("; ")}`);
+  // Compare structural List/Read candidates to the operator-observed Mystic
+  // group selector for User #5. These are NOT authorization decisions.
+  const candidateFile = path.resolve(__dirname, "../src/lib/mystic/acs-candidate.ts");
+  const candidateJs = ts.transpileModule(fs.readFileSync(candidateFile, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const candidateModule = new Module(candidateFile, module);
+  candidateModule.filename = candidateFile;
+  candidateModule.paths = Module._nodeModulePaths(path.dirname(candidateFile));
+  candidateModule._compile(candidateJs, candidateFile);
+  const { inspectAreaAcs } = candidateModule.exports;
+  const candidateCounts = new Map();
+  const unsupportedIds = [];
+  const candidates = [];
+  for (const area of areas) {
+    const candidate = inspectAreaAcs(area.security[0], area.security[1]);
+    if (!candidate.supported || !groupIds.has(candidate.groupId)) {
+      unsupportedIds.push(area.id);
+      continue;
+    }
+    candidates.push({ id: area.id, groupId: candidate.groupId, minimumSecurity: candidate.minimumSecurity });
+    candidateCounts.set(candidate.groupId, (candidateCounts.get(candidate.groupId) || 0) + 1);
+  }
+  console.log("Read-only List/Read ACS candidate comparison (NOT permissions):");
+  console.log(`Areas matching strict candidate grammar: ${candidates.length}`);
+  console.log(`Areas excluded by candidate grammar: ${unsupportedIds.length}`);
+  console.log(`Excluded area IDs: ${unsupportedIds.join(", ") || "none"}`);
+  for (const group of groups) {
+    console.log(`  Group ID ${group.id}: ${candidateCounts.get(group.id) || 0} structural candidates`);
+  }
+  console.log("Observed native User #5 group-selector counts (manual reference, not a security test):");
+  const observed = new Map([[2, 3], [1, 1], [3, 72], [4, 209], [5, 119]]);
+  for (const group of groups) {
+    const expected = observed.get(group.id);
+    if (expected !== undefined) {
+      const found = candidateCounts.get(group.id) || 0;
+      console.log(`  Group ID ${group.id}: candidate=${found}, observed=${expected}, difference=${found - expected}`);
+    }
+  }
+  console.log("NOTE: Group-selector rows do not prove Read ACS eligibility or correct Mystic ACS semantics.");
   console.log("NOTE: Shape classification does not establish native ACS semantics or per-user access.");
   console.log("NOTE: This diagnostic cannot verify user group membership, native ACS evaluation, area type or per-user permissions.");
   console.log("NOTE: ACS expressions are not evaluated; blank ACS is not an authorization grant.");
