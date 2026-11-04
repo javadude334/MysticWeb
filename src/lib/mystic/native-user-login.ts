@@ -57,6 +57,11 @@ export async function verifyMysticHandle(
           !verifyMysticPasswordRecord(record, password)) return null;
       matched = { userId };
     }
+    // Reject a login if the native user database changed during verification.
+    // A password match must not be accepted from an inconsistent snapshot.
+    const after = await file.stat();
+    if (after.size !== stat.size || after.mtimeMs !== stat.mtimeMs ||
+        after.ctimeMs !== stat.ctimeMs) return null;
     return matched;
   } finally {
     await file.close();
