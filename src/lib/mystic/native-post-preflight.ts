@@ -28,6 +28,11 @@ const clean = (value: unknown, max: number): value is string =>
   value.trim().length > 0 &&
   !/[\x00-\x08\x0b-\x1f\x7f\u202a-\u202e\u2066-\u2069]/.test(value);
 
+const cleanBody = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0 && value.length <= 65536 &&
+  value.trim().length > 0 &&
+  !/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f\\u202a-\\u202e\\u2066-\\u2069]/.test(value);
+
 export function validateMysticPost(
   context: MysticPostContext, draft: MysticPostDraft,
 ): ValidatedMysticPost {
@@ -37,7 +42,7 @@ export function validateMysticPost(
       context.canPost !== true || context.isPublicEcho !== true)
     throw new Error("Posting is not authorized");
   if (!draft || !clean(draft.subject, 120) || !clean(draft.recipient, 80) ||
-      !clean(draft.body, 65536) || draft.body.includes("\u0000"))
+      !cleanBody(draft.body))
     throw new Error("Invalid message draft");
   const replyTo = draft.replyTo === undefined ? null : draft.replyTo;
   if (replyTo !== null && (!Number.isSafeInteger(replyTo) || replyTo < 1 || replyTo > 0xffffffff))
