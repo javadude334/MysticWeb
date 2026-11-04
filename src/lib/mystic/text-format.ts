@@ -12,6 +12,7 @@ export function parseMysticText(source: string): MysticTextRun[] {
   const runs: MysticTextRun[] = [];
   let color: string | undefined;
   let pending = "";
+  let bold = false;
   const flush = () => {
     if (pending) runs.push({ text: pending, ...(color ? { color } : {}) });
     pending = "";
