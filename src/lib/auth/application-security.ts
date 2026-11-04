@@ -19,6 +19,32 @@ export type SecurityResource =
   | { resource: "profile"; resourceId: number; action: "read" | "edit"; catalogRevision: string }
   | { resource: "administration"; action: "access"; catalogRevision: string };
 
+const REVISION = /^[a-f0-9]{64}$/;
+
+/** Reject malformed resource requests before invoking a native permission provider. */
+export function validResource(value: unknown): value is SecurityResource {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  if (typeof item.catalogRevision !== "string" || !REVISION.test(item.catalogRevision)) return false;
+  const specs: Record<string, readonly string[]> = {
+    "message-area": ["list", "read", "post", "sysop"],
+    "file-area": ["list", "download", "upload"],
+    bulletin: ["read"],
+    "private-mail": ["read", "send"],
+    profile: ["read", "edit"],
+    administration: ["access"],
+  };
+  if (typeof item.resource !== "string" || !Object.hasOwn(specs, item.resource) ||
+      typeof item.action !== "string" || !specs[item.resource].includes(item.action)) return false;
+  const expected = item.resource === "administration"
+    ? ["action", "catalogRevision", "resource"]
+    : ["action", "catalogRevision", "resource", "resourceId"];
+  if (Object.keys(item).sort().join(",") !== expected.sort().join(",")) return false;
+  return item.resource === "administration" ||
+    (typeof item.resourceId === "number" && Number.isSafeInteger(item.resourceId) &&
+      item.resourceId >= 1 && item.resourceId <= 65535);
+}
+
 export class ApplicationSecurity {
   constructor(
     private readonly native: NativeAccess,
@@ -36,7 +62,12 @@ export class ApplicationSecurity {
     try { identity = store.read(token); }
     finally { store.close(); }
     if (!identity) return null;
-    if (!(await this.native.accountValid(identity))) return null;
+    if (!(await this.native.accountValid(identity))) {
+      // Invalidate a stale session immediately rather than leaving it usable
+      // after a native account lock or deletion.
+      this.revokeSession(token);
+      return null;
+    }
     return identity;
   }
 
@@ -61,7 +92,7 @@ export class ApplicationSecurity {
    * authorization check and the protected read in one operation.
    */
   async authorize(identity: Identity, target: SecurityResource): Promise<boolean> {
-    if (!identity || !(await this.native.accountValid(identity))) return false;
+    if (!identity || !validResource(target) || !(await this.native.accountValid(identity))) return false;
     // Only echo-area reads are represented by the existing verified protocol.
     // Every other resource/action remains denied until its native rules exist.
     if (target.resource !== "message-area" || target.action !== "read") return false;
