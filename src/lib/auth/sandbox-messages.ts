@@ -6,7 +6,7 @@ import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
-import { MessageAccess, sandboxGroupThresholds } from "../mystic/message-access";
+import { MessageAccess } from "../mystic/message-access";
 import { searchMessages } from "../mystic/search-messages";
 
 const COOKIE = "__Host-mysticweb_session";
@@ -41,13 +41,12 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
-    const access = new MessageAccess(groups, areas, account.securityLevel,
-      sandboxGroupThresholds(process.env.MYSTICWEB_SANDBOX_GROUP_MIN_SECURITY));
+    const access = new MessageAccess(groups, areas, account.securityLevel);
     const eligibleGroups = access.getGroups();
     const visible = eligibleGroups.flatMap(group => access.getMessageAreas(group.id));
     const catalogAreas = visible.map(area => ({
       id: area.id, name: area.name, groupIds: [area.inferredGroupId as number],
-      readable: true,
+      readable: access.canRead(area.id),
     }));
     if (params.has("search")) {
       if (keys.some(key => !["search", "groupName", "allGroups"].includes(key)))
@@ -91,7 +90,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       const groupId = Number(groupValue);
       if (!eligibleGroups.some(group => group.id === groupId))
         return json({ error: "Group unavailable" }, 404);
-      return json({ groupId, areas: access.getMessageAreas(groupId).map(area => ({ id: area.id, name: area.name, groupIds: [groupId], readable: true })) });
+      return json({ groupId, areas: access.getMessageAreas(groupId).map(area => ({ id: area.id, name: area.name, groupIds: [groupId], readable: access.canRead(area.id) })) });
     }
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
