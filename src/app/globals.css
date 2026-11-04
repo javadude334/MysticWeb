@@ -281,3 +281,8 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .mw-message-list .mw-thread-list button.mw-unread.mw-active { background:#205149!important; border-color:#59ddc9!important; }
 .mw-message-list .mw-thread-list button.mw-read.mw-active { opacity:1; }
 .mw-message-list .mw-thread-list button.mw-unread:hover { background:#1b4d49!important; }
+
+/* Group-level unread indicators; keep area selection independent of read status. */
+.mw-area-list button { flex-direction:row; align-items:center; justify-content:space-between; }
+.mw-area-name { flex:1; min-width:0; }
+.mw-area-unread-dot { flex:none; display:inline-block; width:9px; height:9px; border-radius:50%; background:#40a9ff; box-shadow:0 0 0 2px rgba(64,169,255,.15); }
