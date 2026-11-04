@@ -10,8 +10,8 @@ export function matchesMessageSearch(value: string, search: string): boolean {
   const needle = normalize(search.trim());
   if (!needle) return false;
   if (haystack.includes(needle)) return true;
-  const words = haystack.match(/[\\p{L}\\p{N}]+/gu) ?? [];
-  const terms = needle.match(/[\\p{L}\\p{N}]+/gu) ?? [];
+  const words = haystack.match(/[\p{L}\p{N}]+/gu) ?? [];
+  const terms = needle.match(/[\p{L}\p{N}]+/gu) ?? [];
   if (!terms.length) return false;
   const similar = (a: string, b: string): boolean => {
     if (a === b || a.includes(b)) return true;
