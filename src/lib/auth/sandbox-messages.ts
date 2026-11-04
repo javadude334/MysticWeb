@@ -22,9 +22,9 @@ export async function sandboxMessages(request: Request): Promise<Response> {
   const db = process.env.MYSTICWEB_SESSION_DB;
   const allow = process.env.MYSTICWEB_SANDBOX_READ_AREAS;
   if (!root || !path.isAbsolute(root) || !db || !path.isAbsolute(db) || !allow ||
-      !/^[1-9][0-9]*(?:,[1-9][0-9]*)*$/.test(allow))
+      !/^[1-9][0-9]*(?:\\s*,\\s*[1-9][0-9]*)*$/.test(allow))
     return json({ error: "Sandbox reader requires an explicit area allowlist" }, 503);
-  const approved = new Set(allow.split(",").map(Number));
+  const approved = new Set(allow.split(",").map(value => Number(value.trim())));
   if ([...approved].some(id => !Number.isSafeInteger(id) || id > 65535))
     return json({ error: "Invalid sandbox allowlist" }, 503);
   const cookies = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim())
