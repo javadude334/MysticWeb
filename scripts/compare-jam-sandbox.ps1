@@ -62,7 +62,7 @@ foreach ($item in @($baseline.files)) { $old[[string]$item.path] = $item }
 $new = @{}
 foreach ($item in $current) { $new[[string]$item.path] = $item }
 $changes = @()
-foreach ($name in @($old.Keys + $new.Keys | Sort-Object -Unique)) {
+foreach ($name in @((@($old.Keys) + @($new.Keys)) | Sort-Object -Unique)) {
   $before = $old[$name]; $now = $new[$name]
   $status = if ($null -eq $before) { 'added' } elseif ($null -eq $now) { 'removed' } elseif ($before.sha256 -ne $now.sha256) { 'changed' } else { 'unchanged' }
   if ($status -ne 'unchanged') {
