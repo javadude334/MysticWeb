@@ -57,6 +57,8 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
+  // Native read-state is not yet available; never fabricate persistent unread flags.
+  const [readStateAvailable] = useState(false);
   const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -130,6 +132,12 @@ export function MessageWorkspace() {
       setSelected(value.messages[0]);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+  };
+  const navigate = (direction: -1 | 1) => {
+    if (!page || !selected || loading) return;
+    const index = page.messages.findIndex(item => item.number === selected.number);
+    const next = page.messages[index + direction];
+    if (next) openMessage(next);
   };
   const runSearch = () => {
     searchRef.current?.abort();
@@ -207,9 +215,9 @@ export function MessageWorkspace() {
       </aside>
       <section className="mw-message-list" aria-label="Message list">
         <div className="mw-pane-heading"><strong>{area?.name ?? "Select a message area"}</strong>
-          <span>{page ? `${page.messages.length} loaded` : "Messages"}</span>
+          <span>{page ? `${page.messages.length} loaded` : "Messages"}</span>\n          <button type="button" disabled={!readStateAvailable} title="Available after native Mystic read-state integration">Mark All Read</button>
         </div>
-        {loading && <p role="status">Loading messages…</p>}
+        {area && !readStateAvailable && <p className="mw-notice" role="status">Read status will appear here once native Mystic synchronization is connected. Opening messages does not yet change their read status.</p>}\n        {loading && <p role="status">Loading messages…</p>}
         {error && <p role="alert">{error}</p>}
         {!area && !loading && !error && <p>Choose a message area on the left.</p>}
         {searchResults && <div className="mw-thread-list" aria-label="Search results">
