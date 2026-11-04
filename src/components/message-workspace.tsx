@@ -35,6 +35,7 @@ export function MessageWorkspace() {
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
+  const [pageHistory, setPageHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -57,7 +58,7 @@ export function MessageWorkspace() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [refresh]);
-  const load = useCallback((chosen: Area, before?: number) => {
+  const load = useCallback((chosen: Area, before?: number, history: number[] = []) => {
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
@@ -66,7 +67,7 @@ export function MessageWorkspace() {
     if (before !== undefined) params.set("before", String(before));
     getJSON("/api/messages?" + params.toString(), controller.signal).then(value => {
       if (!validPage(value) || value.area.id !== chosen.id) throw new Error("Invalid message response.");
-      setPage(value); setSelected(null);
+      setPage(value); setSelected(null); setPageHistory(history);
     }).catch(e => { if (!controller.signal.aborted) { setPage(null); setSelected(null); setError(e instanceof Error ? e.message : "Messages unavailable."); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -114,7 +115,7 @@ export function MessageWorkspace() {
     <div className="mw-mail-grid">
       <aside className="mw-folders" aria-label="Message areas">
         <div className="mw-folders-heading"><strong>Folders</strong>
-          <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setRefresh(v => v + 1); }}>Refresh</button>
+          <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
         {groups.map(group => {
           const members = areas.filter(item => item.groupIds.includes(group.id));
@@ -127,7 +128,7 @@ export function MessageWorkspace() {
             {expanded && <div className="mw-area-list">{members.map(item =>
               <button type="button" key={item.id} aria-current={area?.id === item.id ? "page" : undefined}
                 className={area?.id === item.id ? "mw-active" : ""}
-                onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setSearch(""); setArea(item); }}>
+                onClick={() => { requestRef.current?.abort(); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
                 {item.name}
               </button>)}</div>}
           </div>;
@@ -151,8 +152,10 @@ export function MessageWorkspace() {
             <span>To: {message.recipient} · #{message.number}</span>
           </button>)}
           {filtered.length === 0 && <p>{search ? "No matches among loaded messages." : "No messages in this page."}</p>}
+          {pageHistory.length > 0 && <button type="button" className="mw-load-more" disabled={loading}
+            onClick={() => { if (area) { const previous = pageHistory.slice(0, -1); load(area, previous.at(-1) || undefined, previous); } }}>Newer messages</button>}
           {page.nextBefore !== null && <button type="button" className="mw-load-more" disabled={loading}
-            onClick={() => { if (area && page.nextBefore !== null) load(area, page.nextBefore); }}>Older messages</button>}
+            onClick={() => { if (area && page.nextBefore !== null) load(area, page.nextBefore, [...pageHistory, page.nextBefore]); }}>Older messages</button>}
         </div>}
       </section>
       <section className="mw-reading-pane" aria-label="Message reader">
