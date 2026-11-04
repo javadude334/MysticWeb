@@ -59,7 +59,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const eligibleIds = new Set(eligibleGroups.map(g => g.id));
     const eligibleAreas = areas.filter(a => a.inferredGroupId !== null &&
       eligibleIds.has(a.inferredGroupId) && isJamBaseName(a.jamBase) &&
-      candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate &&
+      candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).groupId === a.inferredGroupId &&
       !isNetmailNamedGroup(a.name));
     // Development-only: eligible areas are readable without a numeric allowlist.
     // JAM independently rejects protected/private/netmail message records.
