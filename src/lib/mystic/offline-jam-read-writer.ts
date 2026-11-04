@@ -1,5 +1,5 @@
 import "server-only";
-import path from "node:path";
+import * as path from "node:path";
 import { lstat, open, realpath } from "node:fs/promises";
 import { prepareJamLastReadAdvance, parseJamLastRead } from "./jam-last-read";
 
