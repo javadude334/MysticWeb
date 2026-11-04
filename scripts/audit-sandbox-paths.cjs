@@ -51,7 +51,7 @@ async function main() {
   console.log("Mystic sandbox path audit (read-only, paths redacted)");
   console.log("Required configuration files: " + sizes.length + " verified");
   console.log("Message directory contained within sandbox: yes");
-  console.log("JAM header files found: " + entries.filter(name => /\\.jhr$/i.test(name)).length);
+  console.log("JAM header files found: " + entries.filter(name => /\.jhr$/i.test(name)).length);
   console.log("No Mystic service or socket connection used.");
 }
 main().catch(() => {
