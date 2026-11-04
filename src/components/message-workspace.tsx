@@ -136,12 +136,15 @@ export function MessageWorkspace() {
   };
   const nextUnread = () => {
     if (!page || !area || loading) return;
-    // JAM .jlr is a high-water pointer, not a per-message read receipt.
-    // The page is newest-first; choose the oldest newer message on this page.
-    const candidates = page.messages.filter(message => message.readPosition === "after-pointer");
-    const next = candidates.at(-1);
+    // JAM .jlr is a high-water pointer, not an individual read receipt.
+    // Messages are newest-first; advance toward newer messages from the
+    // currently selected item rather than reopening the same candidate.
+    const unread = page.messages.filter(message => message.readPosition === "after-pointer");
+    const next = selected
+      ? unread.filter(message => message.number > selected.number).at(-1)
+      : unread.at(-1);
     if (next) openMessage(next);
-    else setNotice("No messages newer than your Mystic last-read pointer on this page. Browse older pages to check further.");
+    else setNotice("No further messages newer than your Mystic last-read pointer on this page.");
   };
   const navigate = (direction: -1 | 1) => {
     if (!page || !selected || loading) return;
@@ -277,7 +280,7 @@ export function MessageWorkspace() {
           <div className="mw-message-actions">
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) <= 0} onClick={() => navigate(-1)}>← Previous</button>
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) < 0 || page.messages.findIndex(m => m.number === selected.number) >= page.messages.length - 1} onClick={() => navigate(1)}>Next →</button>
-            <button type="button" disabled={loading || !page || !page.messages.some(message => message.readPosition === "after-pointer")} title="Open the oldest message after your native JAM last-read pointer on this page" onClick={nextUnread}>Next Unread</button>
+            <button type="button" disabled={loading || !page || !page.messages.some(message => message.readPosition === "after-pointer" && (!selected || message.number > selected.number))} title="Advance to the next newer message after your native JAM last-read pointer on this page" onClick={nextUnread}>Next Unread</button>
             <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
