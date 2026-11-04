@@ -53,6 +53,7 @@ export function MessageWorkspace() {
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [search, setSearch] = useState("");
+  const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
   const requestRef = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -132,17 +133,18 @@ export function MessageWorkspace() {
           {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
       </div>
-      <label className="mw-search"><span className="sr-only">Search loaded messages</span>
+      <label className="mw-search"><span>Search</span>
         <input type="search" value={search} onChange={event => setSearch(event.target.value)}
-          placeholder="Search loaded subjects and senders…" aria-label="Search loaded messages" />
+          placeholder="Search subjects and senders…" aria-label="Search" />
       </label>
+      <label className="mw-search-scope"><input type="checkbox" checked={searchAllGroups} onChange={event => setSearchAllGroups(event.target.checked)} /> Search all groups</label>
       <button type="button" onClick={() => { setNotice("Posting will be available after the native Mystic writer and permissions are connected."); }}
         aria-label="New post (not yet available)">+ New Post</button>
     </div>
     {notice && <p className="mw-notice" role="status">{notice} <button type="button" onClick={() => setNotice("")}>Dismiss</button></p>}
     <div className="mw-mail-grid">
       <aside className="mw-folders" aria-label="Message areas">
-        <div className="mw-folders-heading"><strong>Folders</strong>
+        <div className="mw-folders-heading"><strong>Message Areas</strong>
           <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
         <div className="mw-area-list" aria-label="Areas in selected group">
@@ -199,6 +201,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">Search covers loaded message headers only. Full-text and cross-area search will require a server-side search service.</p>
+    <p className="mw-footnote">{searchAllGroups ? "Cross-group search is selected, but the server-side search endpoint is not implemented yet. Results currently cover only the loaded message headers in the open area." : "Search covers loaded message headers in the open area only."}</p>
   </div>;
 }
