@@ -1,5 +1,6 @@
 import "server-only";
 import path from "node:path";
+import { lstat, realpath } from "node:fs/promises";
 import { AuthStore } from "./store";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
@@ -76,7 +77,21 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
     if (!jamRoot || !path.isAbsolute(jamRoot))
       return json({ error: "Sandbox JAM root not configured" }, 503);
-    const page = await readJam(jamRoot, area.jamBase, { limit, ...(message ? { message } : {}),
+    // The operator-selected JAM directory must be physically contained within
+    // the configured sandbox. A second environment variable is not permission
+    // to read from another Mystic installation.
+    const sandboxStat = await lstat(root);
+    const jamStat = await lstat(jamRoot);
+    if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
+        !jamStat.isDirectory() || jamStat.isSymbolicLink())
+      return json({ error: "Unsafe sandbox directory" }, 503);
+    const sandboxReal = await realpath(root);
+    const jamReal = await realpath(jamRoot);
+    const relative = path.relative(sandboxReal, jamReal);
+    if (!relative || relative === ".." || relative.startsWith(".." + path.sep) ||
+        path.isAbsolute(relative))
+      return json({ error: "Sandbox JAM directory must be inside the sandbox" }, 503);
+    const page = await readJam(jamReal, area.jamBase, { limit, ...(message ? { message } : {}),
       ...(before ? { before } : {}) });
     return json({ area: { id: area.id, name: area.name },
       messages: page.messages.map(m => ({ number: m.number, author: m.author,
