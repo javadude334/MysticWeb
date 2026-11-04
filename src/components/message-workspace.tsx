@@ -256,8 +256,7 @@ export function MessageWorkspace() {
         </div>}
         {!searchResults && page && <div className="mw-thread-list">
           {filtered.map(message => <button type="button" key={message.number}
-            className={selected?.number === message.number ? "mw-active" : ""}
-            style={{ fontWeight: message.readPosition === "after-pointer" ? 700 : undefined }}
+            className={[selected?.number === message.number ? "mw-active" : "", message.readPosition === "after-pointer" ? "mw-unread" : message.readPosition === "at-or-before-pointer" ? "mw-read" : "mw-read-unknown"].filter(Boolean).join(" ")}
             aria-current={selected?.number === message.number ? "true" : undefined}
             onClick={() => openMessage(message)}>
             <span className="mw-thread-from">{message.author}</span>
