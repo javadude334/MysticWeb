@@ -45,13 +45,29 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const params = new URL(request.url).searchParams;
     const keys = [...params.keys()];
     if (new Set(keys).size !== keys.length ||
-        keys.some(k => !["area", "message", "before", "limit"].includes(k)) ||
+        keys.some(k => !["area", "group", "message", "before", "limit"].includes(k)) ||
         (params.has("message") && params.has("before")))
       return json({ error: "Invalid request" }, 400);
     const { groups, areas } = await readMysticConfiguration();
     // Require unambiguous group mapping and the exact operator-approved ID.
     const visible = areas.filter(a => approved.has(a.id) && candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate && a.inferredGroupId !== null &&
       groups.some(g => g.id === a.inferredGroupId) && isJamBaseName(a.jamBase));
+    if (params.has("group")) {
+      // Match the production reader's group-selection API. The operator
+      // allowlist and conservative ACS threshold remain mandatory.
+      if (params.has("area") || params.has("message") ||
+          params.has("before") || params.has("limit"))
+        return json({ error: "Invalid request" }, 400);
+      const groupValue = params.get("group");
+      if (!groupValue || !/^[1-9][0-9]*$/.test(groupValue) ||
+          !Number.isSafeInteger(Number(groupValue)) || Number(groupValue) > 65535)
+        return json({ error: "Invalid request" }, 400);
+      const groupId = Number(groupValue);
+      if (!groups.some(group => group.id === groupId))
+        return json({ error: "Group unavailable" }, 404);
+      return json({ groupId, areas: visible.filter(area => area.inferredGroupId === groupId)
+        .map(area => ({ id: area.id, name: area.name, groupIds: [groupId] })) });
+    }
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
       const ids = new Set(visible.map(a => a.inferredGroupId));
