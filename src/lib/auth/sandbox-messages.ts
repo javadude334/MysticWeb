@@ -1,6 +1,7 @@
 import "server-only";
 import path from "node:path";
-import { lstat, realpath } from "node:fs/promises";
+import { lstat, realpath, readFile } from "node:fs/promises";
+import { classifyJamMessage, getJamMessageReadState } from "../mystic/jam-message-read-state";
 import { AuthStore } from "./store";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
@@ -133,8 +134,20 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       return json({ error: "Sandbox JAM directory must be inside the sandbox" }, 503);
     const page = await readJam(jamReal, area.jamBase, { limit, ...(message ? { message } : {}),
       ...(before ? { before } : {}) });
+    // Read only the .jlr belonging to this already-authorized JAM base.
+    // Never trust a URL-supplied user ID or base path. Missing/unsafe state is unknown.
+    let pointerState = null;
+    try {
+      if (!isJamBaseName(area.jamBase)) throw new Error("Invalid base");
+      const filename = await realpath(path.join(jamReal, `${area.jamBase}.jlr`));
+      if (path.dirname(filename) !== jamReal) throw new Error("Unsafe pointer path");
+      const info = await lstat(filename);
+      if (!info.isFile() || info.size > 1048576) throw new Error("Unsafe pointer file");
+      pointerState = getJamMessageReadState(await readFile(filename), identity.userId);
+    } catch { /* Read-state is optional; never downgrade message authorization. */ }
     return json({ area: { id: area.id, name: area.name },
       messages: page.messages.map(m => ({ number: m.number, author: m.author,
+        readPosition: classifyJamMessage(pointerState, m.number),
         recipient: m.recipient, subject: m.subject, dates: m.dates, replyTo: m.replyTo,
         firstReply: m.firstReply, nextReply: m.nextReply, ...(m.body === undefined ? {} : { body: m.body }) })),
       nextBefore: page.nextBefore });
