@@ -40,7 +40,8 @@ function Inventory {
       sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     }
   }
-  return ,$records
+  # Emit one record per pipeline item; unary comma would nest the inventory as one array.
+  return $records
 }
 if ($Mode -eq 'capture') {
   if (Test-Path -LiteralPath $snapshotPath) { throw 'Snapshot exists; choose a new filename.' }
