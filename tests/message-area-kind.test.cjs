@@ -20,7 +20,7 @@ m._compile(ts.transpileModule(readFileSync(filename, "utf8"), {
 const { MessageReader } = m.exports;
 const revision = "a".repeat(64);
 const areas = [
-  { id: 1, name: "General", jamBase: "general", kind: "echo" },
+  { id: 1, name: "General", jamBase: "general", kind: "echo", groupIds: [1] },
   { id: 2, name: "Netmail", jamBase: "netmail", kind: "netmail" },
   { id: 3, name: "Personal", jamBase: "personal", kind: "private" },
   { id: 4, name: "Unknown", jamBase: "unknown", kind: "unknown" },
@@ -31,10 +31,10 @@ test("netmail, private and unverified areas never reach native authorization or 
     authorized.push(id);
     return callback();
   }};
-  const reader = new MessageReader(native, async () => ({ revision, areas }), "/unused",
+  const reader = new MessageReader(native, async () => ({ revision, groups: [{ id: 1, name: "General" }], areas }), "/unused",
     async (_root, base) => { read.push(base); return { messages: [], nextBefore: null }; });
   const identity = { instance: "sandbox", userId: 2 };
-  assert.deepEqual(await reader.areas(identity), [{ id: 1, name: "General" }]);
+  assert.deepEqual(await reader.areas(identity), { groups: [{ id: 1, name: "General" }], areas: [{ id: 1, name: "General", groupIds: [1] }] });
   assert.deepEqual(authorized, [1]);
   for (const id of [2, 3, 4]) await assert.rejects(reader.read(identity, id, {}));
   assert.deepEqual(read, []);
