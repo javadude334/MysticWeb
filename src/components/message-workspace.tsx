@@ -52,6 +52,8 @@ export function MessageWorkspace() {
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [selected, setSelected] = useState<Message | null>(null);
+  // Visual-only viewed state until native .jlr writes are certified.
+  const [viewed, setViewed] = useState<Record<string, true>>({});
   const [pageHistory, setPageHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -119,7 +121,10 @@ export function MessageWorkspace() {
           if (!validPage(detail) || detail.area.id !== chosen.id || detail.messages.length !== 1 ||
               detail.messages[0].number !== pending.number || typeof detail.messages[0].body !== "string")
             throw new Error("Search result message unavailable.");
-          if (!controller.signal.aborted) setSelected(detail.messages[0]);
+          if (!controller.signal.aborted) {
+            setSelected(detail.messages[0]);
+            setViewed(previous => ({ ...previous, [chosen.id + ":" + pending.number]: true }));
+          }
         }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); });
       }
     }).catch(e => { if (!controller.signal.aborted) { setPage(null); setSelected(null); setError(e instanceof Error ? e.message : "Messages unavailable."); } })
@@ -148,6 +153,7 @@ export function MessageWorkspace() {
           value.messages[0].number !== message.number || typeof value.messages[0].body !== "string")
         throw new Error("Message unavailable.");
       setSelected(value.messages[0]);
+      setViewed(previous => ({ ...previous, [area.id + ":" + message.number]: true }));
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   };
@@ -156,7 +162,7 @@ export function MessageWorkspace() {
     // JAM .jlr is a high-water pointer, not an individual read receipt.
     // Messages are newest-first; advance toward newer messages from the
     // currently selected item rather than reopening the same candidate.
-    const unread = page.messages.filter(message => message.readPosition === "after-pointer");
+    const unread = page.messages.filter(message => message.readPosition === "after-pointer" && !viewed[area.id + ":" + message.number]);
     const next = selected
       ? unread.filter(message => message.number > selected.number).at(-1)
       : unread.at(-1);
@@ -277,12 +283,12 @@ export function MessageWorkspace() {
         </div>}
         {!searchResults && page && <div className="mw-thread-list">
           {filtered.map(message => <button type="button" key={message.number}
-            className={[selected?.number === message.number ? "mw-active" : "", message.readPosition === "after-pointer" ? "mw-unread" : message.readPosition === "at-or-before-pointer" ? "mw-read" : "mw-read-unknown"].filter(Boolean).join(" ")}
+            className={[selected?.number === message.number ? "mw-active" : "", viewed[area?.id + ":" + message.number] ? "mw-read" : message.readPosition === "after-pointer" ? "mw-unread" : message.readPosition === "at-or-before-pointer" ? "mw-read" : "mw-read-unknown"].filter(Boolean).join(" ")}
             aria-current={selected?.number === message.number ? "true" : undefined}
             onClick={() => openMessage(message)}>
             <span className="mw-thread-from">{message.author}</span>
             <strong>{message.subject || "(No subject)"}</strong>
-            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}{message.readPosition === "after-pointer" ? " · New since last-read" : ""}</span>
+            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}{viewed[area?.id + ":" + message.number] ? " · Viewed this session" : message.readPosition === "after-pointer" ? " · New since last-read" : ""}</span>
           </button>)}
           {filtered.length === 0 && <p>{search ? "No matches among loaded messages." : "No messages in this page."}</p>}
           {pageHistory.length > 0 && <button type="button" className="mw-load-more" disabled={loading}
@@ -298,7 +304,7 @@ export function MessageWorkspace() {
           <div className="mw-message-actions">
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) <= 0} onClick={() => navigate(-1)}>← Previous</button>
             <button type="button" disabled={loading || !page || page.messages.findIndex(m => m.number === selected.number) < 0 || page.messages.findIndex(m => m.number === selected.number) >= page.messages.length - 1} onClick={() => navigate(1)}>Next →</button>
-            <button type="button" disabled={loading || !page || !page.messages.some(message => message.readPosition === "after-pointer" && (!selected || message.number > selected.number))} title="Advance to the next newer message after your native JAM last-read pointer on this page" onClick={nextUnread}>Next Unread</button>
+            <button type="button" disabled={loading || !page || !page.messages.some(message => message.readPosition === "after-pointer" && !viewed[area!.id + ":" + message.number] && (!selected || message.number > selected.number))} title="Advance to the next newer message after your native JAM last-read pointer on this page" onClick={nextUnread}>Next Unread</button>
             <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
@@ -313,6 +319,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Next Unread navigates the loaded page only. Reading a message here does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Next Unread navigates the loaded page only. Opening a message changes its appearance to viewed for this browser session only; it does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
