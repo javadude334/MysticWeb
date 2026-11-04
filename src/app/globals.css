@@ -260,3 +260,15 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
  .app-shell:has(> div:first-of-type > aside):has(> div:first-of-type.collapsed) { grid-template-columns:56px minmax(0,1fr); }
  .app-shell:has(> div:first-of-type > aside) > div:first-of-type.collapsed { width:56px; min-width:0; }
 }
+
+/* Sidebar layout: target the actual CSS-module collapsed class by its stable prefix.
+   The navigation component owns the state; grid and rail must shrink together. */
+@media (min-width:761px) {
+  .app-shell:has(> [class*="sidebar-navigation_collapsed"]) {
+    grid-template-columns: 56px minmax(0, 1fr) !important;
+  }
+  .app-shell > [class*="sidebar-navigation_layout"][class*="sidebar-navigation_collapsed"] {
+    width: 56px !important;
+    min-width: 0;
+  }
+}
