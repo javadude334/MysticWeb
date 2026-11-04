@@ -172,12 +172,14 @@ export function MessageWorkspace() {
           {groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
       </div>
-      <label className="mw-search"><span>Search</span>
-        <input type="search" value={search} onChange={event => { setSearch(event.target.value); setSearchResults(null); }}
-          placeholder="Search subjects and senders…" aria-label="Search" />
-      </label>
+      <div className="mw-search-container" style={{ display: "flex", flexDirection: "column", flex: "1 1 320px", minWidth: 0, gap: "8px" }}>
+        <label className="mw-search"><span>Search</span>
+          <input type="search" value={search} onChange={event => { setSearch(event.target.value); setSearchResults(null); }}
+            placeholder="Search subjects, senders, and bodies…" aria-label="Search" />
+        </label>
+        <label className="mw-search-scope" style={{ alignSelf: "flex-start" }}><input type="checkbox" checked={searchAllGroups} onChange={event => { setSearchAllGroups(event.target.checked); setSearchResults(null); }} /> Search all groups</label>
+      </div>
       <button type="button" disabled={searching} onClick={runSearch}>{searching ? "Searching…" : "Search"}</button>
-      <label className="mw-search-scope"><input type="checkbox" checked={searchAllGroups} onChange={event => { setSearchAllGroups(event.target.checked); setSearchResults(null); }} /> Search all groups</label>
       <button type="button" onClick={() => { setNotice("Posting will be available after the native Mystic writer and permissions are connected."); }}
         aria-label="New post (not yet available)">+ New Post</button>
     </div>
