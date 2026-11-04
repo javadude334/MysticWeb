@@ -50,6 +50,8 @@ export interface SearchResult {
   recipient: string;
   subject: string;
   written: number;
+  matchedField: "subject" | "sender" | "body";
+  excerpt?: string;
 }
 export interface SearchMessagesResponse {
   results: SearchResult[];
@@ -57,7 +59,7 @@ export interface SearchMessagesResponse {
   scannedAreas: number;
 }
 
-/** Bounded, header-only search. Caller MUST supply exclusively authorized
+/** Bounded search of public message headers and bodies. Caller MUST supply exclusively authorized
  * areas, freshly checked against the current native account and area allowlist.
  * Never expose this function directly to unauthenticated routes.
  */
@@ -86,11 +88,29 @@ export async function searchMessages(
     for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
       const page = await readJam(jamRoot, area.jamBase, { limit: 50, ...(before ? { before } : {}) });
       for (const message of page.messages) {
-        if ([message.subject, message.author, message.recipient].some(value => matchesMessageSearch(value, query))) {
+        const headerMatch = matchesMessageSearch(message.subject, query) ? "subject" :
+          matchesMessageSearch(message.author, query) ? "sender" : null;
+        // Read the body only for messages that did not match a header.
+        // readJam performs its own public-message filtering and bounds checks.
+        let matchedField: "subject" | "sender" | "body" | null = headerMatch;
+        let excerpt: string | undefined;
+        if (!matchedField) {
+          const detail = await readJam(jamRoot, area.jamBase, { message: message.number, limit: 1 });
+          const body = detail.messages[0]?.body;
+          if (body && matchesMessageSearch(body, query)) {
+            matchedField = "body";
+            const normalizedBody = body.replace(/\\s+/g, " ");
+            const index = normalizedBody.toLocaleLowerCase("en-US").indexOf(query.toLocaleLowerCase("en-US"));
+            const start = index >= 0 ? Math.max(0, index - 65) : 0;
+            excerpt = normalizedBody.slice(start, start + 180);
+          }
+        }
+        if (matchedField) {
           results.push({
             areaId: area.id, areaName: area.name, groupId: area.groupId, groupName: area.groupName,
             number: message.number, author: message.author, recipient: message.recipient,
-            subject: message.subject, written: message.dates.written,
+            subject: message.subject, written: message.dates.written, matchedField,
+            ...(excerpt ? { excerpt } : {}),
           });
           if (results.length === MAX_RESULTS) return { results, truncated: true, scannedAreas };
         }
