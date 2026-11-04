@@ -5,7 +5,7 @@ import { MysticText } from "@/components/mystic-text";
 
 type Area = { id: number; name: string; groupIds: number[]; readable?: boolean };
 type Group = { id: number; name: string };
-type Message = { number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
+type Message = { readPosition?: "after-pointer" | "at-or-before-pointer" | "unknown"; number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
 type Page = { area: Area; messages: Message[]; nextBefore: number | null };
 
 function formatMysticDate(timestamp: number | undefined): string {
@@ -27,6 +27,7 @@ function validPage(value: unknown): value is Page {
   return !!page.area && Number.isSafeInteger(page.area.id) && page.area.id > 0 && typeof page.area.name === "string" && Array.isArray(page.messages) && page.messages.length <= 50 &&
     (page.nextBefore === null || (Number.isSafeInteger(page.nextBefore) && page.nextBefore > 0)) &&
     page.messages.every(m => Number.isSafeInteger(m.number) && m.number > 0 &&
+      (m.readPosition === undefined || ["after-pointer", "at-or-before-pointer", "unknown"].includes(m.readPosition)) &&
       typeof m.author === "string" && typeof m.recipient === "string" && typeof m.subject === "string" &&
       (m.body === undefined || typeof m.body === "string") && !!m.dates &&
       Number.isSafeInteger(m.dates.written) && m.dates.written >= 0 && m.dates.written <= 0xffffffff);
@@ -57,7 +58,7 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
-  // Native read-state is not yet available; never fabricate persistent unread flags.
+  // Native pointer writes remain unavailable; read-only position labels are advisory.
   const [readStateAvailable] = useState(false);
   const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
@@ -247,11 +248,12 @@ export function MessageWorkspace() {
         {!searchResults && page && <div className="mw-thread-list">
           {filtered.map(message => <button type="button" key={message.number}
             className={selected?.number === message.number ? "mw-active" : ""}
+            style={{ fontWeight: message.readPosition === "after-pointer" ? 700 : undefined }}
             aria-current={selected?.number === message.number ? "true" : undefined}
             onClick={() => openMessage(message)}>
             <span className="mw-thread-from">{message.author}</span>
             <strong>{message.subject || "(No subject)"}</strong>
-            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}</span>
+            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}{message.readPosition === "after-pointer" ? " · New since last-read" : ""}</span>
           </button>)}
           {filtered.length === 0 && <p>{search ? "No matches among loaded messages." : "No messages in this page."}</p>}
           {pageHistory.length > 0 && <button type="button" className="mw-load-more" disabled={loading}
@@ -282,6 +284,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Reading a message here does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
