@@ -48,8 +48,8 @@ function area(id, name, base, security) {
 
 test("parses group records and non-sequential IDs", () => {
   assert.deepEqual(parseMysticGroups(Buffer.concat([group(6, "Netmail"), group(1, "fsxNet")])), [
-    { id: 6, name: "Netmail" },
-    { id: 1, name: "fsxNet" },
+    { id: 6, name: "Netmail", access: "", kind: "message" },
+    { id: 1, name: "fsxNet", access: "", kind: "message" },
   ]);
 });
 
@@ -59,6 +59,7 @@ test("parses area metadata but does not interpret security as authorization", ()
   ]));
   assert.equal(result.length, 1);
   assert.equal(result[0].id, 467);
+  assert.equal(result[0].kind, "message");
   assert.equal(result[0].jamBase, "ham_radio");
   assert.equal(result[0].inferredGroupId, 7);
   assert.deepEqual(result[0].security, ["s10g7", "s10g7", "s20g7", "s255g7"]);
@@ -84,4 +85,14 @@ test("rejects duplicate identifiers", () => {
   assert.throws(() => parseMysticGroups(Buffer.concat([group(1, "a"), group(1, "b")])), /Duplicate/);
   const s = ["s10g1", "s10g1", "s20g1", "s255g1"];
   assert.throws(() => parseMysticAreas(Buffer.concat([area(2, "a", "a", s), area(2, "b", "b", s)])), /Duplicate/);
+});
+
+test("reads native group Access field for message and file groups", () => {
+  const sysop = group(6, "SYSOP Only Stuff");
+  putString(sysop, 167, 30, "s255");
+  assert.equal(parseMysticGroups(sysop)[0].access, "s255");
+  const fileGroup = group(1, "Default File Group");
+  assert.deepEqual(parseMysticGroups(fileGroup, "file")[0], {
+    id: 1, name: "Default File Group", access: "", kind: "file",
+  });
 });
