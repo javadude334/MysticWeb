@@ -55,6 +55,10 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
+  const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string }[] | null>(null);
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const searchRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -112,6 +116,26 @@ export function MessageWorkspace() {
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   };
+  const runSearch = () => {
+    searchRef.current?.abort();
+    if (search.trim().length < 2 || (!searchAllGroups && selectedGroupId === null)) {
+      setError("Enter at least two characters and select a message group.");
+      return;
+    }
+    const controller = new AbortController();
+    searchRef.current = controller;
+    setSearching(true); setError("");
+    const groupName = groups.find(group => group.id === selectedGroupId)?.name ?? "";
+    const params = new URLSearchParams({ search: search.trim(), groupName, allGroups: String(searchAllGroups) });
+    getJSON("/api/messages?" + params, controller.signal).then(value => {
+      if (!value || typeof value !== "object" || !("results" in value) ||
+          !Array.isArray(value.results) || value.results.length > 50)
+        throw new Error("Invalid search response.");
+      setSearchResults(value.results);
+      setSearchTruncated("truncated" in value && value.truncated === true);
+    }).catch(error => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Search unavailable."); })
+      .finally(() => { if (!controller.signal.aborted) setSearching(false); });
+  };
   const filtered = page?.messages.filter(message => {
     const query = search.trim().toLocaleLowerCase();
     return !query || [message.subject, message.author, message.recipient].some(value => value.toLocaleLowerCase().includes(query));
@@ -134,10 +158,11 @@ export function MessageWorkspace() {
         </select>
       </div>
       <label className="mw-search"><span>Search</span>
-        <input type="search" value={search} onChange={event => setSearch(event.target.value)}
+        <input type="search" value={search} onChange={event => { setSearch(event.target.value); setSearchResults(null); }}
           placeholder="Search subjects and senders…" aria-label="Search" />
       </label>
-      <label className="mw-search-scope"><input type="checkbox" checked={searchAllGroups} onChange={event => setSearchAllGroups(event.target.checked)} /> Search all groups</label>
+      <button type="button" disabled={searching} onClick={runSearch}>{searching ? "Searching…" : "Search"}</button>
+      <label className="mw-search-scope"><input type="checkbox" checked={searchAllGroups} onChange={event => { setSearchAllGroups(event.target.checked); setSearchResults(null); }} /> Search all groups</label>
       <button type="button" onClick={() => { setNotice("Posting will be available after the native Mystic writer and permissions are connected."); }}
         aria-label="New post (not yet available)">+ New Post</button>
     </div>
@@ -166,7 +191,23 @@ export function MessageWorkspace() {
         {loading && <p role="status">Loading messages…</p>}
         {error && <p role="alert">{error}</p>}
         {!area && !loading && !error && <p>Choose a message area on the left.</p>}
-        {page && <div className="mw-thread-list">
+        {searchResults && <div className="mw-thread-list" aria-label="Search results">
+          <strong>{searchResults.length} search results{searchTruncated ? " (limited scan)" : ""}</strong>
+          {searchResults.map(result => <button type="button" key={result.areaId + ":" + result.number}
+            onClick={() => {
+              const chosen = areas.find(item => item.id === result.areaId);
+              if (!chosen) return;
+              setSearchResults(null);
+              setSelectedGroupId(chosen.groupIds[0] ?? null);
+              setArea(chosen);
+              setPage(null);
+            }}>
+            <strong>{result.subject || "(No subject)"}</strong>
+            <span>{result.author} · {result.groupName} / {result.areaName} · #{result.number}</span>
+          </button>)}
+          {!searchResults.length && <p>No matching headers in the scanned messages.</p>}
+        </div>}
+        {!searchResults && page && <div className="mw-thread-list">
           {filtered.map(message => <button type="button" key={message.number}
             className={selected?.number === message.number ? "mw-active" : ""}
             aria-current={selected?.number === message.number ? "true" : undefined}
@@ -201,6 +242,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">{searchAllGroups ? "Cross-group search is selected, but the server-side search endpoint is not implemented yet. Results currently cover only the loaded message headers in the open area." : "Search covers loaded message headers in the open area only."}</p>
+    <p className="mw-footnote">Search checks subjects, senders and recipients in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
