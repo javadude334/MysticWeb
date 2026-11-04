@@ -54,3 +54,12 @@ test("mismatched writer receipts and caller instances fail closed", async () => 
   await assert.rejects(poster.post(identity, draft));
   await assert.rejects(poster.post({ instance: "other", userId: 42 }, draft));
 });
+
+test("posting boundary accepts CRLF but rejects bare CR and unsafe Unicode controls", () => {
+  assert.equal(validateMessageDraft({ ...draft, body: "First\r\nSecond" }).body, "First\r\nSecond");
+  for (const body of ["First\rSecond", "Text\u202eoverride", "Text\u000bvertical"]) {
+    assert.throws(() => validateMessageDraft({ ...draft, body }));
+  }
+  assert.throws(() => validateMessageDraft({ ...draft, subject: "Header\r\nInjection" }));
+  assert.throws(() => validateMessageDraft({ ...draft, body: "é".repeat(32769) }));
+});
