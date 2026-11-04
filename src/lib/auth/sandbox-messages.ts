@@ -31,13 +31,8 @@ export async function sandboxMessages(request: Request): Promise<Response> {
   if (request.method !== "GET") return json({ error: "Method unavailable" }, 405);
   const root = process.env.MYSTIC_DATA_ROOT;
   const db = process.env.MYSTICWEB_SESSION_DB;
-  const allow = process.env.MYSTICWEB_SANDBOX_READ_AREAS;
-  if (!root || !path.isAbsolute(root) || !db || !path.isAbsolute(db) || !allow ||
-      !/^[1-9][0-9]*(?:\s*,\s*[1-9][0-9]*)*$/.test(allow))
-    return json({ error: "Sandbox reader requires an explicit area allowlist" }, 503);
-  const approved = new Set(allow.split(",").map(value => Number(value.trim())));
-  if ([...approved].some(id => !Number.isSafeInteger(id) || id > 65535))
-    return json({ error: "Invalid sandbox allowlist" }, 503);
+  if (!root || !path.isAbsolute(root) || !db || !path.isAbsolute(db))
+    return json({ error: "Sandbox reader is not configured" }, 503);
   const cookies = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim())
     .filter(x => x.startsWith(COOKIE + "="));
   if (cookies.length !== 1) return json({ error: "Sign in required" }, 401);
@@ -66,10 +61,10 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       eligibleIds.has(a.inferredGroupId) && isJamBaseName(a.jamBase) &&
       candidateMeetsSecurityLevel(a.security[0], a.security[1], account.securityLevel).candidate &&
       !isNetmailNamedGroup(a.name));
-    // JAM access remains independently limited by the operator allowlist.
-    const visible = eligibleAreas.filter(a => approved.has(a.id));
-    // Sandbox catalog is informational only. Exposing an area in the
-    // navigation does not authorize reading its JAM messages.
+    // Development-only: eligible areas are readable without a numeric allowlist.
+    // JAM independently rejects protected/private/netmail message records.
+    const visible = eligibleAreas;
+    // Catalog and reading use the same current-account eligibility filter.
     const catalogAreas = eligibleAreas
       .map(a => ({
         id: a.id, name: a.name, groupIds: [a.inferredGroupId as number],
@@ -127,8 +122,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     }
     if (!params.has("area")) {
       if (keys.length) return json({ error: "Invalid request" }, 400);
-      // The development catalog may show all configured group names, but
-      // individual area listings and JAM reads remain operator-allowlisted.
+      // Only areas passing the current-account eligibility filter are listed.
       return json({ groups: eligibleGroups,
         areas: catalogAreas });
     }
