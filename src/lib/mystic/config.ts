@@ -35,7 +35,7 @@ function splitRecords(data: Buffer, size: number): Buffer[] {
 
 export function parseMysticGroups(data: Buffer, kind: "message"): MysticMessageGroup[];
 export function parseMysticGroups(data: Buffer, kind: "file"): MysticFileGroup[];
-export function parseMysticGroups(data: Buffer, kind: "message" | "file" = "message"): MysticMessageGroup[] | MysticFileGroup[];
+export function parseMysticGroups(data: Buffer): MysticMessageGroup[];
 export function parseMysticGroups(data: Buffer, kind: "message" | "file" = "message"): MysticMessageGroup[] | MysticFileGroup[] {
   const groups = splitRecords(data, GROUP_RECORD_BYTES).map((record) => ({
     id: record.readUInt32LE(0),
@@ -46,7 +46,7 @@ export function parseMysticGroups(data: Buffer, kind: "message" | "file" = "mess
   if (new Set(groups.map((group) => group.id)).size !== groups.length) {
     throw new Error("Duplicate Mystic group identifiers");
   }
-  return groups;
+  return groups as MysticMessageGroup[] | MysticFileGroup[];
 }
 
 export function parseMysticAreas(data: Buffer): MysticArea[] {
