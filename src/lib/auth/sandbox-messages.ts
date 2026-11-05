@@ -24,7 +24,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
   const runtime = initializeMysticWebRuntime();
   const root = runtime.directories.rootDir;
   const db = runtime.databasePath;
-  const jamRoot = runtime.directories.messagesDir;
+  const jamRoot = runtime.directories.messageDir;
   const cookies = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim())
     .filter(x => x.startsWith(COOKIE + "="));
   if (cookies.length !== 1) return json({ error: "Sign in required" }, 401);
