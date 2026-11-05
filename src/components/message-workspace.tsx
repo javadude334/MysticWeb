@@ -79,6 +79,36 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
+  const [composer, setComposer] = useState<{ replyTo?: number; recipient: string; subject: string; body: string } | null>(null);
+  const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState("");
+  const openComposer = (message?: Message) => {
+    if (!area) { setNotice("Select a message area first."); return; }
+    setPostError("");
+    setComposer({ ...(message ? { replyTo: message.number } : {}), recipient: message?.author ?? "All",
+      subject: message ? (/^Re:/i.test(message.subject) ? message.subject : "Re: " + message.subject) : "", body: "" });
+  };
+  const submitPost = async () => {
+    if (!area || !composer || posting) return;
+    if (!composer.recipient.trim() || !composer.subject.trim() || !composer.body.trim()) { setPostError("Complete all fields."); return; }
+    setPosting(true); setPostError("");
+    try {
+      const response = await fetch("/api/messages?action=post", { method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ area: area.id, recipient: composer.recipient.trim(), subject: composer.subject.trim(),
+          body: composer.body, ...(composer.replyTo ? { replyTo: composer.replyTo } : {}) }) });
+      if (!response.ok) throw new Error(response.status === 403 ? "Posting denied for this area." :
+        response.status === 401 ? "Session expired. Sign in again." : "Posting unavailable. Your draft is preserved.");
+      const receipt: unknown = await response.json();
+      if (!receipt || typeof receipt !== "object" || !("posted" in receipt) || receipt.posted !== true ||
+          !("number" in receipt) || !Number.isSafeInteger(receipt.number))
+        throw new Error("Unverified posting receipt; check the message base before retrying.");
+      const number = receipt.number as number;
+      setComposer(null); setNotice("Posted message #" + number); setSearchResults(null); setSearch("");
+      pendingSearchMessage.current = { areaId: area.id, number }; load(area); setUnreadScan(n => n + 1);
+    } catch (error) { setPostError(error instanceof Error ? error.message : "Posting failed."); }
+    finally { setPosting(false); }
+  };
   // Explicit native synchronization is disabled until the authenticated writer
   // and Mystic-compatible locking are certified. Browsing never writes JLR.
   const mysticSyncAvailable = false;
@@ -276,9 +306,19 @@ export function MessageWorkspace() {
         <label className="mw-search-scope" style={{ alignSelf: "flex-start" }}><input type="checkbox" checked={searchAllGroups} onChange={event => { setSearchAllGroups(event.target.checked); setSearchResults(null); }} /> Search all groups</label>
       </div>
       <button type="button" disabled={searching} onClick={runSearch}>{searching ? "Searching…" : "Search"}</button>
-      <button type="button" onClick={() => { setNotice("Posting will be available after the native Mystic writer and permissions are connected."); }}
-        aria-label="New post (not yet available)">+ New Post</button></div>
+      <button type="button" disabled={!area || posting} onClick={() => openComposer()}
+        aria-label="New post">+ New Post</button></div>
     </div>
+    {composer && area && <section aria-label="Message composer" style={{ padding: "1rem", border: "1px solid #777", display: "grid", gap: "0.5rem" }}>
+      <h2>{composer.replyTo ? "Reply to #" + composer.replyTo : "New post"} · {area.name}</h2>
+      <label>To <input value={composer.recipient} maxLength={255} onChange={e => setComposer(c => c ? { ...c, recipient: e.target.value } : null)} /></label>
+      <label>Subject <input value={composer.subject} maxLength={255} onChange={e => setComposer(c => c ? { ...c, subject: e.target.value } : null)} /></label>
+      <label>Message <textarea rows={9} maxLength={60000} value={composer.body} onChange={e => setComposer(c => c ? { ...c, body: e.target.value } : null)} /></label>
+      <small>MysticWeb version signature is added automatically. Offline sandbox only.</small>
+      {postError && <p role="alert">{postError}</p>}
+      <div><button type="button" disabled={posting} onClick={() => void submitPost()}>{posting ? "Posting…" : "Post message"}</button>
+        <button type="button" disabled={posting} onClick={() => { setComposer(null); setPostError(""); }}>Cancel</button></div>
+    </section>}
     {notice && <p className="mw-notice" role="status">{notice} <button type="button" onClick={() => setNotice("")}>Dismiss</button></p>}
     <div className="mw-mail-grid">
       <aside className="mw-folders" aria-label="Message areas">
@@ -362,7 +402,7 @@ export function MessageWorkspace() {
               .map(([label, number]) => typeof number === "number" && Number.isSafeInteger(number) && number > 0
                 ? <button type="button" key={label} disabled={loading}
                     onClick={() => openMessage({ number })}>{label} #{number}</button> : null)}
-            <button type="button" onClick={() => setNotice("Reply requires the native Mystic posting service, which is not connected yet.")}>↩ Reply</button>
+            <button type="button" disabled={posting} onClick={() => openComposer(selected)}>↩ Reply</button>
           </div>
           <h2>{selected.subject || "(No subject)"}</h2>
           <p className="mw-message-meta"><strong>{selected.author}</strong> → {selected.recipient} · Message #{selected.number} · {formatMysticDate(selected.dates.written)}</p>
