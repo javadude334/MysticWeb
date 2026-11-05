@@ -35,28 +35,37 @@ function privateDatabaseDirectory(dataDir: string): string {
   // Windows-specific: refuse removable/network filesystems, and install a
   // protected ACL allowing only this process identity and SYSTEM. This must
   // succeed before SQLite can create a journal or database file.
+  // icacls modifies the DACL only. PowerShell Set-Acl can also attempt to
+  // write the SACL and demand SeSecurityPrivilege from non-admin users.
+  const sid = execFileSync("powershell.exe", [
+    "-NoProfile", "-NonInteractive", "-Command",
+    "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
+  ], { encoding: "utf8", timeout: 10000, windowsHide: true }).trim();
+  if (!/^S-1-5-[0-9-]+$/.test(sid)) throw new Error("Cannot resolve Windows identity");
+  for (const target of [dir, path.win32.join(dir, "mysticweb.db")]) {
+    if (!existsSync(target)) continue;
+    execFileSync("icacls.exe", [target, "/inheritance:r"], {
+      timeout: 10000, windowsHide: true, stdio: "pipe",
+    });
+    execFileSync("icacls.exe", [target, "/grant:r", `*${sid}:(OI)(CI)F`, "*S-1-5-18:(OI)(CI)F"], {
+      timeout: 10000, windowsHide: true, stdio: "pipe",
+    });
+  }
+  // Verify the effective explicit allow/deny principals before opening SQLite.
   const script = [
     "$ErrorActionPreference='Stop'",
     "$p=$env:MYSTICWEB_SECURE_DIR",
     "$drive=[System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($p))",
     "if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) { throw 'Local fixed disk required' }",
-    "$me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User",
-    "$system=[System.Security.Principal.SecurityIdentifier]::new('S-1-5-18')",
+    "$me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
     "foreach ($target in @($p,(Join-Path $p 'mysticweb.db'))) {",
     "if (-not (Test-Path -LiteralPath $target)) { continue }",
-    "$acl=Get-Acl -LiteralPath $target",
-    "$acl.SetAccessRuleProtection($true,$false)",
-    "foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }",
-    "foreach ($sid in @($me,$system)) {",
-    "  $rule=[System.Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')",
-    "  $acl.SetAccessRule($rule)",
-    "}",
-    "Set-Acl -LiteralPath $target -AclObject $acl",
-    "$check=Get-Acl -LiteralPath $target",
-    "if (-not $check.AreAccessRulesProtected) { throw 'ACL inheritance not disabled' }",
-    "foreach ($rule in $check.Access) {",
-    "  $sid=$rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
-    "  if ($sid -ne $me.Value -and $sid -ne $system.Value) { throw 'Unexpected database ACL principal' }",
+    "$acl=(Get-Acl -LiteralPath $target)",
+    "if (-not $acl.AreAccessRulesProtected) { throw 'ACL inheritance enabled' }",
+    "foreach ($rule in $acl.Access) {",
+    "$who=$rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
+    "if ($who -ne $me -and $who -ne 'S-1-5-18') { throw 'Unexpected database ACL principal' }",
+    "if ($rule.AccessControlType -ne 'Allow') { throw 'Unexpected deny rule' }",
     "}",
     "}"
   ].join("; ");
