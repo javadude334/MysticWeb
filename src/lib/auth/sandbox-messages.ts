@@ -12,6 +12,7 @@ import { MessageAccess } from "../mystic/message-access";
 import { searchMessages } from "../mystic/search-messages";
 import { stableJamReceiptId, readUserMessageReceipt } from "../mystic/message-sidecar";
 import { recordUserMessageRead } from "../mystic/message-receipt-writer";
+import { appendOfflineJam } from "../mystic/jam-offline-writer";
 
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
@@ -38,6 +39,65 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const account = await readNativeAccountSnapshot(runtime.usersPath, identity.userId);
     if (!account || account.locked || account.deletedCandidate || account.passwordChangeRequired)
       return json({ error: "Account unavailable" }, 401);
+    // Sandbox-only native posting. A separate operation prevents read-receipt
+    // clients from accidentally triggering a message write.
+    if (request.method === "POST" && new URL(request.url).pathname.endsWith("/api/messages") &&
+        new URL(request.url).search === "?action=post") {
+      if (request.headers.get("content-type") !== "application/json" ||
+          request.headers.has("content-encoding")) return json({ error: "Invalid request" }, 400);
+      const declared = Number(request.headers.get("content-length") ?? "0");
+      if (!Number.isSafeInteger(declared) || declared < 1 || declared > 70000)
+        return json({ error: "Invalid request" }, 400);
+      const raw = await request.text();
+      if (Buffer.byteLength(raw, "utf8") > 70000) return json({ error: "Invalid request" }, 400);
+      const input: unknown = JSON.parse(raw);
+      if (!input || typeof input !== "object" || Array.isArray(input))
+        return json({ error: "Invalid draft" }, 400);
+      const post = input as Record<string, unknown>;
+      const keys = Object.keys(post).sort().join(",");
+      if (keys !== "area,body,recipient,subject" &&
+          keys !== "area,body,recipient,replyTo,subject")
+        return json({ error: "Invalid draft" }, 400);
+      if (!Number.isSafeInteger(post.area) || (post.area as number) < 1 ||
+          typeof post.recipient !== "string" || !post.recipient.trim() ||
+          typeof post.subject !== "string" || !post.subject.trim() ||
+          typeof post.body !== "string" || !post.body.trim() ||
+          (post.replyTo !== undefined && (!Number.isSafeInteger(post.replyTo) ||
+            (post.replyTo as number) < 1 || (post.replyTo as number) > 0xffffffff)) ||
+          [post.recipient, post.subject].some(v => /[\\x00-\\x1f\\x7f]/.test(v as string) || Buffer.byteLength(v as string) > 255) ||
+          (post.body as string).length > 60000 || /[\\x00\\x1b\\x7f]/.test(post.body as string))
+        return json({ error: "Invalid draft" }, 400);
+      const { groups, areas } = await readMysticConfiguration();
+      const access = new MessageAccess(groups, areas, account.securityLevel);
+      const area = access.getArea(post.area as number);
+      if (!area || !access.canPost(area.id) || !isJamBaseName(area.jamBase))
+        return json({ error: "Posting unavailable" }, 403);
+      if (!jamRoot || !path.isAbsolute(jamRoot)) return json({ error: "Unavailable" }, 503);
+      const [sandboxStat, jamStat] = await Promise.all([lstat(root), lstat(jamRoot)]);
+      if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
+          !jamStat.isDirectory() || jamStat.isSymbolicLink())
+        return json({ error: "Unavailable" }, 503);
+      const [sandboxReal, jamReal] = await Promise.all([realpath(root), realpath(jamRoot)]);
+      const relative = path.relative(sandboxReal, jamReal);
+      if (!relative || relative === ".." || relative.startsWith(".." + path.sep) ||
+          path.isAbsolute(relative)) return json({ error: "Unavailable" }, 503);
+      if (post.replyTo !== undefined) {
+        const parent = await readJam(jamReal, area.jamBase, { message: post.replyTo as number });
+        if (parent.messages.length !== 1 || parent.messages[0].number !== post.replyTo)
+          return json({ error: "Reply parent unavailable" }, 404);
+      }
+      // Native account identity is server-owned. A native handle lookup must
+      // replace this stable fallback before enabling production posting.
+      const result = await appendOfflineJam(jamReal, area.jamBase, {
+        author: `User #${identity.userId}`,
+        recipient: (post.recipient as string).trim(),
+        subject: (post.subject as string).trim(),
+        body: post.body as string,
+        timestamp: Math.floor(Date.now() / 1000),
+        ...(post.replyTo === undefined ? {} : { replyTo: post.replyTo as number }),
+      }, { offlineConfirmed: process.env.MYSTICWEB_OFFLINE_JAM_WRITE === "I_UNDERSTAND_OFFLINE_ONLY" });
+      return json({ posted: true, area: area.id, number: result.number, messageId: result.messageId }, 201);
+    }
     // A message-open mutation must use the same current account, area ACS and
     // verified sandbox JAM path as the read endpoint. Never accept user/base/ID.
     if (request.method === "POST") {
