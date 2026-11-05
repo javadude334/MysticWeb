@@ -24,6 +24,18 @@ function load(filename) {
   return mod.exports;
 }
 const { appendOfflineJam } = load("jam-offline-writer.ts");
+const { readJam } = (() => {
+  const filename = path.resolve(__dirname, "../src/lib/mystic/jam.ts");
+  const mod = new Module(filename, module);
+  mod.filename = filename;
+  mod.paths = Module._nodeModulePaths(path.dirname(filename));
+  const original = mod.require.bind(mod);
+  mod.require = name => name === "server-only" ? {} : original(name);
+  mod._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+  }).outputText, filename);
+  return mod.exports;
+})();
 const draft = { author: "Tester", recipient: "All", subject: "Offline test", body: "Hello world", timestamp: 1700000000 };
 
 test("offline JAM writer is disabled without explicit operator confirmation", async () => {
@@ -63,6 +75,12 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     assert.equal(records.readUInt32LE(replyTwoOffset + 24), 1);
     assert.equal(records.readUInt32LE(replyTwoOffset + 32), 0);
     assert.equal(fs.statSync(path.join(dir, "demo.jdx")).size, 24);
+    // Exercise the actual MysticWeb JAM reader, not a writer-specific decoder.
+    const page = await readJam(dir, "demo", { limit: 10 });
+    assert.deepEqual(page.messages.map(m => m.number), [3, 2, 1]);
+    const opened = await readJam(dir, "demo", { message: 3 });
+    assert.equal(opened.messages[0].replyTo, 1);
+    assert.equal(opened.messages[0].body, "Hello world");
   } finally {
     if (old === undefined) delete process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
     else process.env.MYSTICWEB_OFFLINE_JAM_WRITE = old;
