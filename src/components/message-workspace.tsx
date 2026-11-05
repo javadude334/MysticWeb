@@ -44,7 +44,7 @@ async function getJSON(url: string, signal: AbortSignal): Promise<unknown> {
   return response.json();
 }
 
-/** Read-only public echo reader. Server owns authentication and every authorization decision. */
+/** Authenticated echo workspace; posting is gated by the sandbox server. */
 export function MessageWorkspace() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -79,17 +79,18 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
-  const [composer, setComposer] = useState<{ replyTo?: number; recipient: string; subject: string; body: string } | null>(null);
+  const [composer, setComposer] = useState<{ areaId: number; replyTo?: number; recipient: string; subject: string; body: string } | null>(null);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
   const openComposer = (message?: Message) => {
     if (!area) { setNotice("Select a message area first."); return; }
     setPostError("");
-    setComposer({ ...(message ? { replyTo: message.number } : {}), recipient: message?.author ?? "All",
+    setComposer({ areaId: area.id, ...(message ? { replyTo: message.number } : {}), recipient: message?.author ?? "All",
       subject: message ? (/^Re:/i.test(message.subject) ? message.subject : "Re: " + message.subject) : "", body: "" });
   };
   const submitPost = async () => {
     if (!area || !composer || posting) return;
+    if (area.id !== composer.areaId) { setPostError("Message area changed. Reopen the composer."); return; }
     if (!composer.recipient.trim() || !composer.subject.trim() || !composer.body.trim()) { setPostError("Complete all fields."); return; }
     setPosting(true); setPostError("");
     try {
@@ -309,7 +310,7 @@ export function MessageWorkspace() {
       <button type="button" disabled={!area || posting} onClick={() => openComposer()}
         aria-label="New post">+ New Post</button></div>
     </div>
-    {composer && area && <section aria-label="Message composer" style={{ padding: "1rem", border: "1px solid #777", display: "grid", gap: "0.5rem" }}>
+    {composer && area && composer.areaId === area.id && <section aria-label="Message composer" style={{ padding: "1rem", border: "1px solid #777", display: "grid", gap: "0.5rem" }}>
       <h2>{composer.replyTo ? "Reply to #" + composer.replyTo : "New post"} · {area.name}</h2>
       <label>To <input value={composer.recipient} maxLength={255} onChange={e => setComposer(c => c ? { ...c, recipient: e.target.value } : null)} /></label>
       <label>Subject <input value={composer.subject} maxLength={255} onChange={e => setComposer(c => c ? { ...c, subject: e.target.value } : null)} /></label>
