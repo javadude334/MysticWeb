@@ -19,7 +19,11 @@ const mod = new Module(filename, module);
 mod.filename = filename;
 mod.paths = Module._nodeModulePaths(path.dirname(filename));
 const originalRequire = mod.require.bind(mod);
-mod.require = (id) => (id === "server-only" ? {} : originalRequire(id));
+mod.require = (id) => {
+  if (id === "server-only") return {};
+  if (id === "./directories") return { mysticDirectories: () => { throw new Error("Directory access is not part of parser unit tests"); } };
+  return originalRequire(id);
+};
 mod._compile(compiled, filename);
 const { parseMysticGroups, parseMysticAreas } = mod.exports;
 
