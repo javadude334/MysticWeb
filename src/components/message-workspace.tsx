@@ -336,9 +336,9 @@ export function MessageWorkspace() {
             title="Unavailable until the authenticated Mystic pointer writer is verified"
             onClick={() => {
               // This must never update native pointers from client-side state.
-              setNotice("Mystic synchronization is not yet enabled.");
-            }}>Mark as Read in Mystic</button>
-          <small>Current message area only. Native synchronization will require confirmation.</small>
+              setNotice("Message pointer updates are not yet enabled.");
+            }}>Update Message Pointers</button>
+          <small>All authorized message areas. Each native pointer will stop immediately before the first unread MysticWeb message; ambiguous areas will be skipped. Confirmation required.</small>
         </div>}
       </section>
       <section className="mw-reading-pane" aria-label="Message reader">
