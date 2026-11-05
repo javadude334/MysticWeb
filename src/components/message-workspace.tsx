@@ -151,6 +151,21 @@ export function MessageWorkspace() {
   }, [groups, unreadScan]);
   const orderedGroups = [...groups].sort((a, b) =>
     Number(unreadGroupIds.includes(b.id)) - Number(unreadGroupIds.includes(a.id)));
+  const persistWebRead = (areaId: number, number: number) => {
+    // Explicit JSON mutation; native Mystic .jlr is never modified.
+    void fetch("/api/messages", {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ area: areaId, message: number }),
+    }).then(response => {
+      if (!response.ok) throw new Error("Unable to save MysticWeb read status.");
+      setViewed(previous => ({ ...previous, [areaId + ":" + number]: true }));
+      setUnreadScan(value => value + 1);
+      setPage(previous => previous?.area.id === areaId ? {
+        ...previous, messages: previous.messages.map(m => m.number === number ? { ...m, webRead: true } : m),
+      } : previous);
+    }).catch(() => setNotice("Message displayed, but MysticWeb could not save its read status."));
+  };
   const load = useCallback((chosen: Area, before?: number, history: number[] = []) => {
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -190,21 +205,6 @@ export function MessageWorkspace() {
     });
     return () => { active = false; cancel?.(); };
   }, [area, load]);
-  const persistWebRead = (areaId: number, number: number) => {
-    // Explicit JSON mutation; native Mystic .jlr is never modified.
-    void fetch("/api/messages", {
-      method: "POST", credentials: "same-origin", cache: "no-store",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ area: areaId, message: number }),
-    }).then(response => {
-      if (!response.ok) throw new Error("Unable to save MysticWeb read status.");
-      setViewed(previous => ({ ...previous, [areaId + ":" + number]: true }));
-      setUnreadScan(value => value + 1);
-      setPage(previous => previous?.area.id === areaId ? {
-        ...previous, messages: previous.messages.map(m => m.number === number ? { ...m, webRead: true } : m),
-      } : previous);
-    }).catch(() => setNotice("Message displayed, but MysticWeb could not save its read status."));
-  };
   const openMessage = (message: Pick<Message, "number">) => {
     if (!area) return;
     requestRef.current?.abort();
