@@ -46,20 +46,59 @@ export async function appendOfflineJam(
     const first = baseHeader.readUInt32LE(20);
     const number = first + sizes[1] / 8;
     if (first < 1 || number > 0xffffffff) throw new Error("Message number overflow");
-    if (draft.replyTo) {
+    // Validate the parent and walk the sibling chain while the offline lock
+    // is held. Refuse deleted entries, malformed links and cycles.
+    let link: { offset: number; original: Buffer; updated: Buffer } | null = null;
+    let replyId: string | undefined;
+    if (draft.replyTo !== undefined) {
       if (!Number.isSafeInteger(draft.replyTo) || draft.replyTo < first || draft.replyTo >= number)
         throw new Error("Invalid reply parent");
-      // This offline writer does not yet modify the parent's reply chain.
-      // Refuse to create a misleading partial thread.
-      throw new Error("Reply chain update not implemented");
+      const seen = new Set<number>();
+      let current = draft.replyTo;
+      while (true) {
+        if (seen.has(current)) throw new Error("Cyclic JAM reply chain");
+        seen.add(current);
+        const entry = Buffer.alloc(8);
+        const slot = (current - first) * 8;
+        if ((await jdx.read(entry, 0, 8, slot)).bytesRead !== 8)
+          throw new Error("Missing reply message");
+        const offset = entry.readUInt32LE(4);
+        if (offset < 1024 || offset + 76 > sizes[0] || offset === 0xffffffff)
+          throw new Error("Invalid reply message offset");
+        const fixed = Buffer.alloc(76);
+        if ((await jhr.read(fixed, 0, 76, offset)).bytesRead !== 76 ||
+            fixed.toString("binary", 0, 4) !== "JAM\\0" ||
+            fixed.readUInt16LE(4) !== 1 || fixed.readUInt32LE(48) !== current ||
+            (fixed.readUInt32LE(52) & 0xbe380004) !== 0)
+          throw new Error("Invalid reply message");
+        const next = current === draft.replyTo ? fixed.readUInt32LE(28) : fixed.readUInt32LE(32);
+        if (next === 0) {
+          const updated = Buffer.from(fixed);
+          updated.writeUInt32LE(number, current === draft.replyTo ? 28 : 32);
+          link = { offset, original: fixed, updated };
+          break;
+        }
+        if (next < first || next >= number) throw new Error("Invalid reply chain link");
+        current = next;
+      }
+      // The reply ID is optional in JAM; numeric reply linkage is authoritative.
+      replyId = undefined;
     }
     const messageId = "<" + randomUUID() + "@mysticweb.local>";
-    const encoded = encodeJamDraft({ ...draft, number, messageId }, sizes[0], sizes[2]);
+    const encoded = encodeJamDraft({ ...draft, replyId, number, messageId }, sizes[0], sizes[2]);
     const writes = [
       { handle: jdt, data: encoded.text, position: sizes[2] },
       { handle: jhr, data: encoded.header, position: sizes[0] },
       { handle: jdx, data: encoded.index, position: sizes[1] },
     ];
+    async function writeFully(handle: typeof jhr, data: Buffer, position: number) {
+      let written = 0;
+      while (written < data.length) {
+        const result = await handle.write(data, written, data.length - written, position + written);
+        if (result.bytesWritten <= 0) throw new Error("Short JAM write");
+        written += result.bytesWritten;
+      }
+    }
     let started = false;
     try {
       for (const { handle, data, position } of writes) {
@@ -72,10 +111,21 @@ export async function appendOfflineJam(
         }
         await handle.sync();
       }
+      if (link) {
+        await writeFully(jhr, link.updated, link.offset);
+        await jhr.sync();
+      }
       return { number, messageId };
     } catch (error) {
       if (started) {
         try {
+          // Remove the child index first, restore parent linkage, then truncate.
+          await jdx.truncate(sizes[1]);
+          await jdx.sync();
+          if (link) {
+            await writeFully(jhr, link.original, link.offset);
+            await jhr.sync();
+          }
           // Reverse commit order: hide the index entry before removing data.
           for (const i of [1, 0, 2]) {
             await handles[i].truncate(sizes[i]);
