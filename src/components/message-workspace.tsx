@@ -332,16 +332,7 @@ export function MessageWorkspace() {
           {page.nextBefore !== null && <button type="button" className="mw-load-more" disabled={loading}
             onClick={() => { if (area && page.nextBefore !== null) load(area, page.nextBefore, [...pageHistory, page.nextBefore]); }}>Older messages</button>}
         </div>}
-        {area && page && <div className="mw-sync-footer">
-          <p>Reading here does not change Mystic BBS last-read pointers.</p>
-          <button type="button" disabled={!mysticSyncAvailable || loading}
-            title="Unavailable until the authenticated Mystic pointer writer is verified"
-            onClick={() => {
-              // This must never update native pointers from client-side state.
-              setNotice("Message pointer updates are not yet enabled.");
-            }}>Update Message Pointers</button>
-          <small>All authorized message areas. Each native pointer will stop immediately before the first unread MysticWeb message; ambiguous areas will be skipped. Confirmation required.</small>
-        </div>}
+
       </section>
       <section className="mw-reading-pane" aria-label="Message reader">
         {!selected && <div className="mw-reader-empty"><strong>No message selected</strong>
@@ -361,6 +352,16 @@ export function MessageWorkspace() {
           <pre><MysticText text={selected.body ?? "Message body not loaded."} /></pre>
         </article>}
       </section>
+    </div>
+    <div className="mw-sync-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", padding: "1rem", borderTop: "1px solid var(--mw-border, #374151)" }}>
+      <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+        <strong>Update Mystic message pointers</strong>
+        <p style={{ margin: "0.25rem 0 0" }}>Updates all authorized areas up to the message before each area’s first unread message. Read messages after that point do not advance the pointer.</p>
+        <small>Browsing MysticWeb never changes native Mystic pointers. Areas with unknown state or conflicting native pointers will be skipped.</small>
+      </div>
+      <button type="button" disabled={!mysticSyncAvailable || loading}
+        title="Unavailable until authenticated native pointer updates are verified"
+        onClick={() => setNotice("Message pointer updates are not yet enabled.")}>Update Message Pointers</button>
     </div>
     <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Opening a message never updates Mystic pointers. The separate JSON read-state integration is still being connected. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
