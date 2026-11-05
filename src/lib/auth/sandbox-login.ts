@@ -1,5 +1,5 @@
 import "server-only";
-import { initializeMysticWebRuntime } from "../storage/runtime";
+import path from "node:path";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { AuthStore, rateBucket } from "./store";
 import { verifyMysticHandle } from "../mystic/native-user-login";
@@ -11,14 +11,13 @@ const reply = (data: unknown, status = 200) => Response.json(data, { status, hea
 const allowed = () => process.env.NODE_ENV === "development";
 function config() {
   if (!allowed()) return null;
-  try {
-    const runtime = initializeMysticWebRuntime({ privateLocalDataVerified: false });
-    return {
-      users: runtime.directories.dataDir + "\\users.dat",
-      db: runtime.directories.databasePath,
-      secret: runtime.rateKey,
-    };
-  } catch { return null; }
+  const root = process.env.MYSTIC_DATA_ROOT;
+  if (!root || !path.isAbsolute(root)) return null;
+  const users = path.join(root, "data", "users.dat");
+  const db = process.env.MYSTICWEB_SESSION_DB;
+  const secret = process.env.MYSTICWEB_RATE_KEY;
+  if (!users || !db || !secret || !/^[a-f0-9]{64}$/i.test(secret) || !path.isAbsolute(users) || !path.isAbsolute(db)) return null;
+  return { users, db, secret: Buffer.from(secret, "hex") };
 }
 function currentToken(request: Request) {
   const values = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim()).filter(x => x.startsWith(COOKIE + "="));
