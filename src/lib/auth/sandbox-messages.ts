@@ -3,6 +3,7 @@ import path from "node:path";
 import { lstat, realpath, readFile } from "node:fs/promises";
 import { classifyJamMessage, getJamMessageReadState } from "../mystic/jam-message-read-state";
 import { AuthStore } from "./store";
+import { initializeMysticWebRuntime } from "../storage/runtime";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticConfiguration } from "../mystic/config";
@@ -20,10 +21,10 @@ export async function sandboxMessages(request: Request): Promise<Response> {
   if (process.env.NODE_ENV !== "development" || !sandboxOriginAllowed(request, request.method === "POST"))
     return json({ error: "Unavailable" }, 404);
   if (request.method !== "GET" && request.method !== "POST") return json({ error: "Method unavailable" }, 405);
-  const root = process.env.MYSTIC_DATA_ROOT;
-  const db = process.env.MYSTICWEB_SESSION_DB;
-  if (!root || !path.isAbsolute(root) || !db || !path.isAbsolute(db))
-    return json({ error: "Sandbox reader is not configured" }, 503);
+  const runtime = initializeMysticWebRuntime();
+  const root = runtime.directories.rootDir;
+  const db = runtime.databasePath;
+  const jamRoot = runtime.directories.messagesDir;
   const cookies = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim())
     .filter(x => x.startsWith(COOKIE + "="));
   if (cookies.length !== 1) return json({ error: "Sign in required" }, 401);
@@ -34,7 +35,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     finally { store.close(); }
     if (!identity || identity.instance !== "mystic_sandbox")
       return json({ error: "Sign in required" }, 401);
-    const account = await readNativeAccountSnapshot(path.join(root, "data", "users.dat"), identity.userId);
+    const account = await readNativeAccountSnapshot(runtime.usersPath, identity.userId);
     if (!account || account.locked || account.deletedCandidate || account.passwordChangeRequired)
       return json({ error: "Account unavailable" }, 401);
     // A message-open mutation must use the same current account, area ACS and
@@ -57,7 +58,6 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       const area = access.getArea(input.area as number);
       if (!area || !access.canRead(area.id) || !isJamBaseName(area.jamBase))
         return json({ error: "Area unavailable" }, 403);
-      const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
       if (!jamRoot || !path.isAbsolute(jamRoot)) return json({ error: "Unavailable" }, 503);
       const [sandboxStat, jamStat] = await Promise.all([lstat(root), lstat(jamRoot)]);
       if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
@@ -96,7 +96,6 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (!Number.isSafeInteger(groupId) || groupId > 65535 ||
           !eligibleGroups.some(group => group.id === groupId))
         return json({ error: "Group unavailable" }, 404);
-      const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
       if (!jamRoot || !path.isAbsolute(jamRoot)) return json({ error: "Sandbox JAM root not configured" }, 503);
       const [sandboxStat, jamStat] = await Promise.all([lstat(root), lstat(jamRoot)]);
       if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
@@ -139,7 +138,6 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       const allGroups = allGroupsValue === "true";
       if (!allGroups && !eligibleGroups.some(group => group.name === groupName))
         return json({ error: "Group unavailable" }, 404);
-      const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
       if (!jamRoot || !path.isAbsolute(jamRoot))
         return json({ error: "Sandbox JAM root not configured" }, 503);
       const sandboxStat = await lstat(root);
@@ -193,7 +191,6 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const limit = integer("limit", 50) ?? 25;
     // This preview supports only the operator-selected sandbox JAM directory.
     // Production must use verified per-area paths and native ACS authorization.
-    const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
     if (!jamRoot || !path.isAbsolute(jamRoot))
       return json({ error: "Sandbox JAM root not configured" }, 503);
     // The operator-selected JAM directory must be physically contained within
