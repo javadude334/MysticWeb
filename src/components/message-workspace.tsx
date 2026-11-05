@@ -77,7 +77,9 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
-  // Explicit native synchronization is disabled until the authenticated writer\n  // and Mystic-compatible locking are certified. Browsing never writes JLR.\n  const mysticSyncAvailable = false;
+  // Explicit native synchronization is disabled until the authenticated writer
+  // and Mystic-compatible locking are certified. Browsing never writes JLR.
+  const mysticSyncAvailable = false;
   const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
