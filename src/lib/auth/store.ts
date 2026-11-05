@@ -105,6 +105,28 @@ export class AuthStore {
     }
   }
 
+  /** Stable per-installation rate-limiting key, created atomically once.
+   * Supply the previous 32-byte environment key during an explicit migration
+   * to preserve existing rate-limit bucket identities.
+   */
+  getOrCreateRateKey(previousKey?: Buffer): Buffer {
+    if (previousKey && previousKey.length !== 32) throw new AuthStoreError();
+    return this.transaction(() => {
+      const key = "rate_hmac_key_v1";
+      const existing = this.db.prepare("SELECT value FROM mysticweb_settings WHERE key = ?").get(key);
+      if (existing) {
+        const hex = String(existing.value);
+        if (!/^[a-f0-9]{64}$/.test(hex)) throw new AuthStoreError();
+        if (previousKey && previousKey.toString("hex") !== hex) throw new AuthStoreError();
+        return Buffer.from(hex, "hex");
+      }
+      const secret = previousKey ? Buffer.from(previousKey) : randomBytes(32);
+      this.db.prepare("INSERT INTO mysticweb_settings(key, value) VALUES (?, ?)")
+        .run(key, secret.toString("hex"));
+      return secret;
+    });
+  }
+
   private now() {
     const now = this.clock();
     if (!Number.isSafeInteger(now) || now < 0 || now > Number.MAX_SAFE_INTEGER - ABSOLUTE_MS) throw new AuthStoreError();
