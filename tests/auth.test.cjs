@@ -10,15 +10,28 @@ const { DatabaseSync } = require('node:sqlite');
 
 function load(name) {
   const filename = path.resolve(__dirname, `../src/lib/auth/${name}.ts`);
-  const mod = new Module(filename, module);
-  mod.filename = filename;
-  mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  const original = mod.require.bind(mod);
-  mod.require = id => id === 'server-only' ? {} : original(id);
-  mod._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
-  }).outputText, filename);
-  return mod.exports;
+  const cache = new Map();
+  function loadFile(file) {
+    const resolved = path.resolve(file);
+    if (cache.has(resolved)) return cache.get(resolved).exports;
+    const mod = new Module(resolved, module);
+    cache.set(resolved, mod);
+    mod.filename = resolved;
+    mod.paths = Module._nodeModulePaths(path.dirname(resolved));
+    const original = mod.require.bind(mod);
+    mod.require = id => {
+      if (id === 'server-only') return {};
+      if (id.startsWith('.') && fs.existsSync(path.resolve(path.dirname(resolved), id + '.ts'))) {
+        return loadFile(path.resolve(path.dirname(resolved), id + '.ts'));
+      }
+      return original(id);
+    };
+    mod._compile(ts.transpileModule(fs.readFileSync(resolved, 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+    }).outputText, resolved);
+    return mod.exports;
+  }
+  return loadFile(filename);
 }
 const { AuthStore, AuthStoreError, rateBucket } = load('store');
 const { authCookie, allowAuthMutation } = load('http');
