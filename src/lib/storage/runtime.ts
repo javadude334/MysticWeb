@@ -1,62 +1,93 @@
 import "server-only";
-import { lstatSync, realpathSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { lstatSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { AuthStore } from "../auth/store";
 import { mysticDirectories, type MysticDirectories } from "../mystic/directories";
 
 export interface MysticWebRuntime {
   readonly directories: MysticDirectories;
-  readonly authStore: AuthStore;
+  readonly databasePath: string;
+  readonly usersPath: string;
   readonly rateKey: Buffer;
 }
 
-/**
- * Per-process startup composition. Never use a request-supplied root or
- * silently fall back to a separate sessions.sqlite.
- *
- * IMPORTANT: Call this from the server bootstrap/composition entrypoint.
- * This module does not activate production authentication or bypass native
- * account and message-area authorization.
- */
-let runtime: MysticWebRuntime | undefined;
+let cached: MysticWebRuntime | undefined;
 
-export function initializeMysticWebRuntime(options: { privateLocalDataVerified: boolean }): MysticWebRuntime {
-  if (runtime) return runtime;
-  const directories = mysticDirectories();
+// The BBS data directory may contain files readable by ordinary BBS users.
+// Keep credentials and sessions in a *private child directory* instead of
+// changing the ACLs of Mystic's shared data directory.
+function privateDatabaseDirectory(dataDir: string): string {
   if (process.platform !== "win32") {
-    // This parser currently supports only verified Windows Mystic A47 paths.
-    // Do not pass win32 paths to a POSIX SQLite opener.
-    throw new Error("MysticWeb SQLite auto-location requires a local Windows Mystic installation");
+    throw new Error("Automatic Mystic A47 Windows storage is not supported on this host");
   }
-  const data = lstatSync(directories.dataDir);
-  if (!data.isDirectory() || data.isSymbolicLink()) {
-    throw new Error("Mystic data directory is not a regular directory");
+  const root = realpathSync.native(dataDir);
+  const stat = lstatSync(root);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Invalid Mystic data directory");
+  const dir = path.win32.join(root, "mysticweb");
+  mkdirSync(dir, { recursive: false, mode: 0o700 });
+  const entry = lstatSync(dir);
+  if (!entry.isDirectory() || entry.isSymbolicLink() ||
+      realpathSync.native(dir).toLowerCase() !== dir.toLowerCase()) {
+    throw new Error("Unsafe MysticWeb database directory");
   }
-  const canonical = realpathSync.native(directories.dataDir);
-  if (path.win32.normalize(canonical).toLowerCase() !==
-      path.win32.normalize(directories.dataDir).toLowerCase()) {
-    throw new Error("Mystic data directory must not redirect");
-  }
+  // Windows-specific: refuse removable/network filesystems, and install a
+  // protected ACL allowing only this process identity and SYSTEM. This must
+  // succeed before SQLite can create a journal or database file.
+  const script = [
+    "$ErrorActionPreference='Stop'",
+    "$p=$env:MYSTICWEB_SECURE_DIR",
+    "$drive=[System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($p))",
+    "if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) { throw 'Local fixed disk required' }",
+    "$me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User",
+    "$system=New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')",
+    "$acl=Get-Acl -LiteralPath $p",
+    "$acl.SetAccessRuleProtection($true,$false)",
+    "foreach ($sid in @($me,$system)) {",
+    "  $rule=New-Object System.Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')",
+    "  $acl.SetAccessRule($rule)",
+    "}",
+    "Set-Acl -LiteralPath $p -AclObject $acl",
+    "$check=Get-Acl -LiteralPath $p",
+    "if (-not $check.AreAccessRulesProtected) { throw 'ACL inheritance not disabled' }",
+    "foreach ($rule in $check.Access) {",
+    "  $sid=$rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
+    "  if ($sid -ne $me.Value -and $sid -ne $system.Value) { throw 'Unexpected database ACL principal' }",
+    "}"
+  ].join("; ");
+  execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    env: { ...process.env, MYSTICWEB_SECURE_DIR: dir }, timeout: 10000,
+    windowsHide: true, stdio: "pipe",
+  });
+  return dir;
+}
 
-  // Windows NTFS ACL verification and shared-filesystem rejection still
-  // require deployment validation. Do not automatically enable authentication
-  // on a filesystem whose confidentiality cannot be established.
-  if (options.privateLocalDataVerified !== true) {
-    throw new Error("MysticWeb data directory security has not been verified");
-  }
-
-  const authStore = new AuthStore(directories.databasePath);
+/**
+ * Initializes configuration, private SQLite storage and rate key once per
+ * Node process. AuthStore is opened per request to avoid leaking a connection
+ * across development hot reloads.
+ */
+export function initializeMysticWebRuntime(): MysticWebRuntime {
+  if (cached) return cached;
+  const directories = mysticDirectories();
+  const dbDir = privateDatabaseDirectory(directories.dataDir);
+  const databasePath = path.win32.join(dbDir, "mysticweb.db");
+  const store = new AuthStore(databasePath);
+  let rateKey: Buffer;
   try {
+    // Migration bridge: retain the previous rate key on the first launch.
+    // Once stored, remove the legacy environment variable. A mismatched key
+    // fails closed rather than silently resetting rate limits.
     const legacy = process.env.MYSTICWEB_RATE_KEY;
-    const previousKey = legacy
-      ? (/^[a-fA-F0-9]{64}$/.test(legacy) ? Buffer.from(legacy, "hex") : undefined)
-      : undefined;
-    if (legacy && !previousKey) throw new Error("Invalid legacy rate key");
-    const rateKey = authStore.getOrCreateRateKey(previousKey);
-    runtime = Object.freeze({ directories, authStore, rateKey });
-    return runtime;
-  } catch (error) {
-    authStore.close();
-    throw error;
+    if (legacy && !/^[a-f0-9]{64}$/i.test(legacy)) throw new Error("Invalid legacy rate key");
+    rateKey = store.getOrCreateRateKey(legacy ? Buffer.from(legacy, "hex") : undefined);
+  } finally {
+    store.close();
   }
+  cached = Object.freeze({
+    directories, databasePath,
+    usersPath: path.win32.join(directories.dataDir, "users.dat"),
+    rateKey,
+  });
+  return cached;
 }
