@@ -42,19 +42,22 @@ function privateDatabaseDirectory(dataDir: string): string {
     "if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) { throw 'Local fixed disk required' }",
     "$me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User",
     "$system=[System.Security.Principal.SecurityIdentifier]::new('S-1-5-18')",
-    "$acl=Get-Acl -LiteralPath $p",
+    "foreach ($target in @($p,(Join-Path $p 'mysticweb.db'))) {",
+    "if (-not (Test-Path -LiteralPath $target)) { continue }",
+    "$acl=Get-Acl -LiteralPath $target",
     "$acl.SetAccessRuleProtection($true,$false)",
     "foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }",
     "foreach ($sid in @($me,$system)) {",
     "  $rule=New-Object System.Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')",
     "  $acl.SetAccessRule($rule)",
     "}",
-    "Set-Acl -LiteralPath $p -AclObject $acl",
-    "$check=Get-Acl -LiteralPath $p",
+    "Set-Acl -LiteralPath $target -AclObject $acl",
+    "$check=Get-Acl -LiteralPath $target",
     "if (-not $check.AreAccessRulesProtected) { throw 'ACL inheritance not disabled' }",
     "foreach ($rule in $check.Access) {",
     "  $sid=$rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
     "  if ($sid -ne $me.Value -and $sid -ne $system.Value) { throw 'Unexpected database ACL principal' }",
+    "}",
     "}"
   ].join("; ");
   execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
@@ -85,6 +88,8 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
     const previous = new AuthStore(legacyDb);
     previous.close();
     copyFileSync(legacyDb, databasePath, constants.COPYFILE_EXCL);
+    // A copied file can retain source ACLs; protect it before opening.
+    privateDatabaseDirectory(directories.dataDir);
   }
   const store = new AuthStore(databasePath);
   let rateKey: Buffer;
