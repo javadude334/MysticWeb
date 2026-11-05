@@ -1,6 +1,6 @@
 import "server-only";
 import { execFileSync } from "node:child_process";
-import { lstatSync, mkdirSync, realpathSync } from "node:fs";
+import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { AuthStore } from "../auth/store";
 import { mysticDirectories, type MysticDirectories } from "../mystic/directories";
@@ -74,6 +74,18 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
   const directories = mysticDirectories();
   const dbDir = privateDatabaseDirectory(directories.dataDir);
   const databasePath = path.win32.join(dbDir, "mysticweb.db");
+  // One-time offline migration of the old session database. Keep the source
+  // untouched as a rollback copy. Never copy an active SQLite journal.
+  const legacyDb = process.env.MYSTICWEB_SESSION_DB;
+  if (legacyDb && !existsSync(databasePath)) {
+    if (!path.win32.isAbsolute(legacyDb) || !existsSync(legacyDb) ||
+        [legacyDb + "-journal", legacyDb + "-wal", legacyDb + "-shm"].some(existsSync)) {
+      throw new Error("Legacy session database cannot be safely migrated");
+    }
+    const previous = new AuthStore(legacyDb);
+    previous.close();
+    copyFileSync(legacyDb, databasePath, constants.COPYFILE_EXCL);
+  }
   const store = new AuthStore(databasePath);
   let rateKey: Buffer;
   try {
