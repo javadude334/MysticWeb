@@ -45,7 +45,7 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     const result = await appendOfflineJam(dir, "demo", draft, { offlineConfirmed: true });
     assert.equal(result.number, 1);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jdx")).readUInt32LE(4), 1024);
-    assert.equal(fs.readFileSync(path.join(dir, "demo.jhr")).readUInt32LE(48, 1024), 1);
+    assert.equal(fs.readFileSync(path.join(dir, "demo.jhr")).readUInt32LE(1072), 1);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jdt")).toString(), "Hello world");
     assert.equal(fs.existsSync(path.join(dir, "demo.mysticweb-offline.lock")), false);
     await assert.rejects(appendOfflineJam(dir, "demo", { ...draft, replyTo: 1 }, { offlineConfirmed: true }), /Reply chain/);
