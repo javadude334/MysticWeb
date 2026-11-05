@@ -5,7 +5,7 @@ import { MysticText } from "@/components/mystic-text";
 
 type Area = { id: number; name: string; groupIds: number[]; readable?: boolean };
 type Group = { id: number; name: string };
-type Message = { readPosition?: "after-pointer" | "at-or-before-pointer" | "unknown"; number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
+type Message = { webRead?: boolean; readPosition?: "after-pointer" | "at-or-before-pointer" | "unknown"; number: number; author: string; recipient: string; subject: string; body?: string; dates: { written: number }; replyTo?: number; firstReply?: number; nextReply?: number };
 type Page = { area: Area; messages: Message[]; nextBefore: number | null };
 
 function formatMysticDate(timestamp: number | undefined): string {
@@ -27,6 +27,7 @@ function validPage(value: unknown): value is Page {
   return !!page.area && Number.isSafeInteger(page.area.id) && page.area.id > 0 && typeof page.area.name === "string" && Array.isArray(page.messages) && page.messages.length <= 50 &&
     (page.nextBefore === null || (Number.isSafeInteger(page.nextBefore) && page.nextBefore > 0)) &&
     page.messages.every(m => Number.isSafeInteger(m.number) && m.number > 0 &&
+      (m.webRead === undefined || typeof m.webRead === "boolean") &&
       (m.readPosition === undefined || ["after-pointer", "at-or-before-pointer", "unknown"].includes(m.readPosition)) &&
       typeof m.author === "string" && typeof m.recipient === "string" && typeof m.subject === "string" &&
       (m.body === undefined || typeof m.body === "string") && !!m.dates &&
@@ -170,7 +171,7 @@ export function MessageWorkspace() {
             throw new Error("Search result message unavailable.");
           if (!controller.signal.aborted) {
             setSelected(detail.messages[0]);
-            setViewed(previous => ({ ...previous, [chosen.id + ":" + pending.number]: true }));
+            persistWebRead(chosen.id, pending.number);
           }
         }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); });
       }
@@ -188,6 +189,20 @@ export function MessageWorkspace() {
     });
     return () => { active = false; cancel?.(); };
   }, [area, load]);
+  const persistWebRead = (areaId: number, number: number) => {
+    // Explicit JSON mutation; native Mystic .jlr is never modified.
+    void fetch("/api/messages", {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ area: areaId, message: number }),
+    }).then(response => {
+      if (!response.ok) throw new Error("Unable to save MysticWeb read status.");
+      setViewed(previous => ({ ...previous, [areaId + ":" + number]: true }));
+      setPage(previous => previous?.area.id === areaId ? {
+        ...previous, messages: previous.messages.map(m => m.number === number ? { ...m, webRead: true } : m),
+      } : previous);
+    }).catch(() => setNotice("Message displayed, but MysticWeb could not save its read status."));
+  };
   const openMessage = (message: Pick<Message, "number">) => {
     if (!area) return;
     requestRef.current?.abort();
@@ -200,7 +215,7 @@ export function MessageWorkspace() {
           value.messages[0].number !== message.number || typeof value.messages[0].body !== "string")
         throw new Error("Message unavailable.");
       setSelected(value.messages[0]);
-      setViewed(previous => ({ ...previous, [area.id + ":" + message.number]: true }));
+      persistWebRead(area.id, message.number);
     }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Message unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   };
@@ -319,12 +334,12 @@ export function MessageWorkspace() {
         {!searchResults && page && <div className="mw-thread-list" ref={messageListRef}>
           {filtered.map(message => <button type="button" key={message.number}
             ref={node => { if (selected?.number === message.number) selectedHeaderRef.current = node; }}
-            className={[selected?.number === message.number ? "mw-active" : "", viewed[area?.id + ":" + message.number] ? "mw-read" : message.readPosition === "after-pointer" ? "mw-unread" : message.readPosition === "at-or-before-pointer" ? "mw-read" : "mw-read-unknown"].filter(Boolean).join(" ")}
+            className={[selected?.number === message.number ? "mw-active" : "", viewed[area?.id + ":" + message.number] || message.webRead ? "mw-read" : "mw-unread"].filter(Boolean).join(" ")}
             aria-current={selected?.number === message.number ? "true" : undefined}
             onClick={() => openMessage(message)}>
             <span className="mw-thread-from">{message.author}</span>
             <strong>{message.subject || "(No subject)"}</strong>
-            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}{viewed[area?.id + ":" + message.number] ? " · Viewed this session" : message.readPosition === "after-pointer" ? " · New since last-read" : ""}</span>
+            <span>To: {message.recipient} · #{message.number} · {formatMysticDate(message.dates.written)}{viewed[area?.id + ":" + message.number] || message.webRead ? " · Read in MysticWeb" : " · Unread in MysticWeb"}</span>
           </button>)}
           {filtered.length === 0 && <p>{search ? "No matches among loaded messages." : "No messages in this page."}</p>}
           {pageHistory.length > 0 && <button type="button" className="mw-load-more" disabled={loading}
@@ -363,6 +378,6 @@ export function MessageWorkspace() {
         title="Unavailable until authenticated native pointer updates are verified"
         onClick={() => setNotice("Message pointer updates are not yet enabled.")}>Update Message Pointers</button>
     </div>
-    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Opening a message never updates Mystic pointers. The separate JSON read-state integration is still being connected. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">MysticWeb read status is stored separately in per-user JSON receipts. Opening a message never updates native Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
