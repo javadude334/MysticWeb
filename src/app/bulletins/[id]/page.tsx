@@ -14,7 +14,18 @@ async function BulletinContent({ params }: { params: Promise<{ id: string }> }) 
   if (!/^[1-9][0-9]?$/.test(id)) notFound();
   const [bulletin, entries] = await Promise.all([readMysticBulletin(Number(id)), readMysticBulletinMenu()]);
   if (!bulletin) notFound();
-  return <Shell active="/features/bulletins"><section className="panel">\n    <nav aria-label="System bulletins" style={{ marginBottom: "1.5rem" }}>\n      <span className="eyebrow">MYSTIC BBS · SYSTEM BULLETINS</span>\n      <h2 style={{ marginTop: "0.5rem" }}>System Bulletins</h2>\n      {entries.map(entry => <p key={entry.id} style={{ margin: "0.35rem 0" }}>\n        <Link href={`/bulletins/${entry.id}`} aria-current={entry.id === bulletin.id ? "page" : undefined}\n          style={entry.id === bulletin.id ? { fontWeight: 700, textDecoration: "underline" } : undefined}>\n          {entry.id}. {entry.title}\n        </Link>\n      </p>)}\n    </nav>\n    <hr style={{ border: 0, borderTop: "1px solid var(--border, #304047)", margin: "1.5rem 0" }} />
+  return <Shell active="/features/bulletins"><section className="panel">
+    <nav aria-label="System bulletins" style={{ marginBottom: "1.5rem" }}>
+      <span className="eyebrow">MYSTIC BBS · SYSTEM BULLETINS</span>
+      <h2 style={{ marginTop: "0.5rem" }}>System Bulletins</h2>
+      {entries.map(entry => <p key={entry.id} style={{ margin: "0.35rem 0" }}>
+        <Link href={`/bulletins/${entry.id}`} aria-current={entry.id === bulletin.id ? "page" : undefined}
+          style={entry.id === bulletin.id ? { fontWeight: 700, textDecoration: "underline" } : undefined}>
+          {entry.id}. {entry.title}
+        </Link>
+      </p>)}
+    </nav>
+    <hr style={{ border: 0, borderTop: "1px solid var(--border, #304047)", margin: "1.5rem 0" }} />
     <span className="eyebrow">MYSTIC BBS · SYSTEM BULLETIN {bulletin.id}</span>
     <h1>{bulletin.title}</h1>
     {bulletin.subject && <p style={{ fontFamily: "monospace", fontSize: "1rem", marginTop: "1rem" }}><MysticText text={bulletin.subject} /></p>}
