@@ -9,15 +9,17 @@ import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
 import { MessageAccess } from "../mystic/message-access";
 import { searchMessages } from "../mystic/search-messages";
+import { stableJamReceiptId, readUserMessageReceipt } from "../mystic/message-sidecar";
+import { recordUserMessageRead } from "../mystic/message-receipt-writer";
 
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers });
 
 export async function sandboxMessages(request: Request): Promise<Response> {
-  if (process.env.NODE_ENV !== "development" || !sandboxOriginAllowed(request, false))
+  if (process.env.NODE_ENV !== "development" || !sandboxOriginAllowed(request, request.method === "POST"))
     return json({ error: "Unavailable" }, 404);
-  if (request.method !== "GET") return json({ error: "Method unavailable" }, 405);
+  if (request.method !== "GET" && request.method !== "POST") return json({ error: "Method unavailable" }, 405);
   const root = process.env.MYSTIC_DATA_ROOT;
   const db = process.env.MYSTICWEB_SESSION_DB;
   if (!root || !path.isAbsolute(root) || !db || !path.isAbsolute(db))
@@ -35,6 +37,44 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const account = await readNativeAccountSnapshot(path.join(root, "data", "users.dat"), identity.userId);
     if (!account || account.locked || account.deletedCandidate || account.passwordChangeRequired)
       return json({ error: "Account unavailable" }, 401);
+    // A message-open mutation must use the same current account, area ACS and
+    // verified sandbox JAM path as the read endpoint. Never accept user/base/ID.
+    if (request.method === "POST") {
+      if (new URL(request.url).search || request.headers.get("content-type") !== "application/json" ||
+          request.headers.has("content-encoding")) return json({ error: "Invalid request" }, 400);
+      const length = Number(request.headers.get("content-length") ?? "0");
+      if (!Number.isSafeInteger(length) || length < 1 || length > 256)
+        return json({ error: "Invalid request" }, 400);
+      const raw = await request.text();
+      if (Buffer.byteLength(raw) > 256) return json({ error: "Invalid request" }, 400);
+      const input = JSON.parse(raw) as { area?: unknown; message?: unknown };
+      if (!input || Array.isArray(input) || Object.keys(input).sort().join(",") !== "area,message" ||
+          !Number.isSafeInteger(input.area) || !Number.isSafeInteger(input.message) ||
+          (input.area as number) < 1 || (input.message as number) < 1 ||
+          (input.message as number) > 0xffffffff) return json({ error: "Invalid request" }, 400);
+      const { groups, areas } = await readMysticConfiguration();
+      const access = new MessageAccess(groups, areas, account.securityLevel);
+      const area = access.getArea(input.area as number);
+      if (!area || !access.canRead(area.id) || !isJamBaseName(area.jamBase))
+        return json({ error: "Area unavailable" }, 403);
+      const jamRoot = process.env.MYSTICWEB_SANDBOX_JAM_ROOT;
+      if (!jamRoot || !path.isAbsolute(jamRoot)) return json({ error: "Unavailable" }, 503);
+      const [sandboxStat, jamStat] = await Promise.all([lstat(root), lstat(jamRoot)]);
+      if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
+          !jamStat.isDirectory() || jamStat.isSymbolicLink()) return json({ error: "Unavailable" }, 503);
+      const [sandboxReal, jamReal] = await Promise.all([realpath(root), realpath(jamRoot)]);
+      const relative = path.relative(sandboxReal, jamReal);
+      if (!relative || relative === ".." || relative.startsWith(".." + path.sep) ||
+          path.isAbsolute(relative)) return json({ error: "Unavailable" }, 503);
+      const result = await readJam(jamReal, area.jamBase, { message: input.message as number });
+      if (result.messages.length !== 1 || result.messages[0].number !== input.message)
+        return json({ error: "Message unavailable" }, 404);
+      const id = stableJamReceiptId(identity.instance, area.id, area.jamBase, result.messages[0]);
+      // Separate from the native JAM directory; no JLR write is performed.
+      const metadataRoot = path.join(path.dirname(db), "mysticweb-message-metadata");
+      await recordUserMessageRead(metadataRoot, identity.instance, area.id, identity.userId, id);
+      return json({ read: true, message: input.message });
+    }
     const params = new URL(request.url).searchParams;
     const keys = [...params.keys()];
     if (new Set(keys).size !== keys.length ||
@@ -183,9 +223,12 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (!info.isFile() || info.size > 1048576) throw new Error("Unsafe pointer file");
       pointerState = getJamMessageReadState(await readFile(filename), identity.userId);
     } catch { /* Read-state is optional; never downgrade message authorization. */ }
+    const metadataRoot = path.join(path.dirname(db), "mysticweb-message-metadata");
+    const receipt = await readUserMessageReceipt(metadataRoot, identity.instance, area.id, identity.userId);
     return json({ area: { id: area.id, name: area.name },
       messages: page.messages.map(m => ({ number: m.number, author: m.author,
         readPosition: classifyJamMessage(pointerState, m.number),
+        webRead: !!receipt?.messages[stableJamReceiptId(identity.instance, area.id, area.jamBase, m)],
         recipient: m.recipient, subject: m.subject, dates: m.dates, replyTo: m.replyTo,
         firstReply: m.firstReply, nextReply: m.nextReply, ...(m.body === undefined ? {} : { body: m.body }) })),
       nextBefore: page.nextBefore });
