@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, lstat } from "node:fs/promises";
+import { mkdir, open, rename, rm, lstat } from "node:fs/promises";
 import path from "node:path";
 import { readUserMessageReceipt, type UserMessageReceipt } from "./message-sidecar";
 
