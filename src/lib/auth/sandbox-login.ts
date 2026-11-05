@@ -12,7 +12,7 @@ const allowed = () => process.env.NODE_ENV === "development";
 function config() {
   if (!allowed()) return null;
   try {
-    const runtime = initializeMysticWebRuntime({ privateLocalDataVerified: true });
+    const runtime = initializeMysticWebRuntime({ privateLocalDataVerified: false });
     return {
       users: runtime.directories.dataDir + "\\users.dat",
       db: runtime.directories.databasePath,
