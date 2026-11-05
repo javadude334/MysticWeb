@@ -41,7 +41,7 @@ function privateDatabaseDirectory(dataDir: string): string {
     "-NoProfile", "-NonInteractive", "-Command",
     "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
   ], { encoding: "utf8", timeout: 10000, windowsHide: true }).trim();
-  if (!/^S-1-5-[0-9-]+$/.test(sid)) throw new Error("Cannot resolve Windows identity");
+  if (!/^S-1-[0-9]+(?:-[0-9]+)+$/.test(sid)) throw new Error("Cannot resolve Windows identity");
   for (const target of [dir, path.win32.join(dir, "mysticweb.db")]) {
     if (!existsSync(target)) continue;
     execFileSync("icacls.exe", [target, "/inheritance:r"], {
