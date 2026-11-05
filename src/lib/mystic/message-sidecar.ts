@@ -18,6 +18,8 @@ export interface UserMessageReceipt {
   userId: number;
   areaId: number;
   messages: Record<string, { readAt: string }>;
+  /** Highest verified contiguous JSON read position; null means unknown. */
+  lastReadJamNumber?: number | null;
   updatedAt: string;
 }
 const uuid = () => "mw_" + randomUUID();
@@ -74,7 +76,8 @@ export async function readUserMessageReceipt(root: string, instanceId: string, a
   if (value === null) return null;
   const v = value as UserMessageReceipt;
   if (!v || v.schemaVersion !== 1 || v.instanceId !== instanceId || v.userId !== userId ||
-      v.areaId !== areaId || !v.messages || typeof v.messages !== "object" || Array.isArray(v.messages) ||
+      v.areaId !== areaId || (v.lastReadJamNumber !== undefined && v.lastReadJamNumber !== null &&
+      (!positive(v.lastReadJamNumber))) || !v.messages || typeof v.messages !== "object" || Array.isArray(v.messages) ||
       Object.keys(v.messages).length > 10000 || Object.entries(v.messages).some(([id, entry]) =>
         !safeId(id) || !entry || typeof entry.readAt !== "string" || !Number.isFinite(Date.parse(entry.readAt))))
     throw new Error("Invalid user message receipt");
