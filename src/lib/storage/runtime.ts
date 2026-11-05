@@ -48,7 +48,7 @@ function privateDatabaseDirectory(dataDir: string): string {
     "$acl.SetAccessRuleProtection($true,$false)",
     "foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }",
     "foreach ($sid in @($me,$system)) {",
-    "  $rule=New-Object System.Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')",
+    "  $rule=[System.Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')",
     "  $acl.SetAccessRule($rule)",
     "}",
     "Set-Acl -LiteralPath $target -AclObject $acl",
@@ -85,6 +85,8 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
         [legacyDb + "-journal", legacyDb + "-wal", legacyDb + "-shm"].some(existsSync)) {
       throw new Error("Legacy session database cannot be safely migrated");
     }
+    const source = lstatSync(legacyDb);
+    if (!source.isFile() || source.isSymbolicLink()) throw new Error("Unsafe legacy session database");
     const previous = new AuthStore(legacyDb);
     previous.close();
     copyFileSync(legacyDb, databasePath, constants.COPYFILE_EXCL);
