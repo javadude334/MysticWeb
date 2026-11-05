@@ -112,14 +112,14 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       for (let start = 0; start < eligible.length; start += 8) {
         const matches = await Promise.all(eligible.slice(start, start + 8).map(async area => {
           try {
-            const filename = await realpath(path.join(jamReal, area.jamBase + ".jlr"));
-            if (path.dirname(filename) !== jamReal) return null;
-            const info = await lstat(filename);
-            if (!info.isFile() || info.size > 1048576) return null;
-            const state = getJamMessageReadState(await readFile(filename), identity.userId);
-            if (!state) return null;
-            const latest = await readJam(jamReal, area.jamBase, { limit: 1 });
-            return latest.messages.some(m => classifyJamMessage(state, m.number) === "after-pointer") ? area.id : null;
+            // Match the message list's MysticWeb receipt semantics. The native
+            // JLR pointer is independent and must not suppress unread web mail.
+            const latest = await readJam(jamReal, area.jamBase, { limit: 50 });
+            const metadataRoot = path.join(path.dirname(db), "mysticweb-message-metadata");
+            const receipt = await readUserMessageReceipt(metadataRoot, identity.instance, area.id, identity.userId);
+            return latest.messages.some(m =>
+              !receipt?.messages[stableJamReceiptId(identity.instance, area.id, area.jamBase, m)]
+            ) ? area.id : null;
           } catch { return null; }
         }));
         for (const id of matches) if (id !== null) unreadAreaIds.push(id);
