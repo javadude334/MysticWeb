@@ -26,7 +26,22 @@ const loaded = new Module(sourceFile, module);
 loaded.filename = sourceFile;
 loaded.paths = Module._nodeModulePaths(path.dirname(sourceFile));
 const originalRequire = loaded.require.bind(loaded);
-loaded.require = (id) => (id === "server-only" ? {} : originalRequire(id));
+loaded.require = (id) => {
+  if (id === "server-only") return {};
+  if (id === "./directories") {
+    const file = path.resolve(path.dirname(sourceFile), "directories.ts");
+    const directoryModule = new Module(file, loaded);
+    directoryModule.filename = file;
+    directoryModule.paths = Module._nodeModulePaths(path.dirname(file));
+    const directoryRequire = directoryModule.require.bind(directoryModule);
+    directoryModule.require = (name) => name === "server-only" ? {} : directoryRequire(name);
+    directoryModule._compile(ts.transpileModule(fs.readFileSync(file, "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+    }).outputText, file);
+    return directoryModule.exports;
+  }
+  return originalRequire(id);
+};
 loaded._compile(js, sourceFile);
 
 async function main() {
