@@ -1,6 +1,6 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { mysticDirectories } from "./directories";
 
 const GROUP_RECORD_BYTES = 206;
 const AREA_RECORD_BYTES = 768;
@@ -83,11 +83,10 @@ export async function readMysticConfiguration(): Promise<{
   groups: MysticGroup[];
   areas: MysticArea[];
 }> {
-  const root = process.env.MYSTIC_DATA_ROOT;
-  if (!root || !path.isAbsolute(root)) throw new Error("MYSTIC_DATA_ROOT must be an absolute path");
+  const { dataDir } = mysticDirectories();
   const [groupsData, areasData] = await Promise.all([
-    readFile(path.join(root, "data", "groups_g.dat")),
-    readFile(path.join(root, "data", "mbases.dat")),
+    readFile(`${dataDir}\\groups_g.dat`),
+    readFile(`${dataDir}\\mbases.dat`),
   ]);
   if (groupsData.length > MAX_CONFIG_BYTES || areasData.length > MAX_CONFIG_BYTES) {
     throw new Error("Mystic configuration exceeds size limit");
