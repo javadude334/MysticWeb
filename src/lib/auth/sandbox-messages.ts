@@ -64,8 +64,8 @@ export async function sandboxMessages(request: Request): Promise<Response> {
           typeof post.body !== "string" || !post.body.trim() ||
           (post.replyTo !== undefined && (!Number.isSafeInteger(post.replyTo) ||
             (post.replyTo as number) < 1 || (post.replyTo as number) > 0xffffffff)) ||
-          [post.recipient, post.subject].some(v => /[\\x00-\\x1f\\x7f]/.test(v as string) || Buffer.byteLength(v as string) > 255) ||
-          (post.body as string).length > 60000 || /[\\x00\\x1b\\x7f]/.test(post.body as string))
+          [post.recipient, post.subject].some(v => /[\x00-\x1f\x7f]/.test(v as string) || Buffer.byteLength(v as string) > 255) ||
+          (post.body as string).length > 60000 || /[\x00\x1b\x7f]/.test(post.body as string))
         return json({ error: "Invalid draft" }, 400);
       const { groups, areas } = await readMysticConfiguration();
       const access = new MessageAccess(groups, areas, account.securityLevel);
