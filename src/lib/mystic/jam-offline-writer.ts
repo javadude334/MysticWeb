@@ -67,7 +67,7 @@ export async function appendOfflineJam(
           throw new Error("Invalid reply message offset");
         const fixed = Buffer.alloc(76);
         if ((await jhr.read(fixed, 0, 76, offset)).bytesRead !== 76 ||
-            fixed.toString("binary", 0, 4) !== "JAM\\0" ||
+            fixed.toString("binary", 0, 4) !== "JAM\0" ||
             fixed.readUInt16LE(4) !== 1 || fixed.readUInt32LE(48) !== current ||
             (fixed.readUInt32LE(52) & 0xbe380004) !== 0)
           throw new Error("Invalid reply message");
