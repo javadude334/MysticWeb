@@ -1,5 +1,5 @@
 import "server-only";
-import { open, lstat, realpath, mkdir, unlink } from "node:fs/promises";
+import { open, lstat, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { encodeJamDraft, type JamDraftRecord } from "./jam-record-encoder";
