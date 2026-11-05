@@ -20,7 +20,7 @@ export interface MysticWebRuntime {
  */
 let runtime: MysticWebRuntime | undefined;
 
-export function initializeMysticWebRuntime(): MysticWebRuntime {
+export function initializeMysticWebRuntime(options: { privateLocalDataVerified: boolean }): MysticWebRuntime {
   if (runtime) return runtime;
   const directories = mysticDirectories();
   if (process.platform !== "win32") {
@@ -41,7 +41,7 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
   // Windows NTFS ACL verification and shared-filesystem rejection still
   // require deployment validation. Do not automatically enable authentication
   // on a filesystem whose confidentiality cannot be established.
-  if (process.env.MYSTICWEB_PRIVATE_DATA_VERIFIED !== "1") {
+  if (options.privateLocalDataVerified !== true) {
     throw new Error("MysticWeb data directory security has not been verified");
   }
 
