@@ -4,6 +4,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { encodeJamDraft, type JamDraftRecord } from "./jam-record-encoder";
 import { isJamBaseName } from "./jam";
+import { withMysticWebTagline } from "./message-tagline";
 
 /**
  * OFFLINE ONLY. This lock is owned by MysticWeb and does not coordinate with
@@ -85,7 +86,7 @@ export async function appendOfflineJam(
       replyId = undefined;
     }
     const messageId = "<" + randomUUID() + "@mysticweb.local>";
-    const encoded = encodeJamDraft({ ...draft, replyId, number, messageId }, sizes[0], sizes[2]);
+    const encoded = encodeJamDraft({ ...draft, body: withMysticWebTagline(draft.body), replyId, number, messageId }, sizes[0], sizes[2]);
     const writes = [
       { handle: jdt, data: encoded.text, position: sizes[2] },
       { handle: jhr, data: encoded.header, position: sizes[0] },
