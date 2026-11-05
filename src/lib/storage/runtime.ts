@@ -25,7 +25,8 @@ function privateDatabaseDirectory(dataDir: string): string {
   const stat = lstatSync(root);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Invalid Mystic data directory");
   const dir = path.win32.join(root, "mysticweb");
-  mkdirSync(dir, { recursive: false, mode: 0o700 });
+  try { mkdirSync(dir, { recursive: false, mode: 0o700 }); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
   const entry = lstatSync(dir);
   if (!entry.isDirectory() || entry.isSymbolicLink() ||
       realpathSync.native(dir).toLowerCase() !== dir.toLowerCase()) {
@@ -40,9 +41,10 @@ function privateDatabaseDirectory(dataDir: string): string {
     "$drive=[System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($p))",
     "if ($drive.DriveType -ne [System.IO.DriveType]::Fixed) { throw 'Local fixed disk required' }",
     "$me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User",
-    "$system=New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')",
+    "$system=[System.Security.Principal.SecurityIdentifier]::new('S-1-5-18')",
     "$acl=Get-Acl -LiteralPath $p",
     "$acl.SetAccessRuleProtection($true,$false)",
+    "foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }",
     "foreach ($sid in @($me,$system)) {",
     "  $rule=New-Object System.Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')",
     "  $acl.SetAccessRule($rule)",
