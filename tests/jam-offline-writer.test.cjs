@@ -48,8 +48,21 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     assert.equal(fs.readFileSync(path.join(dir, "demo.jhr")).readUInt32LE(1072), 1);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jdt")).toString(), "Hello world");
     assert.equal(fs.existsSync(path.join(dir, "demo.mysticweb-offline.lock")), false);
-    await assert.rejects(appendOfflineJam(dir, "demo", { ...draft, replyTo: 1 }, { offlineConfirmed: true }), /Reply chain/);
-    assert.equal(fs.statSync(path.join(dir, "demo.jdx")).size, 8);
+    const firstReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply one", replyTo: 1 }, { offlineConfirmed: true });
+    const secondReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply two", replyTo: 1 }, { offlineConfirmed: true });
+    assert.equal(firstReply.number, 2);
+    assert.equal(secondReply.number, 3);
+    const index = fs.readFileSync(path.join(dir, "demo.jdx"));
+    const records = fs.readFileSync(path.join(dir, "demo.jhr"));
+    const parentOffset = index.readUInt32LE(4);
+    const replyOneOffset = index.readUInt32LE(12);
+    const replyTwoOffset = index.readUInt32LE(20);
+    assert.equal(records.readUInt32LE(parentOffset + 28), 2);
+    assert.equal(records.readUInt32LE(replyOneOffset + 24), 1);
+    assert.equal(records.readUInt32LE(replyOneOffset + 32), 3);
+    assert.equal(records.readUInt32LE(replyTwoOffset + 24), 1);
+    assert.equal(records.readUInt32LE(replyTwoOffset + 32), 0);
+    assert.equal(fs.statSync(path.join(dir, "demo.jdx")).size, 24);
   } finally {
     if (old === undefined) delete process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
     else process.env.MYSTICWEB_OFFLINE_JAM_WRITE = old;
