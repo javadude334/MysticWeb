@@ -80,7 +80,7 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     assert.deepEqual(page.messages.map(m => m.number), [3, 2, 1]);
     const opened = await readJam(dir, "demo", { message: 3 });
     assert.equal(opened.messages[0].replyTo, 1);
-    assert.match(opened.messages[0].body, /Hello world[\\s\\S]*Posted with MysticWeb v0\\.1\\.0/);
+    assert.match(opened.messages[0].body, /Hello world[\s\S]*Posted with MysticWeb v0\.1\.0/);
   } finally {
     if (old === undefined) delete process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
     else process.env.MYSTICWEB_OFFLINE_JAM_WRITE = old;
