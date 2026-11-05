@@ -50,6 +50,7 @@ export function MessageWorkspace() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [unreadAreaIds, setUnreadAreaIds] = useState<number[]>([]);
+  const [unreadScan, setUnreadScan] = useState(0);
   const [unreadGroupIds, setUnreadGroupIds] = useState<number[]>([]);
   const [area, setArea] = useState<Area | null>(null);
   const [page, setPage] = useState<Page | null>(null);
@@ -119,7 +120,7 @@ export function MessageWorkspace() {
       setUnreadAreaIds(result.unreadAreaIds);
     }).catch(() => { /* An unavailable pointer scan must not block reading. */ });
     return () => controller.abort();
-  }, [selectedGroupId, refresh]);
+  }, [selectedGroupId, refresh, unreadScan]);
   useEffect(() => {
     if (groups.length === 0) return;
     const controller = new AbortController();
@@ -147,7 +148,7 @@ export function MessageWorkspace() {
       }
     });
     return () => controller.abort();
-  }, [groups]);
+  }, [groups, unreadScan]);
   const orderedGroups = [...groups].sort((a, b) =>
     Number(unreadGroupIds.includes(b.id)) - Number(unreadGroupIds.includes(a.id)));
   const load = useCallback((chosen: Area, before?: number, history: number[] = []) => {
@@ -198,6 +199,7 @@ export function MessageWorkspace() {
     }).then(response => {
       if (!response.ok) throw new Error("Unable to save MysticWeb read status.");
       setViewed(previous => ({ ...previous, [areaId + ":" + number]: true }));
+      setUnreadScan(value => value + 1);
       setPage(previous => previous?.area.id === areaId ? {
         ...previous, messages: previous.messages.map(m => m.number === number ? { ...m, webRead: true } : m),
       } : previous);
