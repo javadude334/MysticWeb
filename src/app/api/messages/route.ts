@@ -9,3 +9,10 @@ export async function GET(request: Request): Promise<Response> {
   const access = productionAccess();
   return access ? access.read(request) : unavailable();
 }
+
+/** Explicit JSON-only read receipt. Never writes Mystic JAM/JLR pointers. */
+export async function POST(request: Request): Promise<Response> {
+  await connection();
+  if (process.env.NODE_ENV === "development") return sandboxMessages(request);
+  return unavailable();
+}
