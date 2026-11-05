@@ -1,5 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { readFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import type { JamMessage } from "./jam";
@@ -46,6 +46,22 @@ export function newMessageSidecar(instanceId: string, areaId: number, jamBase: s
     dates: { writtenRaw: msg.dates.written, timezone: msg.dates.timezone, firstObservedAt: time },
     sync: { state: "matched", lastVerifiedAt: time },
   };
+}
+/** Stable identity for an observed JAM record, scoped to installation and area.
+ * Includes the native message ID and written timestamp to distinguish reused
+ * JAM numbers after a base is replaced. No browser-provided identity is trusted.
+ */
+export function stableJamReceiptId(instanceId: string, areaId: number, jamBase: string, msg: JamMessage): string {
+  validate(instanceId, areaId);
+  if (!safeBase(jamBase) || !positive(msg.number) || !Number.isInteger(msg.dates.written) ||
+      msg.dates.written < 0 || msg.dates.written > 0xffffffff ||
+      typeof msg.messageId !== "string" || msg.messageId.length > 512)
+    throw new RangeError("Invalid JAM identity");
+  const digest = createHash("sha256").update(JSON.stringify([
+    instanceId, areaId, jamBase, msg.number, msg.dates.written, msg.messageId,
+  ])).digest("hex").slice(0, 32);
+  return "mw_" + [digest.slice(0, 8), digest.slice(8, 12), digest.slice(12, 16),
+    digest.slice(16, 20), digest.slice(20, 32)].join("-");
 }
 function parseMessage(value: unknown): MessageSidecar {
   const m = value as MessageSidecar;
