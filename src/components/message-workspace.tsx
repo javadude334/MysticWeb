@@ -77,8 +77,7 @@ export function MessageWorkspace() {
   const [search, setSearch] = useState("");
   const [searchAllGroups, setSearchAllGroups] = useState(false);
   const [notice, setNotice] = useState("");
-  // Native pointer writes remain unavailable until Mystic-compatible locking is certified.
-  const readStateAvailable = false;
+  // Explicit native synchronization is disabled until the authenticated writer\n  // and Mystic-compatible locking are certified. Browsing never writes JLR.\n  const mysticSyncAvailable = false;
   const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -284,7 +283,7 @@ export function MessageWorkspace() {
       <section className="mw-message-list" aria-label="Message list">
         <div className="mw-pane-heading"><strong>{area?.name ?? "Select a message area"}</strong>
           <span>{page ? `${page.messages.length} loaded` : "Messages"}</span>
-          <button type="button" disabled={!readStateAvailable} title="Available after native Mystic read-state integration">Mark All Read</button>
+
         </div>
 
         {loading && <p role="status">Loading messages…</p>}
@@ -331,6 +330,16 @@ export function MessageWorkspace() {
           {page.nextBefore !== null && <button type="button" className="mw-load-more" disabled={loading}
             onClick={() => { if (area && page.nextBefore !== null) load(area, page.nextBefore, [...pageHistory, page.nextBefore]); }}>Older messages</button>}
         </div>}
+        {area && page && <div className="mw-sync-footer">
+          <p>Reading here does not change Mystic BBS last-read pointers.</p>
+          <button type="button" disabled={!mysticSyncAvailable || loading}
+            title="Unavailable until the authenticated Mystic pointer writer is verified"
+            onClick={() => {
+              // This must never update native pointers from client-side state.
+              setNotice("Mystic synchronization is not yet enabled.");
+            }}>Mark as Read in Mystic</button>
+          <small>Current message area only. Native synchronization will require confirmation.</small>
+        </div>}
       </section>
       <section className="mw-reading-pane" aria-label="Message reader">
         {!selected && <div className="mw-reader-empty"><strong>No message selected</strong>
@@ -351,6 +360,6 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Opening a message changes its appearance to viewed for this browser session only; it does not update Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
+    <p className="mw-footnote">New since last-read is based on the native JAM pointer; it is not an individual read receipt. Opening a message never updates Mystic pointers. The separate JSON read-state integration is still being connected. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
