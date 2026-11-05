@@ -58,7 +58,7 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     assert.equal(result.number, 1);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jdx")).readUInt32LE(4), 1024);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jhr")).readUInt32LE(1072), 1);
-    assert.equal(fs.readFileSync(path.join(dir, "demo.jdt")).toString(), "Hello world");
+    assert.match(fs.readFileSync(path.join(dir, "demo.jdt")).toString(), /^Hello world\r\r---\rPosted with MysticWeb v0\.1\.0$/);
     assert.equal(fs.existsSync(path.join(dir, "demo.mysticweb-offline.lock")), false);
     const firstReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply one", replyTo: 1 }, { offlineConfirmed: true });
     const secondReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply two", replyTo: 1 }, { offlineConfirmed: true });
@@ -80,7 +80,7 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     assert.deepEqual(page.messages.map(m => m.number), [3, 2, 1]);
     const opened = await readJam(dir, "demo", { message: 3 });
     assert.equal(opened.messages[0].replyTo, 1);
-    assert.equal(opened.messages[0].body, "Hello world");
+    assert.match(opened.messages[0].body, /Hello world[\\s\\S]*Posted with MysticWeb v0\\.1\\.0/);
   } finally {
     if (old === undefined) delete process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
     else process.env.MYSTICWEB_OFFLINE_JAM_WRITE = old;
