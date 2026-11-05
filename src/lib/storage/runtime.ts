@@ -47,7 +47,8 @@ function privateDatabaseDirectory(dataDir: string): string {
     execFileSync("icacls.exe", [target, "/inheritance:r"], {
       timeout: 10000, windowsHide: true, stdio: "pipe",
     });
-    execFileSync("icacls.exe", [target, "/grant:r", `*${sid}:(OI)(CI)F`, "*S-1-5-18:(OI)(CI)F"], {
+    const inheritance = target === dir ? "(OI)(CI)" : "";
+    execFileSync("icacls.exe", [target, "/grant:r", `*${sid}:${inheritance}F`, `*S-1-5-18:${inheritance}F`], {
       timeout: 10000, windowsHide: true, stdio: "pipe",
     });
   }
