@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import { lstatSync, openSync, closeSync } from "node:fs";
 import path from "node:path";
+import { initializeMysticWebSchema } from "../storage/schema";
 
 // Node 24's built-in SQLite is not declared by this project's Node 20 typings.
 // Keep the small boundary typed without adding a native third-party dependency.
@@ -94,6 +95,9 @@ export class AuthStore {
         const columns = opened.prepare(`SELECT group_concat(name || ':' || type || ':' || pk, ',') AS shape FROM pragma_table_info('${table}')`).get();
         if (columns?.shape !== expected[table]) throw new AuthStoreError();
       }
+      // Initialize the shared MysticWeb schema only after the security-sensitive
+      // session tables have passed their strict compatibility checks.
+      initializeMysticWebSchema(opened);
       this.db = opened;
     } catch {
       try { opened?.close(); } catch { /* preserve the generic failure */ }
