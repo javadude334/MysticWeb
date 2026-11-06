@@ -113,8 +113,8 @@ export function LocalMailWorkspace() {
       <MessageAction primary onClick={() => newMessage()}>Compose</MessageAction>
       <MessageAction onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</MessageAction>
     </div>
-    <nav aria-label="Filter mail by service" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap",
-      paddingBottom: "1rem", marginBottom: "0.75rem", borderBottom: "1px solid #364b55" }}>
+    <nav aria-label="Filter mail by service" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center",
+      paddingBottom: "0.75rem", marginBottom: "0.75rem", borderBottom: "1px solid #364b55" }}>
       {([
         { id: "all", label: "All Mail" },
         { id: "local", label: "Local Mail" },
@@ -122,7 +122,7 @@ export function LocalMailWorkspace() {
         { id: "internet", label: "Internet Email · Planned" },
       ] as const).map(item => <button type="button" key={item.id}
         aria-pressed={service === item.id} onClick={() => { setService(item.id); setSelected(null); setCompose(false); }}
-        style={{ padding: "0.55rem 0.9rem", borderRadius: "7px", cursor: "pointer", font: "inherit",
+        style={{ padding: "0.45rem 0.75rem", borderRadius: "7px", cursor: "pointer", font: "inherit", width: "auto", flex: "0 0 auto",
           background: service === item.id ? "#20513d" : "#24333c",
           border: "1px solid " + (service === item.id ? "#37654f" : "#4b5c66"), color: "#fff" }}>
         {item.label}
