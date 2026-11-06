@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { AuthStore } from "../auth/store";
+import { scanMysticMessageBases } from "./message-base-catalog";
 import { mysticDirectories, type MysticDirectories } from "../mystic/directories";
 
 export interface MysticWebRuntime {
@@ -112,6 +113,14 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
     const legacy = process.env.MYSTICWEB_RATE_KEY;
     if (legacy && !/^[a-f0-9]{64}$/i.test(legacy)) throw new Error("Invalid legacy rate key");
     rateKey = store.getOrCreateRateKey(legacy ? Buffer.from(legacy, "hex") : undefined);
+    try {
+      const scan = scanMysticMessageBases(directories);
+      store.replaceMessageBaseCatalog(scan.bases);
+      if (scan.skipped.length) console.warn("MysticWeb startup catalog skipped bases:", scan.skipped);
+    } catch (error) {
+      // Keep the last committed catalog if Mystic configuration is unreadable.
+      console.error("MysticWeb startup message-base synchronization failed:", error);
+    }
   } finally {
     store.close();
   }
