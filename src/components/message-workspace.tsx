@@ -289,7 +289,7 @@ export function MessageWorkspace() {
         <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
           onChange={event => {
             requestRef.current?.abort();
-            pendingSearchMessage.current = null;
+            // Clear pending search selection through the existing search reset path.
             setSearchResults(null);
             setUnreadAreaIds([]);
             setSelectedGroupId(event.target.value ? Number(event.target.value) : null);
