@@ -63,10 +63,11 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (request.method === "GET") {
         const params = new URL(request.url).searchParams;
         const keys = [...params.keys()];
-        if (new Set(keys).size !== keys.length || keys.some(k => !["folder", "message", "before"].includes(k)))
+        if (new Set(keys).size !== keys.length || keys.some(k => !["folder", "message", "before", "replyRecipient"].includes(k)))
           return json({ error: "Invalid mail query" }, 400);
         const folder = params.get("folder");
         if (folder !== "inbox" && folder !== "sent") return json({ error: "Invalid folder" }, 400);
+        if (params.has("replyRecipient") && (folder !== "inbox" || params.has("before") || !params.has("message") || params.get("replyRecipient") !== "1")) return json({ error: "Invalid reply lookup" }, 400);
         const parseNumber = (key: string) => {
           const value = params.get(key);
           if (value === null) return undefined;
@@ -76,6 +77,19 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         };
         const message = parseNumber("message"), before = parseNumber("before");
         if (message && before) return json({ error: "Invalid pagination" }, 400);
+        if (params.has("replyRecipient")) {
+          const parent = await readLocalMailbox(jamReal, configured, author, { folder: "inbox", message });
+          if (parent.messages.length !== 1 || parent.messages[0].number !== message)
+            return json({ error: "Reply parent unavailable" }, 404);
+          const handle = parent.messages[0].author;
+          const candidates = await searchLocalRecipients(runtime.usersPath, handle, 10);
+          const exact = candidates.filter(candidate => candidate.handle.toLowerCase() === handle.toLowerCase());
+          if (exact.length !== 1) return json({ error: "Original sender cannot be uniquely resolved" }, 409);
+          const verified = await resolveLocalRecipient(runtime.usersPath, exact[0].userId);
+          if (!verified || verified.handle.toLowerCase() !== handle.toLowerCase())
+            return json({ error: "Original sender unavailable" }, 409);
+          return json({ recipient: verified });
+        }
         return json(await readLocalMailbox(jamReal, configured, author, { folder, message, before }));
       }
       if (request.method === "POST") {
