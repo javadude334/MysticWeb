@@ -24,6 +24,9 @@ export interface MysticAreaBase {
 export interface MysticMessageArea extends MysticAreaBase {
   readonly kind: "message";
   readonly jamBase: string;
+  /** A47 mbases.dat base type: 0 local, 1 echomail, 3 netmail. */
+  readonly baseType: number;
+  readonly storagePath: string;
   /** Native A48 editor order: List, Read, Post, Sysop. */
   readonly security: readonly [string, string, string, string];
 }
