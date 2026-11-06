@@ -46,10 +46,11 @@ test("SQLite schema upgrades once, survives reopen, and rejects future versions"
   const { initializeMysticWebSchema } = loadTs("src/lib/storage/schema.ts");
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mysticweb-schema-"));
   const filename = path.join(dir, "state.db");
+  let db;
   try {
-    let db = new DatabaseSync(filename);
+    db = new DatabaseSync(filename);
     initializeMysticWebSchema(db);
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 1);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 2);
     db.prepare("INSERT INTO mysticweb_settings(key,value) VALUES (?,?)").run("example", "persisted");
     initializeMysticWebSchema(db);
     db.close();
@@ -59,7 +60,9 @@ test("SQLite schema upgrades once, survives reopen, and rejects future versions"
     db.exec("PRAGMA user_version = 999");
     assert.throws(() => initializeMysticWebSchema(db), /incompatible/);
     db.close();
+    db = undefined;
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    try { db?.close(); } catch { /* preserve failure */ }
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
