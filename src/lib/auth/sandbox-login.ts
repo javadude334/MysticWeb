@@ -4,6 +4,7 @@ import { sandboxOriginAllowed } from "./sandbox-origin";
 import { AuthStore, rateBucket } from "./store";
 import { verifyMysticHandle } from "../mystic/native-user-login";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
+import { resolveLocalRecipient } from "../mystic/mail-recipients";
 
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store" };
@@ -88,6 +89,8 @@ export async function sandboxSession(request: Request): Promise<Response> {
       denied.headers.set("Set-Cookie", sessionCookie(null));
       return denied;
     }
-    return reply({ authenticated: true, userId: identity.userId, securityLevel: status.securityLevel });
+    const nativeUser = await resolveLocalRecipient(settings.users, identity.userId);
+    return reply({ authenticated: true, userId: identity.userId, securityLevel: status.securityLevel,
+      handle: nativeUser?.handle ?? null });
   } catch { return reply({ authenticated: false }, 401); }
 }
