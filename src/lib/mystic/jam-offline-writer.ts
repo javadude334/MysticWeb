@@ -83,7 +83,7 @@ export async function appendOfflineJam(
         if ((await jhr.read(fixed, 0, 76, offset)).bytesRead !== 76 ||
             fixed.toString("binary", 0, 4) !== "JAM\0" ||
             fixed.readUInt16LE(4) !== 1 || fixed.readUInt32LE(48) !== current ||
-            (fixed.readUInt32LE(52) & 0xbe380004) !== 0)
+            (fixed.readUInt32LE(52) & (draft.privateMail ? 0xbe380000 : 0xbe380004)) !== 0)
           throw new Error("Invalid reply message");
         const next = current === draft.replyTo ? fixed.readUInt32LE(28) : fixed.readUInt32LE(32);
         if (next === 0) {
