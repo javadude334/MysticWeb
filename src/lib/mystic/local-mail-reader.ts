@@ -38,13 +38,13 @@ export async function readLocalMailbox(root: string, base: string, handle: strin
     }
     const [header, index, text] = handles;
     const initial = await Promise.all(handles.map(h => h.stat({ bigint: true })));
-    if (initial.some(s => !s.isFile()) || initial[0].size < 1024n ||
-        initial[1].size % 8n !== 0n) throw new Error("Invalid JAM base");
+    if (initial.some(s => !s.isFile()) || initial[0].size < BigInt(1024) ||
+        initial[1].size % BigInt(8) !== BigInt(0)) throw new Error("Invalid JAM base");
     const baseHeader = await exact(header, 24, 0);
     if (baseHeader.toString("binary", 0, 4) !== "JAM\0" ||
         baseHeader.readUInt32LE(16) !== 0xffffffff) throw new Error("Unsupported JAM base");
     const first = baseHeader.readUInt32LE(20);
-    const count = Number(initial[1].size / 8n);
+    const count = Number(initial[1].size / BigInt(8));
     if (!first || first + count - 1 > 0xffffffff) throw new Error("Invalid JAM index");
     let slot = options.message !== undefined ? options.message - first :
       Math.min(count - 1, (options.before ?? (first + count)) - first - 1);
