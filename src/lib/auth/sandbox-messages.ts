@@ -94,9 +94,9 @@ export async function sandboxMessages(request: Request): Promise<Response> {
           return json({ error: "Invalid draft" }, 400);
         if (!Number.isSafeInteger(draft.recipientId) || (draft.recipientId as number) < 1 ||
             typeof draft.subject !== "string" || !draft.subject.trim() ||
-            Buffer.byteLength(draft.subject, "utf8") > 255 || /[\\x00-\\x1f\\x7f]/.test(draft.subject) ||
+            Buffer.byteLength(draft.subject, "utf8") > 255 || /[\x00-\x1f\x7f]/.test(draft.subject) ||
             typeof draft.body !== "string" || !draft.body.trim() || draft.body.length > 60000 ||
-            /[\\x00\\x1b\\x7f]/.test(draft.body) ||
+            /[\x00\x1b\x7f]/.test(draft.body) ||
             (draft.replyTo !== undefined && (!Number.isSafeInteger(draft.replyTo) || (draft.replyTo as number) < 1)))
           return json({ error: "Invalid draft" }, 400);
         const recipient = await resolveLocalRecipient(runtime.usersPath, draft.recipientId as number);
