@@ -67,3 +67,35 @@ export async function verifyMysticHandle(
     await file.close();
   }
 }
+
+/** Resolve a posting author's verified A48 handle by permanent native user ID.
+ * Never trust a browser-provided sender name. Reject duplicate IDs and
+ * unverified/non-ASCII handles rather than inventing a display name.
+ */
+export async function readMysticPostingHandle(usersDatPath: string, userId: number): Promise<string | null> {
+  if (typeof usersDatPath !== "string" || !path.isAbsolute(usersDatPath) ||
+      !Number.isSafeInteger(userId) || userId < 1 || userId > 0x7fffffff) return null;
+  const stat = await lstat(usersDatPath);
+  if (!stat.isFile() || stat.isSymbolicLink() || !stat.size ||
+      stat.size > MAX_USERS_FILE || stat.size % MYSTIC_USER_RECORD_SIZE !== 0) return null;
+  const file = await open(usersDatPath, "r");
+  try {
+    const record = Buffer.alloc(MYSTIC_USER_RECORD_SIZE);
+    let found: string | null = null;
+    for (let offset = 0; offset < stat.size; offset += MYSTIC_USER_RECORD_SIZE) {
+      if ((await file.read(record, 0, record.length, offset)).bytesRead !== record.length) return null;
+      if (record.readUInt32LE(0) !== userId) continue;
+      if (found !== null) return null;
+      const flags = record.readUInt32LE(4);
+      if ((flags & (LOCKED | DELETED | FORCE_PASSWORD_CHANGE)) !== 0) return null;
+      found = pascalName(record, 109);
+      if (!found) return null;
+    }
+    const after = await file.stat();
+    if (after.size !== stat.size || after.mtimeMs !== stat.mtimeMs ||
+        after.ctimeMs !== stat.ctimeMs) return null;
+    return found;
+  } finally {
+    await file.close();
+  }
+}
