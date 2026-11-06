@@ -6,6 +6,7 @@ import { AuthStore } from "./store";
 import { initializeMysticWebRuntime } from "../storage/runtime";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
+import { readMysticPostingHandle } from "../mystic/native-user-login";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
 import { MessageAccess } from "../mystic/message-access";
@@ -86,10 +87,12 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         if (parent.messages.length !== 1 || parent.messages[0].number !== post.replyTo)
           return json({ error: "Reply parent unavailable" }, 404);
       }
-      // Native account identity is server-owned. A native handle lookup must
-      // replace this stable fallback before enabling production posting.
+      // Resolve authorship from the authenticated native user record, not a
+      // browser-provided sender or a synthetic "User #..." placeholder.
+      const author = await readMysticPostingHandle(runtime.usersPath, identity.userId);
+      if (!author) return json({ error: "Native posting identity unavailable" }, 403);
       const result = await appendOfflineJam(jamReal, area.jamBase, {
-        author: `User #${identity.userId}`,
+        author,
         recipient: (post.recipient as string).trim(),
         subject: (post.subject as string).trim(),
         body: post.body as string,
