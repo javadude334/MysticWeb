@@ -1,29 +1,19 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import path from "node:path";
+import { verifyApiToken, apiTokenFile } from "@/lib/storage/api-token";
 import { initializeMysticWebRuntime } from "@/lib/storage/runtime";
 import { scanMysticMessageBases } from "@/lib/storage/message-base-catalog";
 import { AuthStore } from "@/lib/auth/store";
 
 
-function authorized(request: Request): boolean {
-  const secret = process.env.MYSTICWEB_MAINTENANCE_TOKEN;
-  if (!secret || secret.length < 32) return false;
-  const provided = request.headers.get("authorization");
-  if (!provided || !provided.startsWith("Bearer ")) return false;
-  const token = provided.slice(7);
-  if (token.length !== secret.length) return false;
-  return timingSafeEqual(
-    createHash("sha256").update(token).digest(),
-    createHash("sha256").update(secret).digest(),
-  );
-}
-
 /** Mystic Event Scheduler may invoke this endpoint using a local script.
  * No session cookie or browser authorization is accepted here.
  */
 export async function POST(request: Request): Promise<Response> {
-  if (!authorized(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const runtime = initializeMysticWebRuntime();
+    const tokenFile = apiTokenFile(path.dirname(runtime.databasePath));
+    if (!verifyApiToken(tokenFile, request.headers.get("authorization")))
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     const scan = scanMysticMessageBases(runtime.directories);
     const store = new AuthStore(runtime.databasePath);
     try { store.replaceMessageBaseCatalog(scan.bases); }
