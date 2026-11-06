@@ -82,7 +82,15 @@ export function MessageWorkspace() {
   const [composer, setComposer] = useState<{ areaId: number; replyTo?: number; recipient: string; subject: string; body: string } | null>(null);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
+  const confirmDiscard = () => !composer || (!composer.body.trim() && !composer.subject.trim() &&
+    (composer.recipient === "All" || composer.recipient === (selected?.author ?? "All"))) ||
+    window.confirm("Discard your unfinished message? Your changes will be lost.");
+  const cancelComposer = () => {
+    if (posting || !confirmDiscard()) return;
+    setComposer(null); setPostError("");
+  };
   const openComposer = (message?: Message) => {
+    if (posting || !confirmDiscard()) return;
     if (!area) { setNotice("Select a message area first."); return; }
     setPostError("");
     setComposer({ areaId: area.id, ...(message ? { replyTo: message.number } : {}), recipient: message?.author ?? "All",
@@ -288,6 +296,7 @@ export function MessageWorkspace() {
         <label htmlFor="mw-group-select">Message group</label>
         <select id="mw-group-select" value={selectedGroupId ?? ""} disabled={groups.length === 0}
           onChange={event => {
+            if (posting || !confirmDiscard()) return;
             requestRef.current?.abort();
             // Clear pending search selection through the existing search reset path.
             setSearchResults(null);
@@ -315,16 +324,16 @@ export function MessageWorkspace() {
       <label style={{ display: "grid", gap: "0.25rem", minWidth: 0 }}>To <input style={{ width: "100%", boxSizing: "border-box", minWidth: 0 }} value={composer.recipient} maxLength={255} onChange={e => setComposer(c => c ? { ...c, recipient: e.target.value } : null)} /></label>
       <label style={{ display: "grid", gap: "0.25rem", minWidth: 0 }}>Subject <input style={{ width: "100%", boxSizing: "border-box", minWidth: 0 }} value={composer.subject} maxLength={255} onChange={e => setComposer(c => c ? { ...c, subject: e.target.value } : null)} /></label>
       <label style={{ display: "grid", gap: "0.25rem", minWidth: 0 }}>Message <textarea style={{ width: "100%", boxSizing: "border-box", minWidth: 0, resize: "vertical" }} rows={12} maxLength={60000} value={composer.body} onChange={e => setComposer(c => c ? { ...c, body: e.target.value } : null)} /></label>
-      <small>MysticWeb version signature is added automatically. Offline sandbox only.</small>
+      <small>MysticWeb version signature is added automatically. </small>
       {postError && <p role="alert">{postError}</p>}
-      <div><button type="button" disabled={posting} onClick={() => void submitPost()}>{posting ? "Posting…" : "Post message"}</button>
-        <button type="button" disabled={posting} onClick={() => { setComposer(null); setPostError(""); }}>Cancel</button></div>
+      <div className="mw-composer-actions"><button type="button" disabled={posting} onClick={() => void submitPost()}>{posting ? "Posting…" : "Post Message"}</button>
+        <button type="button" disabled={posting} onClick={cancelComposer}>Cancel</button></div>
     </section>}
     {notice && <p className="mw-notice" role="status">{notice} <button type="button" onClick={() => setNotice("")}>Dismiss</button></p>}
     <div className="mw-mail-grid">
       <aside className="mw-folders" aria-label="Message areas">
         <div className="mw-folders-heading"><strong>Message Areas</strong>
-          <button type="button" onClick={() => { setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
+          <button type="button" onClick={() => { if (posting || !confirmDiscard()) return; setComposer(null); setArea(null); setPage(null); setSelected(null); setPageHistory([]); setRefresh(v => v + 1); }}>Refresh</button>
         </div>
         <div className="mw-area-list" aria-label="Areas in selected group">
           {selectedGroupId !== null && areas.filter(item => item.groupIds.includes(selectedGroupId)).sort((a, b) => Number(unreadAreaIds.includes(b.id)) - Number(unreadAreaIds.includes(a.id))).map(item =>
@@ -332,7 +341,7 @@ export function MessageWorkspace() {
               className={area?.id === item.id ? "mw-active" : ""}
               disabled={item.readable === false}
               title={item.readable === false ? "Catalog only: not approved for sandbox reading" : undefined}
-              onClick={() => { requestRef.current?.abort(); pendingSearchMessage.current = null; setSearchResults(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
+              onClick={() => { if (posting || !confirmDiscard()) return; setComposer(null); requestRef.current?.abort(); pendingSearchMessage.current = null; setSearchResults(null); setPage(null); setSelected(null); setPageHistory([]); setSearch(""); setArea(item); }}>
               <span className="mw-area-name">{item.name}</span>{unreadAreaIds.includes(item.id) && <span className="mw-area-unread-dot" role="img" aria-label="New messages" title="New messages since your Mystic last-read pointer" />}{item.readable === false ? " · Restricted" : ""}
             </button>)}
           {selectedGroupId === null && <p>Select a group to see its message areas.</p>}
