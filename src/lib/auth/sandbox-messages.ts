@@ -7,7 +7,8 @@ import { initializeMysticWebRuntime } from "../storage/runtime";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticPostingHandle } from "../mystic/native-user-login";
-import { searchLocalRecipients } from "../mystic/mail-recipients";
+import { searchLocalRecipients, resolveLocalRecipient } from "../mystic/mail-recipients";
+import { readLocalMailbox } from "../mystic/local-mail-reader";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
 import { MessageAccess } from "../mystic/message-access";
@@ -41,6 +42,81 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const account = await readNativeAccountSnapshot(runtime.usersPath, identity.userId);
     if (!account || account.locked || account.deletedCandidate || account.passwordChangeRequired)
       return json({ error: "Account unavailable" }, 401);
+    // Private local mail is never exposed through the public EchoMail catalog.
+    // Operator must confirm the first area and its actual JAM base explicitly.
+    if (new URL(request.url).pathname.endsWith("/api/mail")) {
+      const configured = process.env.MYSTICWEB_LOCAL_MAIL_BASE;
+      const { areas } = await readMysticConfiguration();
+      const first = areas[0];
+      if (!configured || !first || first.jamBase !== configured ||
+          !isJamBaseName(configured) || !jamRoot || !path.isAbsolute(jamRoot))
+        return json({ error: "Local mail base not verified" }, 503);
+      const [sandboxStat, jamStat] = await Promise.all([lstat(root), lstat(jamRoot)]);
+      if (!sandboxStat.isDirectory() || sandboxStat.isSymbolicLink() ||
+          !jamStat.isDirectory() || jamStat.isSymbolicLink()) return json({ error: "Unsafe mail root" }, 503);
+      const [sandboxReal, jamReal] = await Promise.all([realpath(root), realpath(jamRoot)]);
+      const relative = path.relative(sandboxReal, jamReal);
+      if (!relative || relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative))
+        return json({ error: "Unsafe mail root" }, 503);
+      const author = await readMysticPostingHandle(runtime.usersPath, identity.userId);
+      if (!author) return json({ error: "Native mail identity unavailable" }, 403);
+      if (request.method === "GET") {
+        const params = new URL(request.url).searchParams;
+        const keys = [...params.keys()];
+        if (new Set(keys).size !== keys.length || keys.some(k => !["folder", "message", "before"].includes(k)))
+          return json({ error: "Invalid mail query" }, 400);
+        const folder = params.get("folder");
+        if (folder !== "inbox" && folder !== "sent") return json({ error: "Invalid folder" }, 400);
+        const parseNumber = (key: string) => {
+          const value = params.get(key);
+          if (value === null) return undefined;
+          if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) > 0xffffffff)
+            throw new Error("Invalid message number");
+          return Number(value);
+        };
+        const message = parseNumber("message"), before = parseNumber("before");
+        if (message && before) return json({ error: "Invalid pagination" }, 400);
+        return json(await readLocalMailbox(jamReal, configured, author, { folder, message, before }));
+      }
+      if (request.method === "POST") {
+        if (new URL(request.url).search || request.headers.get("content-type") !== "application/json" ||
+            request.headers.has("content-encoding")) return json({ error: "Invalid mail request" }, 400);
+        const declared = Number(request.headers.get("content-length") ?? "0");
+        if (!Number.isSafeInteger(declared) || declared < 1 || declared > 70000)
+          return json({ error: "Invalid mail request" }, 400);
+        const raw = await request.text();
+        if (Buffer.byteLength(raw) > 70000) return json({ error: "Invalid mail request" }, 400);
+        const input: unknown = JSON.parse(raw);
+        if (!input || typeof input !== "object" || Array.isArray(input)) return json({ error: "Invalid draft" }, 400);
+        const draft = input as Record<string, unknown>;
+        const keys = Object.keys(draft).sort().join(",");
+        if (keys !== "body,recipientId,subject" && keys !== "body,recipientId,replyTo,subject")
+          return json({ error: "Invalid draft" }, 400);
+        if (!Number.isSafeInteger(draft.recipientId) || (draft.recipientId as number) < 1 ||
+            typeof draft.subject !== "string" || !draft.subject.trim() ||
+            Buffer.byteLength(draft.subject, "utf8") > 255 || /[\\x00-\\x1f\\x7f]/.test(draft.subject) ||
+            typeof draft.body !== "string" || !draft.body.trim() || draft.body.length > 60000 ||
+            /[\\x00\\x1b\\x7f]/.test(draft.body) ||
+            (draft.replyTo !== undefined && (!Number.isSafeInteger(draft.replyTo) || (draft.replyTo as number) < 1)))
+          return json({ error: "Invalid draft" }, 400);
+        const recipient = await resolveLocalRecipient(runtime.usersPath, draft.recipientId as number);
+        if (!recipient) return json({ error: "Recipient must be an existing active Mystic user" }, 400);
+        if (draft.replyTo !== undefined) {
+          const parent = await readLocalMailbox(jamReal, configured, author,
+            { folder: "inbox", message: draft.replyTo as number });
+          if (parent.messages.length !== 1) return json({ error: "Reply parent unavailable" }, 404);
+          if (parent.messages[0].author.toLowerCase() !== recipient.handle.toLowerCase())
+            return json({ error: "Reply recipient mismatch" }, 400);
+        }
+        const result = await appendOfflineJam(jamReal, configured, {
+          author, recipient: recipient.handle, subject: draft.subject.trim(), body: draft.body,
+          timestamp: Math.floor(Date.now() / 1000), privateMail: true,
+          ...(draft.replyTo === undefined ? {} : { replyTo: draft.replyTo as number }),
+        });
+        return json({ sent: true, number: result.number }, 201);
+      }
+      return json({ error: "Method unavailable" }, 405);
+    }
     // Authenticated sandbox-only recipient autocomplete. No public user directory.
     if (request.method === "GET" && new URL(request.url).searchParams.has("recipientLookup")) {
       const params = new URL(request.url).searchParams;
