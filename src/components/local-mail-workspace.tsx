@@ -113,9 +113,15 @@ export function LocalMailWorkspace() {
         <textarea value={body} onChange={e => setBody(e.target.value)} rows={18} maxLength={60000}
           style={{ display: "block", width: "100%", minHeight: "360px", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
       </label>
-      <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button type="button" disabled={busy || !recipient} onClick={() => void send()}>{busy ? "Sending…" : "Send local mail"}</button>
-        <button type="button" disabled={busy} onClick={() => setCompose(false)}>Cancel</button>
+      <div style={{ display: "flex", gap: "0.9rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.5rem" }}>
+        <button type="button" disabled={busy || !recipient} onClick={() => void send()}
+          style={{ background: "#20513d", border: "1px solid #37654f", borderRadius: "9px", color: "#fff", padding: "0.9rem 1.5rem", fontSize: "1rem", fontWeight: 700, minHeight: "48px", cursor: busy || !recipient ? "not-allowed" : "pointer", opacity: busy || !recipient ? 0.55 : 1 }}>
+          {busy ? "Sending…" : "Send Local Mail"}
+        </button>
+        <button type="button" disabled={busy} onClick={() => setCompose(false)}
+          style={{ background: "#24333c", border: "1px solid #4b5c66", borderRadius: "9px", color: "#fff", padding: "0.9rem 1.5rem", fontSize: "1rem", fontWeight: 600, minHeight: "48px", cursor: busy ? "not-allowed" : "pointer" }}>
+          Cancel
+        </button>
       </div>
     </div> : selected ? <article>
       <button type="button" onClick={() => setSelected(null)}>Back to {folder}</button>
