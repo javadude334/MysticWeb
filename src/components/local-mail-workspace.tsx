@@ -39,7 +39,7 @@ export function LocalMailWorkspace() {
     void task;
   }, [folder, refresh, load]);
   useEffect(() => {
-    if (!compose || recipient || query.trim().length < 2) return;
+    if (!compose || replyTo !== undefined || recipient || query.trim().length < 2) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -63,12 +63,25 @@ export function LocalMailWorkspace() {
       setSelected(data.messages[0]);
     } catch (e) { setError(e instanceof Error ? e.message : "Mail unavailable"); }
   }
-  function newMessage(mail?: Mail) {
+  function newMessage() {
     setCompose(true); setSelected(null); setError("");
-    setRecipient(null); setRecipients([]);
-    setQuery(mail?.author ?? "");
-    setSubject(mail ? (/^Re:/i.test(mail.subject) ? mail.subject : "Re: " + mail.subject) : "");
-    setBody(""); setReplyTo(mail?.number);
+    setRecipient(null); setRecipients([]); setQuery("");
+    setSubject(""); setBody(""); setReplyTo(undefined);
+  }
+  async function replyMessage(mail: Mail) {
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/mail?folder=inbox&message=" + mail.number + "&replyRecipient=1",
+        { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.recipient) throw new Error(data.error ?? "Unable to resolve original sender");
+      const resolved = data.recipient as Recipient;
+      setRecipient(resolved); setRecipients([]); setQuery(resolved.handle);
+      setSubject(/^Re:/i.test(mail.subject) ? mail.subject : "Re: " + mail.subject);
+      setBody(""); setReplyTo(mail.number);
+      setSelected(null); setCompose(true);
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to reply"); }
+    finally { setBusy(false); }
   }
   async function send() {
     if (!recipient || !subject.trim() || !body.trim()) {
@@ -91,19 +104,21 @@ export function LocalMailWorkspace() {
   }
   return <section className="card" style={{ padding: "1rem" }}>
     <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-      <button type="button" onClick={() => { setCompose(false); setSelected(null); setFolder("inbox"); }}>Inbox</button>
-      <button type="button" onClick={() => { setCompose(false); setSelected(null); setFolder("sent"); }}>Sent</button>
-      <button type="button" onClick={() => newMessage()}>Compose</button>
-      <button type="button" onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</button>
+      <MessageAction onClick={() => { setCompose(false); setSelected(null); setFolder("inbox"); }}>Inbox</MessageAction>
+      <MessageAction onClick={() => { setCompose(false); setSelected(null); setFolder("sent"); }}>Sent</MessageAction>
+      <MessageAction primary onClick={() => newMessage()}>Compose</MessageAction>
+      <MessageAction onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</MessageAction>
     </div>
     {error && <p role="alert" style={{ color: "var(--danger, #d66)" }}>{error}</p>}
     {compose ? <div style={{ display: "grid", gap: "0.75rem" }}>
-      <MessageField label="To (existing Mystic user)">
-        <input style={messageInputStyle} value={query} onChange={e => { setQuery(e.target.value); setRecipient(null); setReplyTo(undefined); }}
+      <MessageField label={replyTo !== undefined ? "To (original sender)" : "To (existing Mystic user)"}>
+        <input style={{ ...messageInputStyle, ...(replyTo !== undefined ? { opacity: 0.85, cursor: "default" } : {}) }} value={query}
+          readOnly={replyTo !== undefined}
+          onChange={e => { if (replyTo === undefined) { setQuery(e.target.value); setRecipient(null); } }}
           placeholder="Start typing a name or handle" autoComplete="off" />
       </MessageField>
-      {recipient && <p>Selected: {recipient.handle} (user #{recipient.userId})</p>}
-      {!recipient && recipients.length > 0 && <div role="listbox" aria-label="Matching Mystic users">
+      {recipient && replyTo === undefined && <p style={{ margin: 0, color: "#a9c3cc" }}>Selected: {recipient.handle}</p>}
+      {replyTo === undefined && !recipient && recipients.length > 0 && <div role="listbox" aria-label="Matching Mystic users">
         {recipients.map(user => <button type="button" key={user.userId} role="option"
           aria-selected={false} onClick={() => { setRecipient(user); setQuery(user.handle); setRecipients([]); }}>
           {user.handle}{user.realName ? " — " + user.realName : ""}
@@ -126,21 +141,31 @@ export function LocalMailWorkspace() {
         date={selected.dates?.written ? new Date(selected.dates.written * 1000).toLocaleString() : undefined} />
       <MessageBody>{selected.body || "(empty message)"}</MessageBody>
       <MessageActions>
-        {folder === "inbox" && <MessageAction primary onClick={() => newMessage(selected)}>Reply</MessageAction>}
+        {folder === "inbox" && <MessageAction primary disabled={busy} onClick={() => void replyMessage(selected)}>Reply</MessageAction>}
         <MessageAction onClick={() => setSelected(null)}>Back to {folder === "inbox" ? "Inbox" : "Sent Mail"}</MessageAction>
       </MessageActions>
     </article> : <>
-      <h2>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
+      <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.5rem" }}>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
       {busy && <p>Loading mail…</p>}
-      {!busy && messages.length === 0 && <p>No messages in this page.</p>}
+      {!busy && messages.length === 0 && <p>No messages in this folder.</p>}
       <div style={{ display: "grid", gap: "0.5rem" }}>
         {messages.map(m => <button type="button" key={m.number}
-          onClick={() => void openMessage(m)} style={{ textAlign: "left", padding: "0.6rem" }}>
-          <strong>{m.subject || "(no subject)"}</strong> — {folder === "inbox" ? m.author : m.recipient}
-          <small style={{ marginLeft: "0.75rem" }}>#{m.number}</small>
+          onClick={() => void openMessage(m)}
+          style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
+            alignItems: "center", gap: "1rem", textAlign: "left",
+            width: "100%", padding: "0.95rem 1.1rem", borderRadius: "8px",
+            background: "#1b2a30", border: "1px solid #364b55", color: "#f0f4f5", cursor: "pointer" }}>
+          <span style={{ display: "grid", gap: "0.35rem", minWidth: 0 }}>
+            <strong style={{ overflowWrap: "anywhere", fontSize: "1rem" }}>{m.subject || "(no subject)"}</strong>
+            <span style={{ color: "#a9c3cc", fontSize: "0.9rem" }}>
+              {folder === "inbox" ? "From: " + m.author : "To: " + m.recipient}
+              {m.dates?.written ? "  ·  " + new Date(m.dates.written * 1000).toLocaleString() : ""}
+            </span>
+          </span>
+          <span style={{ color: "#a9c3cc", fontSize: "0.85rem", whiteSpace: "nowrap" }}>#{m.number}</span>
         </button>)}
       </div>
-      {before !== null && <button type="button" disabled={busy} onClick={() => void load(folder, before)}>Older mail</button>}
+      {before !== null && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
     </>}
   </section>;
 }
