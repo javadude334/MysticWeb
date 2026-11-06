@@ -10,6 +10,7 @@ type MailService = "all" | "local" | "netmail" | "internet";
 export function LocalMailWorkspace() {
   const [folder, setFolder] = useState<Folder>("inbox");
   const [service, setService] = useState<MailService>("all");
+  const [hideRead, setHideRead] = useState(false);
   const [composeService, setComposeService] = useState<Exclude<MailService, "all">>("local");
   const [messages, setMessages] = useState<Mail[]>([]);
   const [selected, setSelected] = useState<Mail | null>(null);
@@ -127,6 +128,10 @@ export function LocalMailWorkspace() {
         {item.label}
       </button>)}
     </nav>
+    <label style={{ display: "inline-flex", alignItems: "center", gap: "0.55rem", marginBottom: "1rem", cursor: "pointer" }}>
+      <input type="checkbox" checked={hideRead} onChange={e => setHideRead(e.target.checked)} />
+      Hide read messages
+    </label>
     {error && <p role="alert" style={{ color: "var(--danger, #d66)" }}>{error}</p>}
     {compose ? <div style={{ display: "grid", gap: "0.75rem" }}>
       <MessageField label="Send via"><select style={messageInputStyle} value={composeService} disabled={replyTo !== undefined}
@@ -171,6 +176,7 @@ export function LocalMailWorkspace() {
       <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.5rem" }}>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
       {busy && <p>Loading mail…</p>}
       {!busy && messages.length === 0 && <p>No messages in this folder.</p>}
+      {!busy && messages.length > 0 && hideRead && folder === "inbox" && !messages.some(m => (m.attributes & 0x00000008) === 0) && <p>No unread messages on this page.</p>}
       {service === "netmail" || service === "internet" ? <p style={{ color: "#a9c3cc" }}>
         {service === "netmail" ? "FTN NetMail" : "Internet Email"} integration is planned. No messages are available from this service yet.
       </p> : <div style={{ overflowX: "auto", border: "1px solid #364b55", borderRadius: "8px" }}>
@@ -185,7 +191,7 @@ export function LocalMailWorkspace() {
             </tr>
           </thead>
           <tbody>
-            {messages.map(m => {
+            {messages.filter(m => !hideRead || folder !== "inbox" || (m.attributes & 0x00000008) === 0).map(m => {
               const unread = folder === "inbox" && (m.attributes & 0x00000008) === 0;
               return <tr key={m.number} style={{ borderTop: "1px solid #364b55", background: unread ? "#182d2d" : "#121c21" }}>
                 <td style={{ padding: "0.75rem 0.9rem", whiteSpace: "nowrap" }}>
