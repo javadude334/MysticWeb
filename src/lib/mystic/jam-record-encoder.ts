@@ -21,6 +21,19 @@ function uint(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
 }
 
+/** JAM index recipient CRC: inverted IEEE CRC-32 of lowercased recipient bytes.
+ * Verified against native Mystic A48 index entries for All, test and bamageek.
+ */
+function recipientCrc(recipient: string): number {
+  const bytes = Buffer.from(recipient.toLowerCase(), "utf8");
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  }
+  return crc >>> 0;
+}
+
 function subfield(id: number, value: Buffer): Buffer {
   const header = Buffer.alloc(8);
   header.writeUInt16LE(id, 0);
@@ -63,7 +76,7 @@ export function encodeJamDraft(draft: JamDraftRecord, headerOffset: number, text
   header.writeUInt32LE(text.length, 64);
   header.writeUInt32LE(0xffffffff, 68);
   const index = Buffer.alloc(8);
-  index.writeUInt32LE(0xffffffff, 0);
+  index.writeUInt32LE(recipientCrc(draft.recipient), 0);
   index.writeUInt32LE(headerOffset, 4);
   return { header: Buffer.concat([header, fields]), text, index };
 }
