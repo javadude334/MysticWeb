@@ -2,6 +2,7 @@ import "server-only";
 import { open, lstat, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { encodeJamDraft, type JamDraftRecord } from "./jam-record-encoder";
 import { isJamBaseName } from "./jam";
 import { withMysticWebTagline } from "./message-tagline";
@@ -20,7 +21,20 @@ export async function appendOfflineJam(
   const resolved = await realpath(root);
   if (!(await lstat(resolved)).isDirectory()) throw new Error("Invalid JAM root");
   const lockPath = path.join(resolved, base + ".mysticweb-offline.lock");
-  const lock = await open(lockPath, "wx", 0o600);
+  // Serialize cooperating MysticWeb processes, including separate Node workers.
+  // This does NOT lock native Mystic: do not use while Mystic or a tosser can write.
+  // Never remove an existing lock automatically; it may indicate failed recovery.
+  let lock: Awaited<ReturnType<typeof open>> | undefined;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      lock = await open(lockPath, "wx", 0o600);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || attempt === 9) throw error;
+      await delay(100);
+    }
+  }
+  if (!lock) throw new Error("JAM lock unavailable");
   let leaveLock = false;
   const handles = [];
   try {
