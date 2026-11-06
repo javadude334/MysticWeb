@@ -109,7 +109,10 @@ export function LocalMailWorkspace() {
         </button>)}
       </div>}
       <label>Subject <input value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} /></label>
-      <label>Message <textarea value={body} onChange={e => setBody(e.target.value)} rows={12} maxLength={60000} /></label>
+      <label style={{ display: "grid", gap: "0.4rem", width: "100%" }}>Message
+        <textarea value={body} onChange={e => setBody(e.target.value)} rows={18} maxLength={60000}
+          style={{ display: "block", width: "100%", minHeight: "360px", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+      </label>
       <div style={{ display: "flex", gap: "0.75rem" }}>
         <button type="button" disabled={busy || !recipient} onClick={() => void send()}>{busy ? "Sending…" : "Send local mail"}</button>
         <button type="button" disabled={busy} onClick={() => setCompose(false)}>Cancel</button>
