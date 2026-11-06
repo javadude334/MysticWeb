@@ -7,16 +7,15 @@ import { isJamBaseName } from "./jam";
 import { withMysticWebTagline } from "./message-tagline";
 
 /**
- * OFFLINE ONLY. This lock is owned by MysticWeb and does not coordinate with
+ * Development JAM writer. This lock is owned by MysticWeb and does not coordinate with
  * Mystic's native JAM locking. Never call while Mystic or a tosser can write.
  * A failed rollback leaves a lock in place and requires operator recovery.
  */
 export async function appendOfflineJam(
   root: string, base: string, draft: Omit<JamDraftRecord, "number" | "messageId">,
-  options: { offlineConfirmed: boolean },
+  
 ): Promise<{ number: number; messageId: string }> {
-  if (!options.offlineConfirmed || process.env.NODE_ENV === "production" ||
-      process.env.MYSTICWEB_OFFLINE_JAM_WRITE !== "I_UNDERSTAND_OFFLINE_ONLY" ||
+  if (process.env.NODE_ENV === "production" ||
       !isJamBaseName(base) || !path.isAbsolute(root)) throw new Error("Offline JAM writing disabled");
   const resolved = await realpath(root);
   if (!(await lstat(resolved)).isDirectory()) throw new Error("Invalid JAM root");
