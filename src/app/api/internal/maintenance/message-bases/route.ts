@@ -3,8 +3,6 @@ import { initializeMysticWebRuntime } from "@/lib/storage/runtime";
 import { scanMysticMessageBases } from "@/lib/storage/message-base-catalog";
 import { AuthStore } from "@/lib/auth/store";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 function authorized(request: Request): boolean {
   const secret = process.env.MYSTICWEB_MAINTENANCE_TOKEN;
