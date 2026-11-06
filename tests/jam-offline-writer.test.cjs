@@ -81,6 +81,32 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     const opened = await readJam(dir, "demo", { message: 3 });
     assert.equal(opened.messages[0].replyTo, 1);
     assert.match(opened.messages[0].body, /Hello world[\s\S]*Posted with MysticWeb v0\.1\.0/);
+    // Full post/reply/read round trip through the production JAM reader.
+    const parent = await readJam(dir, "demo", { message: 1 });
+    const replyOne = await readJam(dir, "demo", { message: 2 });
+    assert.equal(parent.messages.length, 1);
+    assert.equal(replyOne.messages.length, 1);
+    assert.equal(parent.messages[0].subject, "Offline test");
+    assert.equal(parent.messages[0].author, "Tester");
+    assert.equal(parent.messages[0].recipient, "All");
+    assert.equal(parent.messages[0].firstReply, 2);
+    assert.equal(replyOne.messages[0].replyTo, 1);
+    assert.equal(replyOne.messages[0].nextReply, 3);
+    assert.equal(opened.messages[0].subject, "Reply two");
+    assert.equal(opened.messages[0].nextReply ?? 0, 0);
+    for (const message of [parent.messages[0], replyOne.messages[0], opened.messages[0]]) {
+      assert.match(message.body, /Hello world[\\s\\S]*Posted with MysticWeb v0\\.1\\.0/);
+      assert.equal((message.body.match(/Posted with MysticWeb v0\\.1\\.0/g) ?? []).length, 1);
+    }
+    // Failed writes must not change any JAM data or leave an offline lock.
+    const beforeDenied = ["jhr", "jdx", "jdt"].map(ext => fs.readFileSync(path.join(dir, "demo." + ext)));
+    await assert.rejects(
+      appendOfflineJam(dir, "demo", { ...draft, replyTo: 99999 }, { offlineConfirmed: true }),
+      /Invalid reply parent/,
+    );
+    ["jhr", "jdx", "jdt"].forEach((ext, i) =>
+      assert.deepEqual(fs.readFileSync(path.join(dir, "demo." + ext)), beforeDenied[i]));
+    assert.equal(fs.existsSync(path.join(dir, "demo.mysticweb-offline.lock")), false);
   } finally {
     if (old === undefined) delete process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
     else process.env.MYSTICWEB_OFFLINE_JAM_WRITE = old;
