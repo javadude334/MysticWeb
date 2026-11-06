@@ -7,6 +7,7 @@ import { initializeMysticWebRuntime } from "../storage/runtime";
 import { sandboxOriginAllowed } from "./sandbox-origin";
 import { readNativeAccountSnapshot } from "../mystic/native-account-status";
 import { readMysticPostingHandle } from "../mystic/native-user-login";
+import { searchLocalRecipients } from "../mystic/mail-recipients";
 import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
 import { MessageAccess } from "../mystic/message-access";
@@ -40,6 +41,15 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     const account = await readNativeAccountSnapshot(runtime.usersPath, identity.userId);
     if (!account || account.locked || account.deletedCandidate || account.passwordChangeRequired)
       return json({ error: "Account unavailable" }, 401);
+    // Authenticated sandbox-only recipient autocomplete. No public user directory.
+    if (request.method === "GET" && new URL(request.url).searchParams.has("recipientLookup")) {
+      const params = new URL(request.url).searchParams;
+      if ([...params.keys()].join(",") !== "recipientLookup") return json({ error: "Invalid lookup" }, 400);
+      const query = params.get("recipientLookup") ?? "";
+      if (query.length < 2 || query.length > 30 || !/^[\\x20-\\x7e]+$/.test(query))
+        return json({ recipients: [] });
+      return json({ recipients: await searchLocalRecipients(runtime.usersPath, query, 10) });
+    }
     // Sandbox-only native posting. A separate operation prevents read-receipt
     // clients from accidentally triggering a message write.
     if (request.method === "POST" && new URL(request.url).pathname.endsWith("/api/messages") &&
