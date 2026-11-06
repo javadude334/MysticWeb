@@ -113,21 +113,21 @@ export function LocalMailWorkspace() {
       <MessageAction primary onClick={() => newMessage()}>Compose</MessageAction>
       <MessageAction onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</MessageAction>
     </div>
-    <nav aria-label="Filter mail by service" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center",
-      paddingBottom: "0.75rem", marginBottom: "0.75rem", borderBottom: "1px solid #364b55" }}>
+    <fieldset style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.9rem",
+      padding: "0 0 0.75rem", margin: "0 0 0.75rem", border: 0, borderBottom: "1px solid #364b55" }}>
+      <legend style={{ color: "#a9c3cc", fontSize: "0.85rem", marginBottom: "0.35rem" }}>Show</legend>
       {([
         { id: "all", label: "All Mail" },
-        { id: "local", label: "Local Mail" },
-        { id: "netmail", label: "NetMail · Planned" },
-        { id: "internet", label: "Internet Email · Planned" },
-      ] as const).map(item => <button type="button" key={item.id}
-        aria-pressed={service === item.id} onClick={() => { setService(item.id); setSelected(null); setCompose(false); }}
-        style={{ padding: "0.45rem 0.75rem", borderRadius: "7px", cursor: "pointer", font: "inherit", width: "auto", flex: "0 0 auto",
-          background: service === item.id ? "#20513d" : "#24333c",
-          border: "1px solid " + (service === item.id ? "#37654f" : "#4b5c66"), color: "#fff" }}>
+        { id: "local", label: "Local" },
+        { id: "netmail", label: "NetMail (planned)" },
+        { id: "internet", label: "Internet (planned)" },
+      ] as const).map(item => <label key={item.id} style={{ display: "inline-flex", alignItems: "center",
+        gap: "0.35rem", cursor: "pointer", whiteSpace: "nowrap", fontSize: "0.9rem" }}>
+        <input type="radio" name="mystic-mail-service" value={item.id} checked={service === item.id}
+          onChange={() => { setService(item.id); setSelected(null); setCompose(false); }} />
         {item.label}
-      </button>)}
-    </nav>
+      </label>)}
+    </fieldset>
     <label style={{ display: "inline-flex", alignItems: "center", gap: "0.55rem", marginBottom: "1rem", cursor: "pointer" }}>
       <input type="checkbox" checked={hideRead} onChange={e => setHideRead(e.target.checked)} />
       Hide read messages
