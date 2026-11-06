@@ -1,19 +1,29 @@
-# Invoke from Mystic Event Scheduler as an external command, or from
-# a Windows scheduled task following nightly MUTIL maintenance.
-# Requires MYSTICWEB_MAINTENANCE_TOKEN (at least 32 characters) in the
-# scheduled process environment. Do not put the token in Mystic's command line.
+# Mystic Event Scheduler -> MysticWeb HTTPS maintenance endpoint.
+# Token lives in the private Mystic data/mysticweb directory, not the command line.
 param(
-  [string]$BaseUrl = "http://127.0.0.1:3000"
+  [string]$BaseUrl = "http://127.0.0.1:3000",
+  [string]$TokenFile = ""
 )
 $ErrorActionPreference = "Stop"
-$token = [Environment]::GetEnvironmentVariable("MYSTICWEB_MAINTENANCE_TOKEN")
-if ([string]::IsNullOrWhiteSpace($token) -or $token.Length -lt 32) {
-  throw "MYSTICWEB_MAINTENANCE_TOKEN is missing or too short"
-}
-$uri = $BaseUrl.TrimEnd('/') + "/api/internal/maintenance/message-bases"
 try {
+  if ([string]::IsNullOrWhiteSpace($TokenFile)) {
+    $root = [Environment]::GetEnvironmentVariable("MYSTIC_DATA_ROOT")
+    if ([string]::IsNullOrWhiteSpace($root)) { $root = "C:\MysticSandbox" }
+    $TokenFile = Join-Path (Join-Path (Join-Path $root "data") "mysticweb") "mysticweb-api.json"
+  }
+  $file = Get-Item -LiteralPath $TokenFile -ErrorAction Stop
+  if ($file.PSIsContainer -or $file.Length -gt 1024) { throw "Invalid API token file" }
+  $credential = Get-Content -LiteralPath $TokenFile -Raw | ConvertFrom-Json
+  if ($credential.version -ne 1 -or $credential.token -cnotmatch '^[a-f0-9]{64}$') {
+    throw "Invalid API token format"
+  }
+  $uri = $BaseUrl.TrimEnd('/') + "/api/internal/maintenance/message-bases"
+  $target = [Uri]$uri
+  if ($target.Scheme -ne 'https' -and $target.Host -notin @('127.0.0.1', 'localhost', '::1')) {
+    throw "Remote maintenance requests require HTTPS"
+  }
   $result = Invoke-RestMethod -Method Post -Uri $uri -Headers @{
-    Authorization = "Bearer $token"
+    Authorization = "Bearer $($credential.token)"
   } -TimeoutSec 60
   $result | ConvertTo-Json -Depth 8
 } catch {
