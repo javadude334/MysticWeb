@@ -15,6 +15,8 @@ export interface JamDraftRecord {
   replyTo?: number;
   messageId: string;
   replyId?: string;
+  /** JAM private attribute; only trusted private-mail callers set this. */
+  privateMail?: boolean;
 }
 
 function uint(value: number): boolean {
@@ -71,7 +73,7 @@ export function encodeJamDraft(draft: JamDraftRecord, headerOffset: number, text
   header.writeUInt32LE(draft.timestamp, 36);
   header.writeUInt32LE(draft.number, 48);
   // Match attributes observed on locally posted Mystic A48 echo messages.
-  header.writeUInt32LE(0x01000001, 52);
+  header.writeUInt32LE(draft.privateMail ? 0x01000001 | 0x00000008 : 0x01000001, 52);
   header.writeUInt32LE(textOffset, 60);
   header.writeUInt32LE(text.length, 64);
   header.writeUInt32LE(0xffffffff, 68);
