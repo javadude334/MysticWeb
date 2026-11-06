@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-type Session = { authenticated: true; userId: number; securityLevel: number } | { authenticated: false };
+type Session = { authenticated: true; userId: number; securityLevel?: number; handle?: string | null } | { authenticated: false };
 
 export function SessionStatus({ location }: { location: "top" | "sidebar" }) {
   const router = useRouter();
@@ -53,7 +53,7 @@ export function SessionStatus({ location }: { location: "top" | "sidebar" }) {
     return <><span><span className="status-dot" />{active ? "Mystic account connected" : session ? "Guest preview" : "Checking session..."}</span>
       {active ? <div className="account-menu" ref={menu}>
         <button type="button" className="account-menu-trigger" aria-haspopup="menu" aria-expanded={open}
-          onClick={() => setOpen(value => !value)}>User #{session.userId} <span aria-hidden="true">▾</span></button>
+          onClick={() => setOpen(value => !value)}>{session.handle || `User #${session.userId}`} <span aria-hidden="true">▾</span></button>
         {open && <div className="account-menu-panel" role="menu">
           <Link role="menuitem" href="/my-profile" onClick={() => setOpen(false)}>My Profile</Link>
           <button type="button" role="menuitem" disabled={loggingOut} onClick={logout}>{loggingOut ? "Logging out..." : "Logout"}</button>
@@ -63,5 +63,5 @@ export function SessionStatus({ location }: { location: "top" | "sidebar" }) {
     </>;
   }
   return <div className="guest"><span className="avatar" aria-hidden="true">{active ? "M" : "G"}</span>
-    <div>{active ? `Mystic user #${session.userId}` : "Guest explorer"}<small>{active ? "Authenticated session" : "Preview session"}</small></div></div>;
+    <div>{active ? (session.handle || `Mystic user #${session.userId}`) : "Guest explorer"}<small>{active ? "Authenticated session" : "Preview session"}</small></div></div>;
 }
