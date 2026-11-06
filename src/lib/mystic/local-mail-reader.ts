@@ -4,7 +4,8 @@ import path from "node:path";
 import { decodeJamText, isJamBaseName, type JamMessage } from "./jam";
 import { sameNativeHandle, type MailFolder } from "./mailbox";
 
-const HIDDEN = 0x80000004;
+// Private (0x00000004) is expected in local mail; only deleted records are hidden.
+const HIDDEN = 0x80000000;
 const MAX_SCAN = 5000;
 async function exact(file: Awaited<ReturnType<typeof open>>, size: number, position: number) {
   const b = Buffer.alloc(size);
@@ -48,9 +49,11 @@ export async function readLocalMailbox(root: string, base: string, handle: strin
     if (!first || first + count - 1 > 0xffffffff) throw new Error("Invalid JAM index");
     let slot = options.message !== undefined ? options.message - first :
       Math.min(count - 1, (options.before ?? (first + count)) - first - 1);
+    if (options.message !== undefined && (slot < 0 || slot >= count))
+      return { messages: [] as JamMessage[], nextBefore: null };
     const messages: JamMessage[] = [];
     let scanned = 0;
-    for (; slot >= 0 && slot < count && scanned < MAX_SCAN && messages.length < limit; slot--, scanned++) {
+    for (; slot >= 0 && slot < count && scanned < (options.message === undefined ? MAX_SCAN : 1) && messages.length < limit; slot--, scanned++) {
       const number = first + slot;
       const idx = await exact(index, 8, slot * 8);
       const offset = idx.readUInt32LE(4);
