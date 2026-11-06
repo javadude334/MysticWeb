@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MessageAction, MessageActions, MessageBody, MessageDetails, MessageField, messageInputStyle } from "./message-ui";
 
 type Mail = { number: number; author: string; recipient: string; subject: string;
-  body?: string; dates: { written: number }; replyTo: number };
+  body?: string; dates: { written: number }; replyTo: number; attributes: number };
 type Recipient = { userId: number; handle: string; realName: string | null };
 type Folder = "inbox" | "sent";
 export function LocalMailWorkspace() {
@@ -148,23 +148,42 @@ export function LocalMailWorkspace() {
       <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.5rem" }}>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
       {busy && <p>Loading mail…</p>}
       {!busy && messages.length === 0 && <p>No messages in this folder.</p>}
-      <div style={{ display: "grid", gap: "0.5rem" }}>
-        {messages.map(m => <button type="button" key={m.number}
-          onClick={() => void openMessage(m)}
-          style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
-            alignItems: "center", gap: "1rem", textAlign: "left",
-            width: "100%", padding: "0.95rem 1.1rem", borderRadius: "8px",
-            background: "#1b2a30", border: "1px solid #364b55", color: "#f0f4f5", cursor: "pointer" }}>
-          <span style={{ display: "grid", gap: "0.35rem", minWidth: 0 }}>
-            <strong style={{ overflowWrap: "anywhere", fontSize: "1rem" }}>{m.subject || "(no subject)"}</strong>
-            <span style={{ color: "#a9c3cc", fontSize: "0.9rem" }}>
-              {folder === "inbox" ? "From: " + m.author : "To: " + m.recipient}
-              {m.dates?.written ? "  ·  " + new Date(m.dates.written * 1000).toLocaleString() : ""}
-            </span>
-          </span>
-          <span style={{ color: "#a9c3cc", fontSize: "0.85rem", whiteSpace: "nowrap" }}>#{m.number}</span>
-        </button>)}
+      <div style={{ overflowX: "auto", border: "1px solid #364b55", borderRadius: "8px" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "620px", textAlign: "left" }}>
+          <thead style={{ background: "#1b2a30", color: "#a9c3cc" }}>
+            <tr>
+              <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "5rem" }}>#</th>
+              <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "22%" }}>{folder === "inbox" ? "From" : "To"}</th>
+              <th scope="col" style={{ padding: "0.85rem 0.9rem" }}>Subject</th>
+              <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "11rem" }}>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {messages.map(m => {
+              const unread = folder === "inbox" && (m.attributes & 0x00000008) === 0;
+              return <tr key={m.number} style={{ borderTop: "1px solid #364b55", background: unread ? "#182d2d" : "#121c21" }}>
+                <td style={{ padding: "0.75rem 0.9rem", whiteSpace: "nowrap" }}>
+                  {unread && <span title="Unread in native Mystic" aria-label="Unread" style={{ color: "#7bd9b3", marginRight: "0.4rem" }}>●</span>}
+                  {m.number}
+                </td>
+                <td style={{ padding: "0.75rem 0.9rem", overflowWrap: "anywhere" }}>{folder === "inbox" ? m.author : m.recipient}</td>
+                <td style={{ padding: "0.75rem 0.9rem" }}>
+                  <button type="button" onClick={() => void openMessage(m)}
+                    style={{ background: "none", border: 0, padding: 0, color: "#b7e9d6",
+                      font: "inherit", fontWeight: unread ? 700 : 500, cursor: "pointer", textAlign: "left", overflowWrap: "anywhere" }}>
+                    {m.subject || "(no subject)"}
+                  </button>
+                </td>
+                <td style={{ padding: "0.75rem 0.9rem", whiteSpace: "nowrap", color: "#a9c3cc" }}>
+                  {m.dates?.written ? new Date(m.dates.written * 1000).toLocaleDateString() : "—"}
+                </td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
       </div>
+      {folder === "inbox" && messages.some(m => (m.attributes & 0x00000008) === 0) &&
+        <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic's read status.</p>}
       {before !== null && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
     </>}
   </section>;
