@@ -46,7 +46,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       const params = new URL(request.url).searchParams;
       if ([...params.keys()].join(",") !== "recipientLookup") return json({ error: "Invalid lookup" }, 400);
       const query = params.get("recipientLookup") ?? "";
-      if (query.length < 2 || query.length > 30 || !/^[\\x20-\\x7e]+$/.test(query))
+      if (query.length < 2 || query.length > 30 || !/^[\x20-\x7e]+$/.test(query))
         return json({ recipients: [] });
       return json({ recipients: await searchLocalRecipients(runtime.usersPath, query, 10) });
     }
