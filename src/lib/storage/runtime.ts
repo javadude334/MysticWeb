@@ -20,13 +20,13 @@ let cached: MysticWebRuntime | undefined;
 // Keep credentials and sessions in a *private child directory* instead of
 // changing the ACLs of Mystic's shared data directory.
 function privateDatabaseDirectory(dataDir: string): string {
-  if (process.platform !== "win32") {
-    throw new Error("Automatic Mystic A47 Windows storage is not supported on this host");
+  if (process.platform !== "win32" && process.env.MYSTICWEB_ALLOW_SHARED_SQLITE !== "1") {
+    throw new Error("Shared SQLite storage requires explicit MYSTICWEB_ALLOW_SHARED_SQLITE=1");
   }
   const root = realpathSync.native(dataDir);
   const stat = lstatSync(root);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Invalid Mystic data directory");
-  const dir = path.win32.join(root, "mysticweb");
+  const dir = path.join(root, "mysticweb");
   try { mkdirSync(dir, { recursive: false, mode: 0o700 }); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
   const entry = lstatSync(dir);
@@ -34,6 +34,7 @@ function privateDatabaseDirectory(dataDir: string): string {
       realpathSync.native(dir).toLowerCase() !== dir.toLowerCase()) {
     throw new Error("Unsafe MysticWeb database directory");
   }
+  if (process.platform !== "win32") return dir;
   // Windows-specific: refuse removable/network filesystems, and install a
   // protected ACL allowing only this process identity and SYSTEM. This must
   // succeed before SQLite can create a journal or database file.
@@ -88,14 +89,14 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
   if (cached) return cached;
   const directories = mysticDirectories();
   const dbDir = privateDatabaseDirectory(directories.dataDir);
-  const databasePath = path.win32.join(dbDir, "mysticweb.db");
+  const databasePath = path.join(dbDir, "mysticweb.db");
   // The shared scheduler token inherits the private directory ACL.
   ensureApiToken(dbDir);
   // One-time offline migration of the old session database. Keep the source
   // untouched as a rollback copy. Never copy an active SQLite journal.
   const legacyDb = process.env.MYSTICWEB_SESSION_DB;
   if (legacyDb && !existsSync(databasePath)) {
-    if (!path.win32.isAbsolute(legacyDb) || !existsSync(legacyDb) ||
+    if (!(path.isAbsolute(legacyDb) || path.win32.isAbsolute(legacyDb)) || !existsSync(legacyDb) ||
         [legacyDb + "-journal", legacyDb + "-wal", legacyDb + "-shm"].some(existsSync)) {
       throw new Error("Legacy session database cannot be safely migrated");
     }
@@ -129,7 +130,7 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
   }
   cached = Object.freeze({
     directories, databasePath,
-    usersPath: path.win32.join(directories.dataDir, "users.dat"),
+    usersPath: path.join(directories.dataDir, "users.dat"),
     rateKey,
   });
   return cached;
