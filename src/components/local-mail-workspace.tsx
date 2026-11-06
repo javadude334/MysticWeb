@@ -6,12 +6,12 @@ type Mail = { number: number; author: string; recipient: string; subject: string
   body?: string; dates: { written: number }; replyTo: number; attributes: number };
 type Recipient = { userId: number; handle: string; realName: string | null };
 type Folder = "inbox" | "sent";
-type MailService = "all" | "local" | "netmail" | "internet";
+type MailService = "local" | "netmail" | "internet";
 export function LocalMailWorkspace() {
   const [folder, setFolder] = useState<Folder>("inbox");
-  const [service, setService] = useState<MailService>("all");
+  const [services, setServices] = useState<Record<MailService, boolean>>({ local: true, netmail: true, internet: true });
   const [hideRead, setHideRead] = useState(false);
-  const [composeService, setComposeService] = useState<Exclude<MailService, "all">>("local");
+  const [composeService, setComposeService] = useState<MailService>("local");
   const [messages, setMessages] = useState<Mail[]>([]);
   const [selected, setSelected] = useState<Mail | null>(null);
   const [before, setBefore] = useState<number | null>(null);
@@ -113,18 +113,17 @@ export function LocalMailWorkspace() {
       <MessageAction primary onClick={() => newMessage()}>Compose</MessageAction>
       <MessageAction onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</MessageAction>
     </div>
-    <fieldset style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.9rem",
+    <fieldset style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1rem",
       padding: "0 0 0.75rem", margin: "0 0 0.75rem", border: 0, borderBottom: "1px solid #364b55" }}>
-      <legend style={{ color: "#a9c3cc", fontSize: "0.85rem", marginBottom: "0.35rem" }}>Show</legend>
+      <legend style={{ color: "#a9c3cc", fontSize: "0.85rem", marginBottom: "0.35rem" }}>Show mail types</legend>
       {([
-        { id: "all", label: "All Mail" },
-        { id: "local", label: "Local" },
+        { id: "local", label: "Local Mail" },
         { id: "netmail", label: "NetMail (planned)" },
-        { id: "internet", label: "Internet (planned)" },
+        { id: "internet", label: "eMail (planned)" },
       ] as const).map(item => <label key={item.id} style={{ display: "inline-flex", alignItems: "center",
-        gap: "0.35rem", cursor: "pointer", whiteSpace: "nowrap", fontSize: "0.9rem" }}>
-        <input type="radio" name="mystic-mail-service" value={item.id} checked={service === item.id}
-          onChange={() => { setService(item.id); setSelected(null); setCompose(false); }} />
+        gap: "0.4rem", cursor: "pointer", whiteSpace: "nowrap", fontSize: "0.9rem" }}>
+        <input type="checkbox" checked={services[item.id]}
+          onChange={e => setServices(current => ({ ...current, [item.id]: e.target.checked }))} />
         {item.label}
       </label>)}
     </fieldset>
@@ -135,7 +134,7 @@ export function LocalMailWorkspace() {
     {error && <p role="alert" style={{ color: "var(--danger, #d66)" }}>{error}</p>}
     {compose ? <div style={{ display: "grid", gap: "0.75rem" }}>
       <MessageField label="Send via"><select style={messageInputStyle} value={composeService} disabled={replyTo !== undefined}
-        onChange={e => setComposeService(e.target.value as Exclude<MailService, "all">)}>
+        onChange={e => setComposeService(e.target.value as MailService)}>
         <option value="local">Local Mail</option><option value="netmail" disabled>NetMail (planned)</option>
         <option value="internet" disabled>Internet Email (planned)</option>
       </select></MessageField>
@@ -175,11 +174,10 @@ export function LocalMailWorkspace() {
     </article> : <>
       <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.5rem" }}>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
       {busy && <p>Loading mail…</p>}
-      {!busy && messages.length === 0 && <p>No messages in this folder.</p>}
-      {!busy && messages.length > 0 && hideRead && folder === "inbox" && !messages.some(m => (m.attributes & 0x00000008) === 0) && <p>No unread messages on this page.</p>}
-      {service === "netmail" || service === "internet" ? <p style={{ color: "#a9c3cc" }}>
-        {service === "netmail" ? "FTN NetMail" : "Internet Email"} integration is planned. No messages are available from this service yet.
-      </p> : <div style={{ overflowX: "auto", border: "1px solid #364b55", borderRadius: "8px" }}>
+      {!busy && services.local && messages.length === 0 && <p>No messages in this folder.</p>}
+      {!services.local && <p style={{ color: "#a9c3cc" }}>Local Mail is hidden by your filter.</p>}
+      {!busy && services.local && messages.length > 0 && hideRead && folder === "inbox" && !messages.some(m => (m.attributes & 0x00000008) === 0) && <p>No unread messages on this page.</p>}
+      <div style={{ overflowX: "auto", border: "1px solid #364b55", borderRadius: "8px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "620px", textAlign: "left" }}>
           <thead style={{ background: "#1b2a30", color: "#a9c3cc" }}>
             <tr>
@@ -191,7 +189,7 @@ export function LocalMailWorkspace() {
             </tr>
           </thead>
           <tbody>
-            {messages.filter(m => !hideRead || folder !== "inbox" || (m.attributes & 0x00000008) === 0).map(m => {
+            {messages.filter(m => services.local && (!hideRead || folder !== "inbox" || (m.attributes & 0x00000008) === 0)).map(m => {
               const unread = folder === "inbox" && (m.attributes & 0x00000008) === 0;
               return <tr key={m.number} style={{ borderTop: "1px solid #364b55", background: unread ? "#182d2d" : "#121c21" }}>
                 <td style={{ padding: "0.75rem 0.9rem", whiteSpace: "nowrap" }}>
@@ -215,9 +213,9 @@ export function LocalMailWorkspace() {
           </tbody>
         </table>
       </div>}
-      {folder === "inbox" && service !== "netmail" && service !== "internet" && messages.some(m => (m.attributes & 0x00000008) === 0) &&
+      {folder === "inbox" && services.local && messages.some(m => (m.attributes & 0x00000008) === 0) &&
         <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic's read status.</p>}
-      {before !== null && service !== "netmail" && service !== "internet" && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
+      {before !== null && services.local && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
     </>}
   </section>;
 }
