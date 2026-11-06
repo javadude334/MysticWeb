@@ -11,6 +11,9 @@ test("sandbox posting requires explicit action and posting permissions", () => {
   assert.doesNotMatch(source, /MYSTICWEB_OFFLINE_JAM_WRITE/);
   assert.match(source, /Reply parent unavailable/);
   assert.doesNotMatch(source, /author:\s*post\.author/);
+  assert.doesNotMatch(source, /author:\s*`User #/);
+  assert.match(source, /readMysticPostingHandle\(runtime\.usersPath, identity\.userId\)/);
+  assert.match(source, /if \(!author\) return json\(/);
 });
 
 test("production message POST remains unavailable", () => {
