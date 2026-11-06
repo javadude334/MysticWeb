@@ -6,10 +6,11 @@ type Mail = { number: number; author: string; recipient: string; subject: string
   body?: string; dates: { written: number }; replyTo: number; attributes: number };
 type Recipient = { userId: number; handle: string; realName: string | null };
 type Folder = "inbox" | "sent";
-type MailService = "local" | "netmail" | "internet";
+type MailService = "all" | "local" | "netmail" | "internet";
 export function LocalMailWorkspace() {
   const [folder, setFolder] = useState<Folder>("inbox");
-  const [service, setService] = useState<MailService>("local");
+  const [service, setService] = useState<MailService>("all");
+  const [composeService, setComposeService] = useState<Exclude<MailService, "all">>("local");
   const [messages, setMessages] = useState<Mail[]>([]);
   const [selected, setSelected] = useState<Mail | null>(null);
   const [before, setBefore] = useState<number | null>(null);
@@ -54,7 +55,7 @@ export function LocalMailWorkspace() {
       } catch { /* A new keystroke cancels the previous search. */ }
     }, 200);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [query, recipient, compose]);
+  }, [query, recipient, compose, replyTo]);
   async function openMessage(mail: Mail) {
     setError("");
     try {
@@ -68,7 +69,7 @@ export function LocalMailWorkspace() {
   function newMessage() {
     setCompose(true); setSelected(null); setError("");
     setRecipient(null); setRecipients([]); setQuery("");
-    setSubject(""); setBody(""); setReplyTo(undefined);
+    setSubject(""); setBody(""); setReplyTo(undefined); setComposeService("local");
   }
   async function replyMessage(mail: Mail) {
     setBusy(true); setError("");
@@ -80,7 +81,7 @@ export function LocalMailWorkspace() {
       const resolved = data.recipient as Recipient;
       setRecipient(resolved); setRecipients([]); setQuery(resolved.handle);
       setSubject(/^Re:/i.test(mail.subject) ? mail.subject : "Re: " + mail.subject);
-      setBody(""); setReplyTo(mail.number);
+      setBody(""); setReplyTo(mail.number); setComposeService("local");
       setSelected(null); setCompose(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to reply"); }
     finally { setBusy(false); }
@@ -105,39 +106,34 @@ export function LocalMailWorkspace() {
     finally { setBusy(false); }
   }
   return <section className="card" style={{ padding: "1rem" }}>
-    <nav aria-label="Mystic Mail services" style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem",
-      paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid #364b55" }}>
-      {([
-        { id: "local", label: "Local Mail" },
-        { id: "netmail", label: "NetMail" },
-        { id: "internet", label: "Internet Email" },
-      ] as const).map(item =>
-        <button key={item.id} type="button" aria-current={service === item.id ? "page" : undefined}
-          onClick={() => { setService(item.id); setCompose(false); setSelected(null); setError(""); }}
-          style={{ padding: "0.7rem 1.1rem", borderRadius: "8px", font: "inherit", fontWeight: 650,
-            border: service === item.id ? "1px solid #37654f" : "1px solid #4b5c66",
-            background: service === item.id ? "#20513d" : "#24333c", color: "#fff", cursor: "pointer" }}>
-          {item.label}{item.id !== "local" ? " · Planned" : ""}
-        </button>)}
-    </nav>
-    {service !== "local" ? <div style={{ padding: "1rem 0 2rem", maxWidth: "720px" }}>
-      <h2 style={{ marginTop: 0 }}>{service === "netmail" ? "FTN NetMail" : "Internet Email"}</h2>
-      <p style={{ color: "#a9c3cc", lineHeight: 1.6 }}>
-        {service === "netmail"
-          ? "Planned: private network mail addressed through Mystic's FTN network configuration."
-          : "Planned: Internet email access through a separately configured email service."}
-      </p>
-      <p style={{ color: "#a9c3cc" }}>This service is not connected yet. Sending and receiving are unavailable until its integration and access controls are implemented.</p>
-    </div> : <>
-
     <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
       <MessageAction onClick={() => { setCompose(false); setSelected(null); setFolder("inbox"); }}>Inbox</MessageAction>
       <MessageAction onClick={() => { setCompose(false); setSelected(null); setFolder("sent"); }}>Sent</MessageAction>
       <MessageAction primary onClick={() => newMessage()}>Compose</MessageAction>
       <MessageAction onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</MessageAction>
     </div>
+    <nav aria-label="Filter mail by service" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap",
+      paddingBottom: "1rem", marginBottom: "0.75rem", borderBottom: "1px solid #364b55" }}>
+      {([
+        { id: "all", label: "All Mail" },
+        { id: "local", label: "Local Mail" },
+        { id: "netmail", label: "NetMail · Planned" },
+        { id: "internet", label: "Internet Email · Planned" },
+      ] as const).map(item => <button type="button" key={item.id}
+        aria-pressed={service === item.id} onClick={() => { setService(item.id); setSelected(null); setCompose(false); }}
+        style={{ padding: "0.55rem 0.9rem", borderRadius: "7px", cursor: "pointer", font: "inherit",
+          background: service === item.id ? "#20513d" : "#24333c",
+          border: "1px solid " + (service === item.id ? "#37654f" : "#4b5c66"), color: "#fff" }}>
+        {item.label}
+      </button>)}
+    </nav>
     {error && <p role="alert" style={{ color: "var(--danger, #d66)" }}>{error}</p>}
     {compose ? <div style={{ display: "grid", gap: "0.75rem" }}>
+      <MessageField label="Send via"><select style={messageInputStyle} value={composeService} disabled={replyTo !== undefined}
+        onChange={e => setComposeService(e.target.value as Exclude<MailService, "all">)}>
+        <option value="local">Local Mail</option><option value="netmail" disabled>NetMail (planned)</option>
+        <option value="internet" disabled>Internet Email (planned)</option>
+      </select></MessageField>
       <MessageField label={replyTo !== undefined ? "To (original sender)" : "To (existing Mystic user)"}>
         <input style={{ ...messageInputStyle, ...(replyTo !== undefined ? { opacity: 0.85, cursor: "default" } : {}) }} value={query}
           readOnly={replyTo !== undefined}
@@ -175,11 +171,14 @@ export function LocalMailWorkspace() {
       <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.5rem" }}>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
       {busy && <p>Loading mail…</p>}
       {!busy && messages.length === 0 && <p>No messages in this folder.</p>}
-      <div style={{ overflowX: "auto", border: "1px solid #364b55", borderRadius: "8px" }}>
+      {service === "netmail" || service === "internet" ? <p style={{ color: "#a9c3cc" }}>
+        {service === "netmail" ? "FTN NetMail" : "Internet Email"} integration is planned. No messages are available from this service yet.
+      </p> : <div style={{ overflowX: "auto", border: "1px solid #364b55", borderRadius: "8px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "620px", textAlign: "left" }}>
           <thead style={{ background: "#1b2a30", color: "#a9c3cc" }}>
             <tr>
               <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "5rem" }}>#</th>
+              <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "6rem" }}>Type</th>
               <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "22%" }}>{folder === "inbox" ? "From" : "To"}</th>
               <th scope="col" style={{ padding: "0.85rem 0.9rem" }}>Subject</th>
               <th scope="col" style={{ padding: "0.85rem 0.9rem", width: "11rem" }}>Date</th>
@@ -193,6 +192,7 @@ export function LocalMailWorkspace() {
                   {unread && <span title="Unread in native Mystic" aria-label="Unread" style={{ color: "#7bd9b3", marginRight: "0.4rem" }}>●</span>}
                   {m.number}
                 </td>
+                <td style={{ padding: "0.75rem 0.9rem", color: "#a9c3cc" }}>Local</td>
                 <td style={{ padding: "0.75rem 0.9rem", overflowWrap: "anywhere" }}>{folder === "inbox" ? m.author : m.recipient}</td>
                 <td style={{ padding: "0.75rem 0.9rem" }}>
                   <button type="button" onClick={() => void openMessage(m)}
@@ -209,10 +209,9 @@ export function LocalMailWorkspace() {
           </tbody>
         </table>
       </div>
-      {folder === "inbox" && messages.some(m => (m.attributes & 0x00000008) === 0) &&
+      {folder === "inbox" && service !== "netmail" && service !== "internet" && messages.some(m => (m.attributes & 0x00000008) === 0) &&
         <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic's read status.</p>}
-      {before !== null && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
-    </>}
+      {before !== null && service !== "netmail" && service !== "internet" && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
     </>}
   </section>;
 }
