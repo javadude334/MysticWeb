@@ -65,6 +65,8 @@ export function parseMysticAreas(data: Buffer): MysticArea[] {
       id: record.readUInt16LE(0),
       name: field(record, 2, 60),
       jamBase: field(record, 138, 40),
+      storagePath: field(record, 179, 80),
+      baseType: record[260],
       security,
       inferredGroupId: references.size === 1 ? [...references][0] : null,
     };
