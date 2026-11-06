@@ -6,8 +6,10 @@ type Mail = { number: number; author: string; recipient: string; subject: string
   body?: string; dates: { written: number }; replyTo: number; attributes: number };
 type Recipient = { userId: number; handle: string; realName: string | null };
 type Folder = "inbox" | "sent";
+type MailService = "local" | "netmail" | "internet";
 export function LocalMailWorkspace() {
   const [folder, setFolder] = useState<Folder>("inbox");
+  const [service, setService] = useState<MailService>("local");
   const [messages, setMessages] = useState<Mail[]>([]);
   const [selected, setSelected] = useState<Mail | null>(null);
   const [before, setBefore] = useState<number | null>(null);
@@ -98,11 +100,36 @@ export function LocalMailWorkspace() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not send mail");
-      setCompose(false); setFolder("sent"); setRefresh(v => v + 1);
+      setCompose(false); setSelected(null); setFolder("inbox"); setRefresh(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not send mail"); }
     finally { setBusy(false); }
   }
   return <section className="card" style={{ padding: "1rem" }}>
+    <nav aria-label="Mystic Mail services" style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem",
+      paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid #364b55" }}>
+      {([
+        { id: "local", label: "Local Mail" },
+        { id: "netmail", label: "NetMail" },
+        { id: "internet", label: "Internet Email" },
+      ] as const).map(item =>
+        <button key={item.id} type="button" aria-current={service === item.id ? "page" : undefined}
+          onClick={() => { setService(item.id); setCompose(false); setSelected(null); setError(""); }}
+          style={{ padding: "0.7rem 1.1rem", borderRadius: "8px", font: "inherit", fontWeight: 650,
+            border: service === item.id ? "1px solid #37654f" : "1px solid #4b5c66",
+            background: service === item.id ? "#20513d" : "#24333c", color: "#fff", cursor: "pointer" }}>
+          {item.label}{item.id !== "local" ? " · Planned" : ""}
+        </button>)}
+    </nav>
+    {service !== "local" ? <div style={{ padding: "1rem 0 2rem", maxWidth: "720px" }}>
+      <h2 style={{ marginTop: 0 }}>{service === "netmail" ? "FTN NetMail" : "Internet Email"}</h2>
+      <p style={{ color: "#a9c3cc", lineHeight: 1.6 }}>
+        {service === "netmail"
+          ? "Planned: private network mail addressed through Mystic's FTN network configuration."
+          : "Planned: Internet email access through a separately configured email service."}
+      </p>
+      <p style={{ color: "#a9c3cc" }}>This service is not connected yet. Sending and receiving are unavailable until its integration and access controls are implemented.</p>
+    </div> : <>
+
     <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
       <MessageAction onClick={() => { setCompose(false); setSelected(null); setFolder("inbox"); }}>Inbox</MessageAction>
       <MessageAction onClick={() => { setCompose(false); setSelected(null); setFolder("sent"); }}>Sent</MessageAction>
@@ -185,6 +212,7 @@ export function LocalMailWorkspace() {
       {folder === "inbox" && messages.some(m => (m.attributes & 0x00000008) === 0) &&
         <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic's read status.</p>}
       {before !== null && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
+    </>}
     </>}
   </section>;
 }
