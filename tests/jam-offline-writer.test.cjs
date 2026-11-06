@@ -121,7 +121,7 @@ test("offline JAM writer waits briefly for another MysticWeb writer and preserve
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mysticweb-jam-lock-"));
   try {
     const header = Buffer.alloc(1024);
-    header.write("JAM\\0", 0, "binary");
+    header.write("JAM\0", 0, "binary");
     header.writeUInt32LE(0xffffffff, 16);
     header.writeUInt32LE(1, 20);
     fs.writeFileSync(path.join(dir, "demo.jhr"), header);
