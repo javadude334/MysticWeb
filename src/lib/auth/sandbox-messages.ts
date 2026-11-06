@@ -95,7 +95,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
         body: post.body as string,
         timestamp: Math.floor(Date.now() / 1000),
         ...(post.replyTo === undefined ? {} : { replyTo: post.replyTo as number }),
-      }, { offlineConfirmed: process.env.MYSTICWEB_OFFLINE_JAM_WRITE === "I_UNDERSTAND_OFFLINE_ONLY" });
+      });
       return json({ posted: true, area: area.id, number: result.number, messageId: result.messageId }, 201);
     }
     // A message-open mutation must use the same current account, area ACS and
