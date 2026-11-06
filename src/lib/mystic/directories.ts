@@ -1,5 +1,5 @@
 import "server-only";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -26,35 +26,62 @@ export interface MysticDirectories {
   dataDir: string;
   messageDir: string;
   databasePath: string;
+  windowsRoot?: string;
 }
 
-/** Windows paths are parsed with win32 regardless of the build host. */
+/** Map absolute Windows Mystic paths to a Linux-mounted installation.
+ * Reject paths outside the installation, including symlink escapes.
+ */
+export function resolveMysticPath(directories: MysticDirectories, windowsPath: string): string {
+  if (!directories.windowsRoot) return path.win32.resolve(windowsPath);
+  const win = path.win32;
+  if (!win.isAbsolute(windowsPath) || !/^[a-z]:\\/i.test(windowsPath))
+    throw new Error("Invalid absolute Windows Mystic path");
+  const relative = win.relative(directories.windowsRoot, win.resolve(windowsPath));
+  if (relative === ".." || relative.startsWith(".." + win.sep) || win.isAbsolute(relative))
+    throw new Error("Mystic path escapes the configured installation");
+  const mapped = path.resolve(directories.rootDir, ...relative.split(win.sep).filter(Boolean));
+  const root = realpathSync.native(directories.rootDir);
+  const resolved = realpathSync.native(mapped);
+  const physicalRelative = path.relative(root, resolved);
+  if (physicalRelative === ".." || physicalRelative.startsWith(".." + path.sep) || path.isAbsolute(physicalRelative))
+    throw new Error("Mystic path escapes the mounted installation");
+  return resolved;
+}
+
+/** Windows paths in MYSTIC.DAT are parsed with win32 on all hosts. */
 export function parseMysticDirectories(bytes: Buffer, configuredRoot: string): MysticDirectories {
   if (bytes.length !== RECORD_BYTES || bytes[0] !== 8 ||
       bytes.subarray(1, 9).toString("ascii") !== "1.12 A47") {
     throw new Error("Unsupported MYSTIC.DAT layout; directory discovery unavailable");
   }
   const win = path.win32;
-  const root = win.resolve(configuredRoot);
-  if (!win.isAbsolute(configuredRoot) || !/^[a-z]:\\/i.test(root)) {
-    throw new Error("A local absolute Windows Mystic root is required");
-  }
   const fromFile = win.resolve(pascalPath(bytes, ROOT_OFFSET));
-  if (fromFile.toLowerCase() !== root.toLowerCase()) {
-    throw new Error("MYSTIC.DAT installation root does not match MYSTIC_DATA_ROOT");
-  }
-  function resolveField(offset: number): string {
-    const raw = pascalPath(bytes, offset);
-    const resolved = win.resolve(root, raw);
-    if (!win.isAbsolute(resolved) || !/^[a-z]:\\/i.test(resolved)) {
-      throw new Error("Invalid Mystic directory path");
+  if (!/^[a-z]:\\/i.test(fromFile)) throw new Error("Invalid Mystic installation root");
+  const linuxMount = process.platform !== "win32" && path.posix.isAbsolute(configuredRoot);
+  if (!linuxMount) {
+    const root = win.resolve(configuredRoot);
+    if (!win.isAbsolute(configuredRoot) || !/^[a-z]:\\/i.test(root))
+      throw new Error("A local absolute Windows Mystic root is required");
+    if (fromFile.toLowerCase() !== root.toLowerCase())
+      throw new Error("MYSTIC.DAT installation root does not match MYSTIC_DATA_ROOT");
+    function resolveField(offset: number): string {
+      const resolved = win.resolve(root, pascalPath(bytes, offset));
+      if (!/^[a-z]:\\/i.test(resolved)) throw new Error("Invalid Mystic directory path");
+      return resolved;
     }
-    return resolved;
+    const dataDir = resolveField(DATA_OFFSET);
+    const messageDir = resolveField(MESSAGE_OFFSET);
+    return { rootDir: root, dataDir, messageDir, databasePath: win.join(dataDir, "mysticweb.db") };
   }
-  const dataDir = resolveField(DATA_OFFSET);
-  const messageDir = resolveField(MESSAGE_OFFSET);
-  return { rootDir: root, dataDir, messageDir,
-    databasePath: win.join(dataDir, "mysticweb.db") };
+  const root = realpathSync.native(configuredRoot);
+  const base: MysticDirectories = {
+    rootDir: root, dataDir: root, messageDir: root,
+    databasePath: path.join(root, "data", "mysticweb.db"), windowsRoot: fromFile,
+  };
+  const dataDir = resolveMysticPath(base, win.resolve(fromFile, pascalPath(bytes, DATA_OFFSET)));
+  const messageDir = resolveMysticPath(base, win.resolve(fromFile, pascalPath(bytes, MESSAGE_OFFSET)));
+  return { ...base, dataDir, messageDir, databasePath: path.join(dataDir, "mysticweb.db") };
 }
 
 let cached: MysticDirectories | undefined;
@@ -64,7 +91,7 @@ export function mysticDirectories(): MysticDirectories {
   if (cached) return cached;
   const root = process.env.MYSTIC_DATA_ROOT;
   if (!root) throw new Error("MYSTIC_DATA_ROOT is required");
-  const config = readFileSync(path.win32.join(root, "mystic.dat"));
+  const config = readFileSync(path.join(root, "mystic.dat"));
   const parsed = parseMysticDirectories(config, root);
   cached = Object.freeze(parsed);
   return cached;
