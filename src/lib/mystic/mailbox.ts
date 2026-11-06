@@ -40,7 +40,7 @@ export function localMailFolder(
       !Number.isSafeInteger(identity.userId) || identity.userId < 1 ||
       !/^[\x21-\x7e]{1,30}$/.test(identity.handle) ||
       !Number.isSafeInteger(message.number) || message.number < 1 ||
-      (message.attributes & 0x80000004) !== 0) return null; // deleted / no-display
+      (message.attributes & 0x80000000) !== 0) return null; // deleted / no-display
   if (sameNativeHandle(message.recipient, identity.handle)) return "inbox";
   if (sameNativeHandle(message.author, identity.handle)) return "sent";
   return null;
