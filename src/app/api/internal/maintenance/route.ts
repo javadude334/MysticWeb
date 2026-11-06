@@ -1,8 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { NextRequest, NextResponse } from "next/server";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse, connection } from "next/server";
 
 type MaintenanceTask = "sessions.cleanup";
 const supportedTasks: ReadonlySet<string> = new Set(["sessions.cleanup"]);
@@ -15,6 +12,7 @@ function tokenMatches(provided: string | null, expected: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  await connection();
   const secret = process.env.MYSTICWEB_MAINTENANCE_TOKEN;
   if (!secret) {
     return NextResponse.json({ error: "Maintenance API not configured" }, { status: 503 });
