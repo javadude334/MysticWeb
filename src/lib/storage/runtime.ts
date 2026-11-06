@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { AuthStore } from "../auth/store";
+import { ensureApiToken } from "./api-token";
 import { scanMysticMessageBases } from "./message-base-catalog";
 import { mysticDirectories, type MysticDirectories } from "../mystic/directories";
 
@@ -88,6 +89,8 @@ export function initializeMysticWebRuntime(): MysticWebRuntime {
   const directories = mysticDirectories();
   const dbDir = privateDatabaseDirectory(directories.dataDir);
   const databasePath = path.win32.join(dbDir, "mysticweb.db");
+  // The shared scheduler token inherits the private directory ACL.
+  ensureApiToken(dbDir);
   // One-time offline migration of the old session database. Keep the source
   // untouched as a rollback copy. Never copy an active SQLite journal.
   const legacyDb = process.env.MYSTICWEB_SESSION_DB;
