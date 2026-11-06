@@ -3,7 +3,7 @@ import { readFileSync, lstatSync, realpathSync, openSync, readSync, closeSync } 
 import path from "node:path";
 import { parseMysticAreas } from "../mystic/config";
 import { isJamBaseName } from "../mystic/jam";
-import type { MysticDirectories } from "../mystic/directories";
+import { resolveMysticPath, type MysticDirectories } from "../mystic/directories";
 
 export interface DiscoveredMessageBase {
   areaId: number;
@@ -25,7 +25,7 @@ const JAM_EXTENSIONS = ["jhr", "jdx", "jdt"] as const;
  * only the configured Local Mail choice is included in the mail catalog.
  */
 export function scanMysticMessageBases(directories: MysticDirectories): MessageBaseScan {
-  const filename = path.win32.join(directories.dataDir, "mbases.dat");
+  const filename = path.join(directories.dataDir, "mbases.dat");
   const stat = lstatSync(filename);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_CONFIG || stat.size % 768 !== 0) {
     throw new Error("Invalid Mystic message-base configuration file");
@@ -45,18 +45,18 @@ export function scanMysticMessageBases(directories: MysticDirectories): MessageB
       // A47 stores an optional absolute per-base directory. Do not silently
       // fall back to the global message directory when an explicit path is bad.
       const directory = area.storagePath.trim()
-        ? path.win32.resolve(area.storagePath) : directories.messageDir;
-      if (!/^[a-z]:\\/i.test(directory) || !path.win32.isAbsolute(directory)) {
+        ? resolveMysticPath(directories, area.storagePath) : directories.messageDir;
+      if (!(path.isAbsolute(directory) || path.win32.isAbsolute(directory))) {
         throw new Error("Invalid absolute Windows message path");
       }
       const resolved = realpathSync.native(directory);
       if (!lstatSync(resolved).isDirectory()) throw new Error("Message directory is not a directory");
       for (const extension of JAM_EXTENSIONS) {
-        const expected = path.win32.join(resolved, `${area.jamBase}.${extension}`);
+        const expected = path.join(resolved, `${area.jamBase}.${extension}`);
         const entry = lstatSync(expected);
         if (!entry.isFile() || entry.isSymbolicLink()) throw new Error(`Unsafe JAM .${extension} file`);
         const actual = realpathSync.native(expected);
-        if (path.win32.dirname(actual).toLowerCase() !== resolved.toLowerCase()) {
+        if (path.dirname(actual).toLowerCase() !== resolved.toLowerCase()) {
           throw new Error("JAM file escapes configured directory");
         }
         if (extension === "jhr") {
@@ -82,7 +82,7 @@ export function scanMysticMessageBases(directories: MysticDirectories): MessageB
   const seen = new Set<string>();
   const unique: DiscoveredMessageBase[] = [];
   for (const base of bases) {
-    const key = path.win32.join(base.directory, base.jamBase).toLowerCase();
+    const key = path.join(base.directory, base.jamBase).toLowerCase();
     if (seen.has(key)) skipped.push({ areaId: base.areaId, reason: "Duplicate JAM base path" });
     else { seen.add(key); unique.push(base); }
   }
