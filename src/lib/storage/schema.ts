@@ -7,7 +7,7 @@ export interface SchemaDatabase {
   prepare(sql: string): { get(...values: (string | number)[]): Record<string, string | number> | undefined };
 }
 
-export const MYSTICWEB_SCHEMA_VERSION = 1;
+export const MYSTICWEB_SCHEMA_VERSION = 2;
 
 export function initializeMysticWebSchema(db: SchemaDatabase): void {
   const versionRow = db.prepare("PRAGMA user_version").get();
@@ -41,6 +41,19 @@ export function initializeMysticWebSchema(db: SchemaDatabase): void {
           value TEXT NOT NULL
         ) STRICT;
         PRAGMA user_version = 1;
+      `);
+    }
+    if (version < 2) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS discovered_message_bases (
+          area_id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          category TEXT NOT NULL CHECK (category IN ('local', 'netmail', 'echomail')),
+          jam_base TEXT NOT NULL,
+          directory TEXT NOT NULL,
+          refreshed_at INTEGER NOT NULL
+        ) STRICT;
+        PRAGMA user_version = 2;
       `);
     }
     db.exec("COMMIT");
