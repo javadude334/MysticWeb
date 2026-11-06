@@ -214,7 +214,7 @@ export function LocalMailWorkspace() {
         </table>
       </div>
       {folder === "inbox" && services.local && messages.some(m => (m.attributes & 0x00000008) === 0) &&
-        <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic's read status.</p>}
+        <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic&apos;s read status.</p>}
       {before !== null && services.local && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
     </>}
   </section>;
