@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { lstatSync, openSync, closeSync } from "node:fs";
 import path from "node:path";
 import { initializeMysticWebSchema } from "../storage/schema";
+import type { DiscoveredMessageBase } from "../storage/message-base-catalog";
 
 // Node 24's built-in SQLite is not declared by this project's Node 20 typings.
 // Keep the small boundary typed without adding a native third-party dependency.
@@ -224,6 +225,23 @@ export class AuthStore {
         this.db.prepare("INSERT INTO rate_limits VALUES (?, 1, ?)").run(bucket, now + windowMs);
       }
       return { allowed: true, retryAfter: 0 };
+    });
+  }
+
+  /** Atomically replace the derived catalog. Never modify Mystic's JAM files. */
+  replaceMessageBaseCatalog(bases: readonly DiscoveredMessageBase[]): void {
+    if (bases.length > 10000 || new Set(bases.map(b => b.areaId)).size !== bases.length) throw new AuthStoreError();
+    this.transaction(() => {
+      this.db.exec("DELETE FROM discovered_message_bases");
+      const insert = this.db.prepare(`INSERT INTO discovered_message_bases
+        (area_id, name, category, jam_base, directory, refreshed_at)
+        VALUES (?, ?, ?, ?, ?, ?)`);
+      const now = this.now();
+      for (const base of bases) {
+        if (!Number.isSafeInteger(base.areaId) || base.areaId < 0 || base.areaId > 65535 ||
+            !["local", "netmail", "echomail"].includes(base.category)) throw new AuthStoreError();
+        insert.run(base.areaId, base.name, base.category, base.jamBase, base.directory, now);
+      }
     });
   }
 
