@@ -116,3 +116,27 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("offline JAM writer waits briefly for another MysticWeb writer and preserves lock ownership", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mysticweb-jam-lock-"));
+  try {
+    const header = Buffer.alloc(1024);
+    header.write("JAM\\0", 0, "binary");
+    header.writeUInt32LE(0xffffffff, 16);
+    header.writeUInt32LE(1, 20);
+    fs.writeFileSync(path.join(dir, "demo.jhr"), header);
+    fs.writeFileSync(path.join(dir, "demo.jdx"), Buffer.alloc(0));
+    fs.writeFileSync(path.join(dir, "demo.jdt"), Buffer.alloc(0));
+    const lockPath = path.join(dir, "demo.mysticweb-offline.lock");
+    fs.writeFileSync(lockPath, "other writer", { flag: "wx" });
+    const pending = appendOfflineJam(dir, "demo", draft);
+    await new Promise(resolve => setTimeout(resolve, 150));
+    fs.unlinkSync(lockPath);
+    const result = await pending;
+    assert.equal(result.number, 1);
+    assert.equal(fs.statSync(path.join(dir, "demo.jdx")).size, 8);
+    assert.equal(fs.existsSync(lockPath), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
