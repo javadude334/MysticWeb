@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { MessageAction, MessageActions, MessageBody, MessageDetails, MessageField, messageInputStyle } from "./message-ui";
 
 type Mail = { number: number; author: string; recipient: string; subject: string;
   body?: string; dates: { written: number }; replyTo: number };
@@ -97,10 +98,10 @@ export function LocalMailWorkspace() {
     </div>
     {error && <p role="alert" style={{ color: "var(--danger, #d66)" }}>{error}</p>}
     {compose ? <div style={{ display: "grid", gap: "0.75rem" }}>
-      <label>To (existing Mystic user)
-        <input value={query} onChange={e => { setQuery(e.target.value); setRecipient(null); setReplyTo(undefined); }}
+      <MessageField label="To (existing Mystic user)">
+        <input style={messageInputStyle} value={query} onChange={e => { setQuery(e.target.value); setRecipient(null); setReplyTo(undefined); }}
           placeholder="Start typing a name or handle" autoComplete="off" />
-      </label>
+      </MessageField>
       {recipient && <p>Selected: {recipient.handle} (user #{recipient.userId})</p>}
       {!recipient && recipients.length > 0 && <div role="listbox" aria-label="Matching Mystic users">
         {recipients.map(user => <button type="button" key={user.userId} role="option"
@@ -108,27 +109,26 @@ export function LocalMailWorkspace() {
           {user.handle}{user.realName ? " — " + user.realName : ""}
         </button>)}
       </div>}
-      <label>Subject <input value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} /></label>
-      <label style={{ display: "grid", gap: "0.4rem", width: "100%" }}>Message
+      <MessageField label="Subject"><input style={messageInputStyle} value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} /></MessageField>
+      <MessageField label="Message">
         <textarea value={body} onChange={e => setBody(e.target.value)} rows={18} maxLength={60000}
-          style={{ display: "block", width: "100%", minHeight: "360px", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
-      </label>
-      <div style={{ display: "flex", gap: "0.9rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.5rem" }}>
-        <button type="button" disabled={busy || !recipient} onClick={() => void send()}
-          style={{ background: "#20513d", border: "1px solid #37654f", borderRadius: "9px", color: "#fff", padding: "0.9rem 1.5rem", fontSize: "1rem", fontWeight: 700, minHeight: "48px", cursor: busy || !recipient ? "not-allowed" : "pointer", opacity: busy || !recipient ? 0.55 : 1 }}>
+          style={{ ...messageInputStyle, minHeight: "360px", resize: "vertical", lineHeight: 1.5 }} />
+      </MessageField>
+      <MessageActions>
+        <MessageAction primary disabled={busy || !recipient} onClick={() => void send()}>
           {busy ? "Sending…" : "Send Local Mail"}
-        </button>
-        <button type="button" disabled={busy} onClick={() => setCompose(false)}
-          style={{ background: "#24333c", border: "1px solid #4b5c66", borderRadius: "9px", color: "#fff", padding: "0.9rem 1.5rem", fontSize: "1rem", fontWeight: 600, minHeight: "48px", cursor: busy ? "not-allowed" : "pointer" }}>
-          Cancel
-        </button>
-      </div>
-    </div> : selected ? <article>
-      <button type="button" onClick={() => setSelected(null)}>Back to {folder}</button>
-      <h2>{selected.subject}</h2>
-      <p>From: {selected.author} | To: {selected.recipient}</p>
-      <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "inherit" }}>{selected.body}</pre>
-      {folder === "inbox" && <button type="button" onClick={() => newMessage(selected)}>Reply</button>}
+        </MessageAction>
+        <MessageAction disabled={busy} onClick={() => setCompose(false)}>Cancel</MessageAction>
+      </MessageActions>
+    </div> : selected ? <article style={{ display: "grid", gap: "0.75rem", width: "100%" }}>
+      <h2 style={{ margin: 0, fontSize: "1.6rem", overflowWrap: "anywhere" }}>{selected.subject || "(no subject)"}</h2>
+      <MessageDetails from={selected.author} to={selected.recipient}
+        date={selected.dates?.written ? new Date(selected.dates.written * 1000).toLocaleString() : undefined} />
+      <MessageBody>{selected.body || "(empty message)"}</MessageBody>
+      <MessageActions>
+        {folder === "inbox" && <MessageAction primary onClick={() => newMessage(selected)}>Reply</MessageAction>}
+        <MessageAction onClick={() => setSelected(null)}>Back to {folder === "inbox" ? "Inbox" : "Sent Mail"}</MessageAction>
+      </MessageActions>
     </article> : <>
       <h2>{folder === "inbox" ? "Inbox" : "Sent Mail"}</h2>
       {busy && <p>Loading mail…</p>}
