@@ -33,9 +33,9 @@ export function LocalMailWorkspace() {
     } catch (e) { setError(e instanceof Error ? e.message : "Mailbox unavailable"); }
     finally { setBusy(false); }
   }, []);
-  useEffect(() => { setSelected(null); void load(folder); }, [folder, refresh, load]);
+  useEffect(() => { void load(folder); }, [folder, refresh, load]);
   useEffect(() => {
-    if (!compose || recipient || query.trim().length < 2) { setRecipients([]); return; }
+    if (!compose || recipient || query.trim().length < 2) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -87,10 +87,10 @@ export function LocalMailWorkspace() {
   }
   return <section className="card" style={{ padding: "1rem" }}>
     <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-      <button type="button" onClick={() => { setCompose(false); setFolder("inbox"); }}>Inbox</button>
-      <button type="button" onClick={() => { setCompose(false); setFolder("sent"); }}>Sent</button>
+      <button type="button" onClick={() => { setCompose(false); setSelected(null); setFolder("inbox"); }}>Inbox</button>
+      <button type="button" onClick={() => { setCompose(false); setSelected(null); setFolder("sent"); }}>Sent</button>
       <button type="button" onClick={() => newMessage()}>Compose</button>
-      <button type="button" onClick={() => setRefresh(v => v + 1)}>Refresh</button>
+      <button type="button" onClick={() => { setSelected(null); setRefresh(v => v + 1); }}>Refresh</button>
     </div>
     {error && <p role="alert" style={{ color: "var(--danger, #d66)" }}>{error}</p>}
     {compose ? <div style={{ display: "grid", gap: "0.75rem" }}>
