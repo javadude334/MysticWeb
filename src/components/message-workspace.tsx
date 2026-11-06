@@ -310,11 +310,11 @@ export function MessageWorkspace() {
       <button type="button" disabled={!area || posting} onClick={() => openComposer()}
         aria-label="New post">+ New Post</button></div>
     </div>
-    {composer && area && composer.areaId === area.id && <section aria-label="Message composer" style={{ padding: "1rem", border: "1px solid #777", display: "grid", gap: "0.5rem" }}>
+    {composer && area && composer.areaId === area.id && <section aria-label="Message composer" style={{ padding: "1rem", border: "1px solid #777", display: "grid", gap: "0.75rem", minWidth: 0, width: "100%", boxSizing: "border-box" }}>
       <h2>{composer.replyTo ? "Reply to #" + composer.replyTo : "New post"} · {area.name}</h2>
-      <label>To <input value={composer.recipient} maxLength={255} onChange={e => setComposer(c => c ? { ...c, recipient: e.target.value } : null)} /></label>
-      <label>Subject <input value={composer.subject} maxLength={255} onChange={e => setComposer(c => c ? { ...c, subject: e.target.value } : null)} /></label>
-      <label>Message <textarea rows={9} maxLength={60000} value={composer.body} onChange={e => setComposer(c => c ? { ...c, body: e.target.value } : null)} /></label>
+      <label style={{ display: "grid", gap: "0.25rem", minWidth: 0 }}>To <input style={{ width: "100%", boxSizing: "border-box", minWidth: 0 }} value={composer.recipient} maxLength={255} onChange={e => setComposer(c => c ? { ...c, recipient: e.target.value } : null)} /></label>
+      <label style={{ display: "grid", gap: "0.25rem", minWidth: 0 }}>Subject <input style={{ width: "100%", boxSizing: "border-box", minWidth: 0 }} value={composer.subject} maxLength={255} onChange={e => setComposer(c => c ? { ...c, subject: e.target.value } : null)} /></label>
+      <label style={{ display: "grid", gap: "0.25rem", minWidth: 0 }}>Message <textarea style={{ width: "100%", boxSizing: "border-box", minWidth: 0, resize: "vertical" }} rows={12} maxLength={60000} value={composer.body} onChange={e => setComposer(c => c ? { ...c, body: e.target.value } : null)} /></label>
       <small>MysticWeb version signature is added automatically. Offline sandbox only.</small>
       {postError && <p role="alert">{postError}</p>}
       <div><button type="button" disabled={posting} onClick={() => void submitPost()}>{posting ? "Posting…" : "Post message"}</button>
