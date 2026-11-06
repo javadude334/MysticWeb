@@ -214,7 +214,7 @@ export function LocalMailWorkspace() {
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
       {folder === "inbox" && service !== "netmail" && service !== "internet" && messages.some(m => (m.attributes & 0x00000008) === 0) &&
         <p style={{ color: "#a9c3cc", fontSize: "0.85rem", margin: "0.5rem 0 0" }}>● Unread according to the JAM message flag. Opening mail here does not change Mystic's read status.</p>}
       {before !== null && service !== "netmail" && service !== "internet" && <MessageActions><MessageAction disabled={busy} onClick={() => void load(folder, before)}>Older mail</MessageAction></MessageActions>}
