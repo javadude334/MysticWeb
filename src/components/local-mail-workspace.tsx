@@ -33,7 +33,10 @@ export function LocalMailWorkspace() {
     } catch (e) { setError(e instanceof Error ? e.message : "Mailbox unavailable"); }
     finally { setBusy(false); }
   }, []);
-  useEffect(() => { void load(folder); }, [folder, refresh, load]);
+  useEffect(() => {
+    const task = Promise.resolve().then(() => load(folder));
+    void task;
+  }, [folder, refresh, load]);
   useEffect(() => {
     if (!compose || recipient || query.trim().length < 2) return;
     const controller = new AbortController();
