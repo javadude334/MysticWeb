@@ -95,8 +95,8 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     assert.equal(opened.messages[0].subject, "Reply two");
     assert.equal(opened.messages[0].nextReply ?? 0, 0);
     for (const message of [parent.messages[0], replyOne.messages[0], opened.messages[0]]) {
-      assert.match(message.body, /Hello world[\\s\\S]*Posted with MysticWeb v0\\.1\\.0/);
-      assert.equal((message.body.match(/Posted with MysticWeb v0\\.1\\.0/g) ?? []).length, 1);
+      assert.match(message.body, /Hello world[\s\S]*Posted with MysticWeb v0\.1\.0/);
+      assert.equal((message.body.match(/Posted with MysticWeb v0\.1\.0/g) ?? []).length, 1);
     }
     // Failed writes must not change any JAM data or leave an offline lock.
     const beforeDenied = ["jhr", "jdx", "jdt"].map(ext => fs.readFileSync(path.join(dir, "demo." + ext)));
