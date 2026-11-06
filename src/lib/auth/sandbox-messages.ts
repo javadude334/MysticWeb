@@ -109,7 +109,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
             return json({ error: "Reply recipient mismatch" }, 400);
         }
         const result = await appendOfflineJam(jamReal, configured, {
-          author, recipient: recipient.handle, subject: draft.subject.trim(), body: draft.body,
+          author, recipient: recipient.handle, subject: (draft.subject as string).trim(), body: draft.body as string,
           timestamp: Math.floor(Date.now() / 1000), privateMail: true,
           ...(draft.replyTo === undefined ? {} : { replyTo: draft.replyTo as number }),
         });
