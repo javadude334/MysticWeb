@@ -38,13 +38,19 @@ const { readJam } = (() => {
 })();
 const draft = { author: "Tester", recipient: "All", subject: "Offline test", body: "Hello world", timestamp: 1700000000 };
 
-test("offline JAM writer is disabled without explicit operator confirmation", async () => {
-  await assert.rejects(appendOfflineJam(os.tmpdir(), "test", draft, { offlineConfirmed: false }), /disabled/);
+test("JAM writer refuses production execution", async () => {
+  const previous = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "production";
+    await assert.rejects(appendOfflineJam(os.tmpdir(), "test", draft), /disabled/);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
 });
 
 test("offline JAM writer appends index, header and text to disposable base", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mysticweb-jam-offline-"));
-  const old = process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
   try {
     const header = Buffer.alloc(1024);
     header.write("JAM\0", 0, "binary");
@@ -53,15 +59,14 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     fs.writeFileSync(path.join(dir, "demo.jhr"), header);
     fs.writeFileSync(path.join(dir, "demo.jdx"), Buffer.alloc(0));
     fs.writeFileSync(path.join(dir, "demo.jdt"), Buffer.alloc(0));
-    process.env.MYSTICWEB_OFFLINE_JAM_WRITE = "I_UNDERSTAND_OFFLINE_ONLY";
-    const result = await appendOfflineJam(dir, "demo", draft, { offlineConfirmed: true });
+    const result = await appendOfflineJam(dir, "demo", draft);
     assert.equal(result.number, 1);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jdx")).readUInt32LE(4), 1024);
     assert.equal(fs.readFileSync(path.join(dir, "demo.jhr")).readUInt32LE(1072), 1);
     assert.match(fs.readFileSync(path.join(dir, "demo.jdt")).toString(), /^Hello world\r\r---\rPosted with MysticWeb v0\.1\.0$/);
     assert.equal(fs.existsSync(path.join(dir, "demo.mysticweb-offline.lock")), false);
-    const firstReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply one", replyTo: 1 }, { offlineConfirmed: true });
-    const secondReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply two", replyTo: 1 }, { offlineConfirmed: true });
+    const firstReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply one", replyTo: 1 });
+    const secondReply = await appendOfflineJam(dir, "demo", { ...draft, subject: "Reply two", replyTo: 1 });
     assert.equal(firstReply.number, 2);
     assert.equal(secondReply.number, 3);
     const index = fs.readFileSync(path.join(dir, "demo.jdx"));
@@ -101,15 +106,13 @@ test("offline JAM writer appends index, header and text to disposable base", asy
     // Failed writes must not change any JAM data or leave an offline lock.
     const beforeDenied = ["jhr", "jdx", "jdt"].map(ext => fs.readFileSync(path.join(dir, "demo." + ext)));
     await assert.rejects(
-      appendOfflineJam(dir, "demo", { ...draft, replyTo: 99999 }, { offlineConfirmed: true }),
+      appendOfflineJam(dir, "demo", { ...draft, replyTo: 99999 }),
       /Invalid reply parent/,
     );
     ["jhr", "jdx", "jdt"].forEach((ext, i) =>
       assert.deepEqual(fs.readFileSync(path.join(dir, "demo." + ext)), beforeDenied[i]));
     assert.equal(fs.existsSync(path.join(dir, "demo.mysticweb-offline.lock")), false);
   } finally {
-    if (old === undefined) delete process.env.MYSTICWEB_OFFLINE_JAM_WRITE;
-    else process.env.MYSTICWEB_OFFLINE_JAM_WRITE = old;
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
