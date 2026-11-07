@@ -4,10 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login-form.module.css";
 
-/** The server endpoint remains authoritative and unavailable until a reviewed
- * sandbox-only native adapter is composed. Never persist credentials in browser
- * storage or place them in URLs.
- */
+/** Native authentication and server-side session validation. Never persist credentials in browser storage. */
 export function LoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -36,6 +33,12 @@ export function LoginForm() {
         setError("Sign-in could not be completed.");
         return;
       }
+      const sessionResponse = await fetch("/api/auth/session", { credentials: "same-origin", cache: "no-store" });
+      const session: unknown = sessionResponse.ok ? await sessionResponse.json() : null;
+      if (!session || typeof session !== "object" || !("authenticated" in session) || session.authenticated !== true) {
+        setError("Credentials were accepted, but the browser did not establish a session. Check the site address and cookie settings.");
+        return;
+      }
       setPassword("");
       router.replace("/dashboard");
       router.refresh();
@@ -58,7 +61,7 @@ export function LoginForm() {
         disabled={busy} />
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <button type="submit" disabled={busy}>{busy ? "VERIFYING..." : "CONNECT TO THE BOARD  >"}</button>
-      <small>Local development sign-in uses MYSTIC_DATA_ROOT. Production authentication is pending native account-policy verification.</small>
+      <small>Sign in with your Mystic BBS account.</small>
     </form>
   );
 }
