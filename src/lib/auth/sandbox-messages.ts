@@ -13,8 +13,8 @@ import { readMysticConfiguration } from "../mystic/config";
 import { isJamBaseName, readJam } from "../mystic/jam";
 import { MessageAccess } from "../mystic/message-access";
 import { searchMessages } from "../mystic/search-messages";
-import { stableJamReceiptId, readUserMessageReceipt } from "../mystic/message-sidecar";
-import { recordUserMessageRead } from "../mystic/message-receipt-writer";
+import { stableJamReceiptId } from "../mystic/message-sidecar";
+import { loadMessageReceipts, saveMessageRead } from "../mystic/sqlite-read-receipts";
 import { appendOfflineJam } from "../mystic/jam-offline-writer";
 
 const COOKIE = "__Host-mysticweb_session";
@@ -237,9 +237,8 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (result.messages.length !== 1 || result.messages[0].number !== input.message)
         return json({ error: "Message unavailable" }, 404);
       const id = stableJamReceiptId(identity.instance, area.id, area.jamBase, result.messages[0]);
-      // Separate from the native JAM directory; no JLR write is performed.
-      const metadataRoot = path.join(path.dirname(db), "mysticweb-message-metadata");
-      await recordUserMessageRead(metadataRoot, identity.instance, area.id, identity.userId, id);
+      // SQLite receipt only; native JAM/JLR remain untouched.
+      await saveMessageRead(db, identity.instance, area.id, identity.userId, id);
       return json({ read: true, message: input.message });
     }
     const params = new URL(request.url).searchParams;
@@ -282,8 +281,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
             // Match the message list's MysticWeb receipt semantics. The native
             // JLR pointer is independent and must not suppress unread web mail.
             const latest = await readJam(jamReal, area.jamBase, { limit: 50 });
-            const metadataRoot = path.join(path.dirname(db), "mysticweb-message-metadata");
-            const receipt = await readUserMessageReceipt(metadataRoot, identity.instance, area.id, identity.userId);
+            const receipt = await loadMessageReceipts(db, identity.instance, area.id, identity.userId);
             return latest.messages.some(m =>
               !receipt?.messages[stableJamReceiptId(identity.instance, area.id, area.jamBase, m)]
             ) ? area.id : null;
@@ -387,8 +385,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
       if (!info.isFile() || info.size > 1048576) throw new Error("Unsafe pointer file");
       pointerState = getJamMessageReadState(await readFile(filename), identity.userId);
     } catch { /* Read-state is optional; never downgrade message authorization. */ }
-    const metadataRoot = path.join(path.dirname(db), "mysticweb-message-metadata");
-    const receipt = await readUserMessageReceipt(metadataRoot, identity.instance, area.id, identity.userId);
+    const receipt = await loadMessageReceipts(db, identity.instance, area.id, identity.userId);
     return json({ area: { id: area.id, name: area.name },
       messages: page.messages.map(m => ({ number: m.number, author: m.author,
         readPosition: classifyJamMessage(pointerState, m.number),
