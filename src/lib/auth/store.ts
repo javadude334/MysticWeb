@@ -14,6 +14,7 @@ interface Database {
   prepare(sql: string): {
     run(...values: (string | number)[]): unknown;
     get(...values: (string | number)[]): Row | undefined;
+    all(...values: (string | number)[]): Row[];
   };
   close(): void;
 }
@@ -118,6 +119,50 @@ export class AuthStore {
       try { opened?.close(); } catch { /* preserve the generic failure */ }
       throw new AuthStoreError();
     }
+  }
+
+  /** Read receipts are stored in the same transactional database as sessions. */
+  readMessageReceipts(instance: string, areaId: number, userId: number): {
+    messages: Record<string, { readAt: string }>; lastReadJamNumber: number | null;
+  } {
+    if (!validIdentity({ instance, userId }) || !Number.isSafeInteger(areaId) || areaId < 1 || areaId > 0xffffffff)
+      throw new AuthStoreError();
+    const rows = this.db.prepare("SELECT message_id, read_at FROM message_read_receipts WHERE instance_id = ? AND area_id = ? AND user_id = ?")
+      .all?.(instance, areaId, userId) as Array<Record<string, string | number>> | undefined;
+    if (!rows) throw new AuthStoreError();
+    const messages: Record<string, { readAt: string }> = Object.create(null);
+    for (const row of rows) messages[String(row.message_id)] = { readAt: String(row.read_at) };
+    const pointer = this.db.prepare("SELECT last_read_jam_number FROM message_read_pointers WHERE instance_id = ? AND area_id = ? AND user_id = ?")
+      .get(instance, areaId, userId);
+    return { messages, lastReadJamNumber: pointer ? Number(pointer.last_read_jam_number) : null };
+  }
+
+  recordMessageRead(instance: string, areaId: number, userId: number, messageId: string, readAt = new Date().toISOString()): void {
+    if (!validIdentity({ instance, userId }) || !Number.isSafeInteger(areaId) || areaId < 1 || areaId > 0xffffffff ||
+        !/^mw_[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(messageId) ||
+        !Number.isFinite(Date.parse(readAt))) throw new AuthStoreError();
+    this.transaction(() => {
+      this.db.prepare("INSERT OR IGNORE INTO message_read_receipts(instance_id,area_id,user_id,message_id,read_at) VALUES (?,?,?,?,?)")
+        .run(instance, areaId, userId, messageId, readAt);
+    });
+  }
+
+  /** Import existing JSON receipts without overwriting newer SQLite records. */
+  importMessageReceipts(instance: string, areaId: number, userId: number,
+    messages: Record<string, { readAt: string }>, pointer?: number | null): void {
+    if (!validIdentity({ instance, userId }) || !Number.isSafeInteger(areaId) || areaId < 1 || areaId > 0xffffffff ||
+        Object.keys(messages).length > 10000 || (pointer != null &&
+        (!Number.isSafeInteger(pointer) || pointer < 1 || pointer > 0xffffffff))) throw new AuthStoreError();
+    this.transaction(() => {
+      for (const [id, entry] of Object.entries(messages)) {
+        if (!/^mw_[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id) ||
+            !entry || !Number.isFinite(Date.parse(entry.readAt))) throw new AuthStoreError();
+        this.db.prepare("INSERT OR IGNORE INTO message_read_receipts(instance_id,area_id,user_id,message_id,read_at) VALUES (?,?,?,?,?)")
+          .run(instance, areaId, userId, id, entry.readAt);
+      }
+      if (pointer != null) this.db.prepare("INSERT OR IGNORE INTO message_read_pointers(instance_id,area_id,user_id,last_read_jam_number,updated_at) VALUES (?,?,?,?,?)")
+        .run(instance, areaId, userId, pointer, new Date().toISOString());
+    });
   }
 
   /** Stable per-installation rate-limiting key, created atomically once.
