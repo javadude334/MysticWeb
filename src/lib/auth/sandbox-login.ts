@@ -9,9 +9,7 @@ import { resolveLocalRecipient } from "../mystic/mail-recipients";
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store" };
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers });
-const allowed = () => process.env.NODE_ENV === "development" || process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1";
 function config() {
-  if (!allowed()) return null;
   try {
     const runtime = initializeMysticWebRuntime();
     return {
@@ -54,7 +52,7 @@ export async function sandboxLogin(request: Request): Promise<Response> {
         return reply({ error: "Sign-in unavailable" }, 401);
       // Sandbox-only: this A48 installation has no separate account-expiration
       // feature. Never use this path to grant message-area or production permissions.
-      const token = store.create({ instance: process.env.NODE_ENV === "development" ? "mystic_sandbox" : "mystic_native_dev", userId: match.userId }, currentToken(request));
+      const token = store.create({ instance: "mystic_native_dev", userId: match.userId }, currentToken(request));
       const result = reply({ ok: true });
       result.headers.set("Set-Cookie", sessionCookie(token));
       return result;
