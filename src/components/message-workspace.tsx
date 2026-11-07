@@ -106,8 +106,25 @@ export function MessageWorkspace() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ area: area.id, recipient: composer.recipient.trim(), subject: composer.subject.trim(),
           body: composer.body, ...(composer.replyTo ? { replyTo: composer.replyTo } : {}) }) });
-      if (!response.ok) throw new Error(response.status === 403 ? "Posting denied for this area." :
-        response.status === 401 ? "Session expired. Sign in again." : "Posting unavailable. Your draft is preserved.");
+      if (!response.ok) {
+        const detail: unknown = await response.json().catch(() => null);
+        const reason = detail && typeof detail === "object" && "error" in detail &&
+          typeof detail.error === "string" ? detail.error : "";
+        const safeReasons = new Set([
+          "Posting unavailable", "Native posting identity unavailable",
+          "Reply parent unavailable", "Invalid draft", "Unavailable",
+          "Sign in required", "Account unavailable", "Invalid request",
+        ]);
+        throw new Error(response.status === 401 ? "Session expired. Sign in again." :
+          response.status === 403 && reason === "Native posting identity unavailable"
+            ? "Mystic cannot resolve your native posting handle. Your draft is preserved." :
+          response.status === 403 ? "Posting denied for this message area. Your draft is preserved." :
+          response.status === 404 && reason === "Reply parent unavailable"
+            ? "The original message could not be found. Your draft is preserved." :
+          response.status === 503 ? "The message service or storage is unavailable. Your draft is preserved." :
+          safeReasons.has(reason) ? reason + ". Your draft is preserved." :
+          "Posting unavailable (HTTP " + response.status + "). Your draft is preserved.");
+      }
       const receipt: unknown = await response.json();
       if (!receipt || typeof receipt !== "object" || !("posted" in receipt) || receipt.posted !== true ||
           !("number" in receipt) || !Number.isSafeInteger(receipt.number))
