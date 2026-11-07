@@ -118,9 +118,6 @@ export function MessageWorkspace() {
     } catch (error) { setPostError(error instanceof Error ? error.message : "Posting failed."); }
     finally { setPosting(false); }
   };
-  // Explicit native synchronization is disabled until the authenticated writer
-  // and Mystic-compatible locking are certified. Browsing never writes JLR.
-  const mysticSyncAvailable = false;
   const [searchResults, setSearchResults] = useState<{ areaId: number; areaName: string; groupName: string; number: number; author: string; subject: string; matchedField: "subject" | "sender" | "body"; excerpt?: string }[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -420,16 +417,5 @@ export function MessageWorkspace() {
         </article>}
       </section>
     </div>
-    <div className="mw-sync-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", padding: "1rem", borderTop: "1px solid var(--mw-border, #374151)" }}>
-      <div style={{ flex: "1 1 320px", minWidth: 0 }}>
-        <strong>Update Mystic message pointers</strong>
-        <p style={{ margin: "0.25rem 0 0" }}>Updates all authorized areas up to the message before each area’s first unread message. Read messages after that point do not advance the pointer.</p>
-        <small>Browsing MysticWeb never changes native Mystic pointers. Areas with unknown state or conflicting native pointers will be skipped.</small>
-      </div>
-      <button type="button" disabled={!mysticSyncAvailable || loading}
-        title="Unavailable until authenticated native pointer updates are verified"
-        onClick={() => setNotice("Message pointer updates are not yet enabled.")}>Update Message Pointers</button>
-    </div>
-    <p className="mw-footnote">MysticWeb read status is stored separately in per-user JSON receipts. Opening a message never updates native Mystic pointers. Sandbox catalog includes configured areas; Restricted areas are not readable or searchable until authorized. Search checks subjects, senders and message bodies in a bounded sample of authorized message areas. Limited scans are marked; search is not yet a complete archive index.</p>
   </div>;
 }
