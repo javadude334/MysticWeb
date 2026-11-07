@@ -22,7 +22,9 @@ const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers });
 
 export async function sandboxMessages(request: Request): Promise<Response> {
-  if (process.env.NODE_ENV !== "development" || !sandboxOriginAllowed(request, request.method === "POST"))
+  if ((process.env.NODE_ENV !== "development" && process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN !== "1") ||
+      (process.env.NODE_ENV !== "development" && request.method !== "GET") ||
+      !sandboxOriginAllowed(request, request.method === "POST"))
     return json({ error: "Unavailable" }, 404);
   if (request.method !== "GET" && request.method !== "POST") return json({ error: "Method unavailable" }, 405);
   const runtime = initializeMysticWebRuntime();
@@ -37,7 +39,7 @@ export async function sandboxMessages(request: Request): Promise<Response> {
     let identity;
     try { identity = store.read(cookies[0].slice(COOKIE.length + 1)); }
     finally { store.close(); }
-    if (!identity || identity.instance !== "mystic_sandbox")
+    if (!identity || identity.instance !== (process.env.NODE_ENV === "development" ? "mystic_sandbox" : "mystic_native_dev"))
       return json({ error: "Sign in required" }, 401);
     const account = await readNativeAccountSnapshot(runtime.usersPath, identity.userId);
     if (!account || account.locked || account.deletedCandidate || account.passwordChangeRequired)
