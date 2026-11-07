@@ -235,7 +235,7 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 24px
 .mw-controls { border-bottom:1px solid var(--line); }
 .mw-group-control { display:flex; flex-direction:column; gap:8px; padding:16px 18px; }
 .mw-group-control label { font-weight:600; }
-.mw-group-control select { display:block; width:100%; min-height:42px; padding:9px 12px; color:var(--text); background:#10241e; border:1px solid #42614f; border-radius:6px; font:inherit; }
+.mw-group-control select { display:block; width:100%; min-height:38px; padding:7px 12px; color:var(--text); background:#10241e; border:1px solid #42614f; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.4; }
 .mw-search-row { border-top:1px solid var(--line); border-bottom:0; align-items:flex-end; }
 .mw-search-container { display:flex; flex:1 1 300px; min-width:0; flex-direction:column; gap:8px; }
 .mw-search { display:flex; flex-direction:column; gap:6px; }
