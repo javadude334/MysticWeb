@@ -44,8 +44,8 @@ async function main() {
     assert.match(loginHtml, /<form\b/i);
     assert.match(loginHtml, /BBS handle/);
     assert.match(loginHtml, /type="password"/);
-    assert.match(loginHtml, /currently rejects login/);
-    console.log('Built app: staged credential form renders; production authentication and message endpoints fail closed.');
+    assert.match(loginHtml, /Sign in with your Mystic BBS handle and password/);
+    console.log('Built app: credential form renders; authentication and message endpoints fail closed without configured native runtime.');
   } finally {
     child.kill();
     if (child.pid && child.exitCode === null) await new Promise(resolve => child.once('exit', resolve));
