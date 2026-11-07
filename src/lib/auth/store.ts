@@ -29,6 +29,20 @@ const MAX_IDENTITY_SESSIONS = 8;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
 
+// VirtualBox shared folders synthesize permissions from mount options.
+// Explicitly allow only the live, root-owned vboxsf mount with no world access.
+// Windows share users and vboxsf members can still read the database.
+export function acceptablePrivateMode(filename: string, stat: { mode: number; uid: number; gid: number }): boolean {
+  if (process.platform === "win32" || (stat.mode & 0o077) === 0) return true;
+  if (process.env.MYSTICWEB_ALLOW_SHARED_SQLITE !== "1") return false;
+  const root = "/media/sf_mystic/data/mysticweb";
+  if (filename !== root && !filename.startsWith(root + "/")) return false;
+  return stat.uid === 0 && stat.gid !== 0 &&
+    process.getgroups().includes(stat.gid) &&
+    (stat.mode & 0o007) === 0 &&
+    (stat.mode & 0o020) !== 0;
+}
+
 export class AuthStoreError extends Error {
   constructor() { super("Authentication storage unavailable"); }
 }
@@ -68,12 +82,12 @@ export class AuthStore {
       if (!path.isAbsolute(filename)) throw new AuthStoreError();
       const directory = lstatSync(path.dirname(filename));
       if (!directory.isDirectory() || directory.isSymbolicLink() ||
-        (process.platform !== "win32" && (directory.mode & 0o077) !== 0)) throw new AuthStoreError();
+        !acceptablePrivateMode(path.dirname(filename), directory)) throw new AuthStoreError();
       try { closeSync(openSync(filename, "ax", 0o600)); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
       const file = lstatSync(filename);
       if (!file.isFile() || file.isSymbolicLink() ||
-        (process.platform !== "win32" && (file.mode & 0o077) !== 0)) throw new AuthStoreError();
+        !acceptablePrivateMode(filename, file)) throw new AuthStoreError();
       opened = new DatabaseSync(filename, { timeout: 1000 });
       // Local private disk only. Transactions coordinate multiple app processes.
       opened.exec(`PRAGMA journal_mode = DELETE;
