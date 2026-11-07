@@ -77,7 +77,7 @@ export async function sandboxSession(request: Request): Promise<Response> {
     const store = new AuthStore(settings.db);
     let identity;
     try { identity = store.read(currentToken(request)); } finally { store.close(); }
-    if (!identity || identity.instance !== (process.env.NODE_ENV === "development" ? "mystic_sandbox" : "mystic_native_dev")) return reply({ authenticated: false }, 401);
+    if (!identity || identity.instance !== "mystic_native_dev") return reply({ authenticated: false }, 401);
     const status = await readNativeAccountSnapshot(settings.users, identity.userId);
     if (!status || status.locked || status.deletedCandidate || status.passwordChangeRequired) {
       // A disabled account must not regain a previous session when re-enabled.
