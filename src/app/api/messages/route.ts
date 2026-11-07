@@ -5,7 +5,7 @@ import { productionAccess, unavailable } from "@/lib/auth/service";
 export async function GET(request: Request): Promise<Response> {
   // Cache Components: never prerender or cache identity-dependent reads.
   await connection();
-  if (process.env.NODE_ENV === "development") return sandboxMessages(request);
+  if (process.env.NODE_ENV === "development" || process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1") return sandboxMessages(request);
   const access = productionAccess();
   return access ? access.read(request) : unavailable();
 }
