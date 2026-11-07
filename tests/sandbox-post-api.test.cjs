@@ -21,7 +21,7 @@ test("native posting is available without development flags and retains explicit
   assert.match(source, /return sandboxMessages\(request\)/);
   assert.doesNotMatch(source, /MYSTICWEB_ENABLE_NATIVE_LOGIN|return unavailable/);
   const handler = fs.readFileSync(path.resolve(__dirname, "../src/lib/auth/sandbox-messages.ts"), "utf8");
-  assert.match(handler, /request\.method === "POST" && new URL\(request\.url\)\.pathname === "\/api\/messages"/);
+  assert.match(handler, /request\.method === "POST" && new URL\(request\.url\)\.pathname\.endsWith\("\/api\/messages"\)/);
   assert.match(handler, /sandboxOriginAllowed\(request, request\.method === "POST"\)/);
   assert.match(handler, /search === "\?action=post"/);
   assert.match(handler, /access\.canPost\(area\.id\)/);
