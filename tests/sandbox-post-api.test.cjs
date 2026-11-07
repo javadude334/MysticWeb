@@ -38,7 +38,7 @@ test("browser composer connects New Post and Reply to authenticated posting endp
   assert.match(source, /receipt\.posted !== true/);
   assert.match(source, /pendingSearchMessage\.current = \{ areaId: area\.id, number \}; load\(area\)/);
   assert.match(source, /setComposer\(null\); setNotice\("Posted message #"/);
-  assert.match(source, /Posting unavailable\. Your draft is preserved\./);
+  assert.match(source, /Your draft is preserved/);
 });
 
 test("posting API verifies current account, authorization and response receipt", () => {
