@@ -9,7 +9,7 @@ import { resolveLocalRecipient } from "../mystic/mail-recipients";
 const COOKIE = "__Host-mysticweb_session";
 const headers = { "Cache-Control": "private, no-store" };
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers });
-const allowed = () => process.env.NODE_ENV === "development";
+const allowed = () => process.env.NODE_ENV === "development" || process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1";
 function config() {
   if (!allowed()) return null;
   try {
@@ -54,7 +54,7 @@ export async function sandboxLogin(request: Request): Promise<Response> {
         return reply({ error: "Sign-in unavailable" }, 401);
       // Sandbox-only: this A48 installation has no separate account-expiration
       // feature. Never use this path to grant message-area or production permissions.
-      const token = store.create({ instance: "mystic_sandbox", userId: match.userId }, currentToken(request));
+      const token = store.create({ instance: process.env.NODE_ENV === "development" ? "mystic_sandbox" : "mystic_native_dev", userId: match.userId }, currentToken(request));
       const result = reply({ ok: true });
       result.headers.set("Set-Cookie", sessionCookie(token));
       return result;
@@ -79,7 +79,7 @@ export async function sandboxSession(request: Request): Promise<Response> {
     const store = new AuthStore(settings.db);
     let identity;
     try { identity = store.read(currentToken(request)); } finally { store.close(); }
-    if (!identity || identity.instance !== "mystic_sandbox") return reply({ authenticated: false }, 401);
+    if (!identity || identity.instance !== (process.env.NODE_ENV === "development" ? "mystic_sandbox" : "mystic_native_dev")) return reply({ authenticated: false }, 401);
     const status = await readNativeAccountSnapshot(settings.users, identity.userId);
     if (!status || status.locked || status.deletedCandidate || status.passwordChangeRequired) {
       // A disabled account must not regain a previous session when re-enabled.
