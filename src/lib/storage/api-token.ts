@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { closeSync, existsSync, lstatSync, openSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import { acceptablePrivateMode } from "../auth/store";
 
 const NAME = "mysticweb-api.json";
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/;
@@ -15,7 +16,7 @@ export function apiTokenFile(privateDirectory: string): string {
 function readToken(filename: string): string {
   const stat = lstatSync(filename);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 1024) throw new Error("Unsafe API token file");
-  if (process.platform !== "win32" && (stat.mode & 0o077) !== 0)
+  if !acceptablePrivateMode(filename, stat)
     throw new Error("API token file permissions are too broad");
   const parsed: unknown = JSON.parse(readFileSync(filename, "utf8"));
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
