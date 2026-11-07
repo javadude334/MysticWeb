@@ -28,8 +28,10 @@ export function sandboxOriginAllowed(request: Request, mutation: boolean): boole
   if (!origins) return false;
   try {
     const url = new URL(request.url);
-    if (!origins.has(url.origin)) return false;
-    if (mutation && (request.headers.get("origin") !== url.origin ||
+    const deployed = process.env.NODE_ENV !== "development";
+    const expected = deployed ? process.env.MYSTICWEB_APP_URL : url.origin;
+    if (!expected || !origins.has(expected) || (!deployed && !origins.has(url.origin))) return false;
+    if (mutation && (request.headers.get("origin") !== expected ||
         (request.headers.has("sec-fetch-site") &&
          request.headers.get("sec-fetch-site") !== "same-origin"))) return false;
     return true;
