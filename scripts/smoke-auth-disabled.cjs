@@ -41,11 +41,16 @@ async function main() {
     const messages = await fetch(base + '/api/messages?area=1', { signal: AbortSignal.timeout(5000) });
     assert.equal(messages.headers.get('set-cookie'), null, 'messages: set-cookie');
     assert.notEqual(messages.status, 200, 'messages must not be accessible without a native runtime');
-    for (const url of ['/development', '/api/development']) {
-      const result = await fetch(base + url, { signal: AbortSignal.timeout(5000) });
-      assert.equal(result.status, 404);
-      assert.equal(result.headers.get('set-cookie'), null);
-    }
+    // Protected page redirects to login; fetch must not silently follow it.
+    const developmentPage = await fetch(base + '/development', {
+      redirect: 'manual', signal: AbortSignal.timeout(5000),
+    });
+    assert.ok([307, 308].includes(developmentPage.status), 'development page must redirect');
+    assert.match(developmentPage.headers.get('location') ?? '', /\/login\?next=%2Fdevelopment/);
+    assert.equal(developmentPage.headers.get('set-cookie'), null);
+    const developmentApi = await fetch(base + '/api/development', { signal: AbortSignal.timeout(5000) });
+    assert.equal(developmentApi.status, 404, 'development API must remain disabled');
+    assert.equal(developmentApi.headers.get('set-cookie'), null);
     const login = await fetch(base + '/login', { signal: AbortSignal.timeout(5000) });
     assert.equal(login.status, 200);
     const loginHtml = await login.text();
