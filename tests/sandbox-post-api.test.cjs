@@ -16,9 +16,13 @@ test("sandbox posting requires explicit action and posting permissions", () => {
   assert.match(source, /if \(!author\) return json\(/);
 });
 
-test("production message POST remains unavailable", () => {
+test("production message posting remains unavailable while read receipts are enabled", () => {
   const source = fs.readFileSync(path.resolve(__dirname, "../src/app/api/messages/route.ts"), "utf8");
-  assert.match(source, /if \(process\.env\.NODE_ENV === "development"\) return sandboxMessages\(request\)/);
+  assert.match(source, /process\.env\.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1"/);
+  const handler = fs.readFileSync(path.resolve(__dirname, "../src/lib/auth/sandbox-messages.ts"), "utf8");
+  assert.match(handler, /request\.method === "POST" && new URL\(request\.url\)\.pathname === "\/api\/messages"/);
+  assert.match(handler, /new URL\(request\.url\)\.search === ""/);
+  assert.match(handler, /search === "\?action=post"/);
   assert.match(source, /return unavailable\(\)/);
 });
 
