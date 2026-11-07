@@ -41,14 +41,21 @@ test("configured localhost and IPv4 loopback allow same-origin mutations and ses
     assert.equal(sandboxOriginAllowed(req("http://127.0.0.1:30004/api/auth/login", "http://127.0.0.1:30004"), true), false);
   });
 });
-test("non-loopback, malformed, and production configurations fail closed", () => {
-  for (const allowed of ["https://davesbbs.com", "http://192.168.1.10:3000",
-    "http://localhost:3000/path", "http://localhost:3000,",
-    "http://localhost:3000,http://127.0.0.1:30004/path"]) {
+test("HTTPS production origins work on both davesbbs hostnames", () => {
+  env({ NODE_ENV: "production", MYSTICWEB_APP_URL: "https://davesbbs.com" }, () => {
+    for (const origin of ["https://davesbbs.com", "https://www.davesbbs.com"]) {
+      assert.equal(sandboxOriginAllowed(req(origin + "/api/auth/login", origin), true), true);
+      assert.equal(sandboxOriginAllowed(req(origin + "/api/auth/session"), false), true);
+      assert.equal(sandboxOriginAllowed(req(origin + "/api/auth/login", "https://evil.example"), true), false);
+    }
+    assert.equal(sandboxOriginAllowed(req("https://evil.example/api/auth/session"), false), false);
+  });
+});
+test("malformed origins and missing configuration fail closed", () => {
+  for (const allowed of ["http://192.168.1.10:3000", "http://localhost:3000/path",
+    "http://localhost:3000,", "http://localhost:3000,http://127.0.0.1:30004/path"]) {
     env({ NODE_ENV: "development", MYSTICWEB_APP_URL: "http://localhost:3000",
       MYSTICWEB_ALLOWED_ORIGINS: allowed }, () => assert.equal(sandboxOrigins(), null));
   }
-  env({ NODE_ENV: "production", MYSTICWEB_APP_URL: "http://localhost:3000" }, () =>
-    assert.equal(sandboxOriginAllowed(req("http://localhost:3000/api/auth/session"), false), false));
   env({ NODE_ENV: "development" }, () => assert.equal(sandboxOrigins(), null));
 });
