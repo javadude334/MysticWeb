@@ -38,11 +38,11 @@ const { readJam } = (() => {
 })();
 const draft = { author: "Tester", recipient: "All", subject: "Offline test", body: "Hello world", timestamp: 1700000000 };
 
-test("JAM writer refuses production execution", async () => {
+test("JAM writer rejects invalid targets in production without environment gating", async () => {
   const previous = process.env.NODE_ENV;
   try {
     process.env.NODE_ENV = "production";
-    await assert.rejects(appendOfflineJam(os.tmpdir(), "test", draft), /disabled/);
+    await assert.rejects(appendOfflineJam("relative", "test", draft), /Invalid JAM writer target/);
   } finally {
     if (previous === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previous;
