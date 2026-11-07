@@ -23,7 +23,9 @@ const json = (value: unknown, status = 200) => Response.json(value, { status, he
 
 export async function sandboxMessages(request: Request): Promise<Response> {
   if ((process.env.NODE_ENV !== "development" && process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN !== "1") ||
-      (process.env.NODE_ENV !== "development" && request.method !== "GET") ||
+      (process.env.NODE_ENV !== "development" && request.method !== "GET" &&
+        !(request.method === "POST" && new URL(request.url).pathname === "/api/messages" &&
+          new URL(request.url).search === "")) ||
       !sandboxOriginAllowed(request, request.method === "POST"))
     return json({ error: "Unavailable" }, 404);
   if (request.method !== "GET" && request.method !== "POST") return json({ error: "Method unavailable" }, 405);
