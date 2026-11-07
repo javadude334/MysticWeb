@@ -7,7 +7,7 @@ export interface SchemaDatabase {
   prepare(sql: string): { get(...values: (string | number)[]): Record<string, string | number> | undefined };
 }
 
-export const MYSTICWEB_SCHEMA_VERSION = 2;
+export const MYSTICWEB_SCHEMA_VERSION = 3;
 
 export function initializeMysticWebSchema(db: SchemaDatabase): void {
   const versionRow = db.prepare("PRAGMA user_version").get();
@@ -54,6 +54,23 @@ export function initializeMysticWebSchema(db: SchemaDatabase): void {
           refreshed_at INTEGER NOT NULL
         ) STRICT;
         PRAGMA user_version = 2;
+      `);
+    }
+    if (version < 3) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS message_read_receipts (
+          instance_id TEXT NOT NULL, area_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL, message_id TEXT NOT NULL,
+          read_at TEXT NOT NULL,
+          PRIMARY KEY (instance_id, area_id, user_id, message_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS message_read_pointers (
+          instance_id TEXT NOT NULL, area_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL, last_read_jam_number INTEGER NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (instance_id, area_id, user_id)
+        ) STRICT;
+        PRAGMA user_version = 3;
       `);
     }
     db.exec("COMMIT");
