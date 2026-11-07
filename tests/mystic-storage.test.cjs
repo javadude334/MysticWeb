@@ -50,7 +50,9 @@ test("SQLite schema upgrades once, survives reopen, and rejects future versions"
   try {
     db = new DatabaseSync(filename);
     initializeMysticWebSchema(db);
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 2);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 3);
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = ?").get("message_read_receipts"));
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = ?").get("message_read_pointers"));
     db.prepare("INSERT INTO mysticweb_settings(key,value) VALUES (?,?)").run("example", "persisted");
     initializeMysticWebSchema(db);
     db.close();
