@@ -13,6 +13,6 @@ export async function GET(request: Request): Promise<Response> {
 /** Explicit JSON-only read receipt. Never writes Mystic JAM/JLR pointers. */
 export async function POST(request: Request): Promise<Response> {
   await connection();
-  if (process.env.NODE_ENV === "development") return sandboxMessages(request);
+  if (process.env.NODE_ENV === "development" || process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1") return sandboxMessages(request);
   return unavailable();
 }
