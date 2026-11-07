@@ -14,7 +14,7 @@ export function sandboxOrigins(): ReadonlySet<string> | null {
     try {
       const url = new URL(value);
       if (url.origin !== value || !((url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) ||
-            (url.protocol === "https:" && process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1")) ||
+            url.protocol === "https:") ||
           url.username || url.password) return null;
       origins.add(url.origin);
     } catch { return null; }
@@ -23,7 +23,6 @@ export function sandboxOrigins(): ReadonlySet<string> | null {
 }
 
 export function sandboxOriginAllowed(request: Request, mutation: boolean): boolean {
-  if (process.env.NODE_ENV !== "development" && process.env.MYSTICWEB_ENABLE_NATIVE_LOGIN !== "1") return false;
   const origins = sandboxOrigins();
   if (!origins) return false;
   try {
