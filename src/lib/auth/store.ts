@@ -38,7 +38,7 @@ export function acceptablePrivateMode(filename: string, stat: { mode: number; ui
   const root = "/media/sf_mystic/data/mysticweb";
   if (filename !== root && !filename.startsWith(root + "/")) return false;
   return stat.uid === 0 && stat.gid !== 0 &&
-    process.getgroups().includes(stat.gid) &&
+    (process.getgroups?.() ?? []).includes(stat.gid) &&
     (stat.mode & 0o007) === 0 &&
     (stat.mode & 0o020) !== 0;
 }
