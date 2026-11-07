@@ -16,7 +16,7 @@ export function apiTokenFile(privateDirectory: string): string {
 function readToken(filename: string): string {
   const stat = lstatSync(filename);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 1024) throw new Error("Unsafe API token file");
-  if !acceptablePrivateMode(filename, stat)
+  if (!acceptablePrivateMode(filename, stat))
     throw new Error("API token file permissions are too broad");
   const parsed: unknown = JSON.parse(readFileSync(filename, "utf8"));
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
