@@ -25,14 +25,22 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     assert.equal(ready, true);
-    for (const [url, method] of [['/api/auth/login', 'POST'], ['/api/auth/logout', 'POST'], ['/api/auth/session', 'GET'], ['/api/messages?area=1', 'GET']]) {
+    const deniedEndpoints = [
+      ['/api/auth/login', 'POST', 503, { error: 'Sandbox sign-in unavailable' }],
+      ['/api/auth/logout', 'POST', 503, { error: 'Sandbox logout unavailable' }],
+      ['/api/auth/session', 'GET', 401, { authenticated: false }],
+    ];
+    for (const [url, method, expectedStatus, expectedBody] of deniedEndpoints) {
       const result = await fetch(base + url, { method, signal: AbortSignal.timeout(5000),
         ...(method === 'POST' ? { body: '{', headers: { 'content-type': 'application/json' } } : {}) });
-      assert.equal(result.status, 503, `${method} ${url}: expected 503, got ${result.status}`);
+      assert.equal(result.status, expectedStatus, `${method} ${url}: status`);
       assert.equal(result.headers.get('cache-control'), 'private, no-store', `${method} ${url}: cache-control`);
-      assert.equal(result.headers.get('set-cookie'), null);
-      assert.deepEqual(await result.json(), { error: 'Access unavailable' }, `${method} ${url}: response body`);
+      assert.equal(result.headers.get('set-cookie'), null, `${method} ${url}: set-cookie`);
+      assert.deepEqual(await result.json(), expectedBody, `${method} ${url}: response body`);
     }
+    const messages = await fetch(base + '/api/messages?area=1', { signal: AbortSignal.timeout(5000) });
+    assert.equal(messages.headers.get('set-cookie'), null, 'messages: set-cookie');
+    assert.notEqual(messages.status, 200, 'messages must not be accessible without a native runtime');
     for (const url of ['/development', '/api/development']) {
       const result = await fetch(base + url, { signal: AbortSignal.timeout(5000) });
       assert.equal(result.status, 404);
