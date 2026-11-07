@@ -6,7 +6,11 @@ import "server-only";
 export function sandboxOrigins(): ReadonlySet<string> | null {
   const primary = process.env.MYSTICWEB_APP_URL;
   if (!primary) return null;
-  const raw = [primary, ...(process.env.MYSTICWEB_ALLOWED_ORIGINS?.split(",") ?? [])];
+  const primaryUrl = new URL(primary);
+  const alternate = primaryUrl.protocol === "https:" &&
+    (primaryUrl.hostname === "davesbbs.com" || primaryUrl.hostname === "www.davesbbs.com")
+    ? `https://${primaryUrl.hostname === "davesbbs.com" ? "www.davesbbs.com" : "davesbbs.com"}` : null;
+  const raw = [primary, ...(alternate ? [alternate] : []), ...(process.env.MYSTICWEB_ALLOWED_ORIGINS?.split(",") ?? [])];
   const origins = new Set<string>();
   for (const entry of raw) {
     const value = entry.trim();
@@ -28,8 +32,8 @@ export function sandboxOriginAllowed(request: Request, mutation: boolean): boole
   try {
     const url = new URL(request.url);
     const deployed = process.env.NODE_ENV !== "development";
-    const expected = deployed ? process.env.MYSTICWEB_APP_URL : url.origin;
-    if (!expected || !origins.has(expected) || (!deployed && !origins.has(url.origin))) return false;
+    const expected = url.origin;
+    if (!origins.has(expected)) return false;
     if (mutation && (request.headers.get("origin") !== expected ||
         (request.headers.has("sec-fetch-site") &&
          request.headers.get("sec-fetch-site") !== "same-origin"))) return false;
