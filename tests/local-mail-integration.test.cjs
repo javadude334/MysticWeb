@@ -2,9 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-test("private mail route never enables production writes", () => {
+test("private mail route uses authenticated native handler without environment gating", () => {
   const route = fs.readFileSync(path.resolve(__dirname, "../src/app/api/mail/route.ts"), "utf8");
-  assert.match(route, /NODE_ENV !== "development"/);
+  assert.match(route, /return sandboxMessages\(request\)/);
+  assert.doesNotMatch(route, /NODE_ENV|MYSTICWEB_ENABLE_NATIVE_LOGIN/);
 });
 test("local mail API validates recipient IDs against native users.dat", () => {
   const api = fs.readFileSync(path.resolve(__dirname, "../src/lib/auth/sandbox-messages.ts"), "utf8");
