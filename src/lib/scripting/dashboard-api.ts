@@ -2,6 +2,7 @@ export type DashboardWidget =
   | { type: "welcome"; title: string; description: string }
   | { type: "bulletins"; title: string; items: { title: string; description: string }[] }
   | { type: "stat"; title: string; value: string; description: string }
+  | { type: "mail"; title: string; description: string }
   | { type: "list"; title: string; items: string[]; description: string };
 
 export interface DashboardApi {
@@ -31,7 +32,7 @@ export function createDashboardApi(): { ui: DashboardApi; widgets: DashboardWidg
       ];
       widgets.push({ type: "bulletins", title: "System Bulletins", items: items.slice(0, Math.max(0, options.limit ?? items.length)) });
     },
-    showEmail() { widgets.push({ type: "stat", title: "Private Mail", value: "—", description: unavailable }); },
+    showEmail() { widgets.push({ type: "mail", title: "Private Mail", description: "Mystic Mail: local private messaging is in development." }); },
     showWhosOnline() { widgets.push({ type: "list", title: "Who's Online", items: [], description: unavailable }); },
     showLastCallers() { widgets.push({ type: "list", title: "Last Callers", items: [], description: unavailable }); },
     showMessageStats() { widgets.push({ type: "stat", title: "New Messages", value: "—", description: unavailable }); },
