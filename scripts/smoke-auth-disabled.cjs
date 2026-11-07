@@ -28,10 +28,10 @@ async function main() {
     for (const [url, method] of [['/api/auth/login', 'POST'], ['/api/auth/logout', 'POST'], ['/api/auth/session', 'GET'], ['/api/messages?area=1', 'GET']]) {
       const result = await fetch(base + url, { method, signal: AbortSignal.timeout(5000),
         ...(method === 'POST' ? { body: '{', headers: { 'content-type': 'application/json' } } : {}) });
-      assert.equal(result.status, 503);
-      assert.equal(result.headers.get('cache-control'), 'private, no-store');
+      assert.equal(result.status, 503, `${method} ${url}: expected 503, got ${result.status}`);
+      assert.equal(result.headers.get('cache-control'), 'private, no-store', `${method} ${url}: cache-control`);
       assert.equal(result.headers.get('set-cookie'), null);
-      assert.deepEqual(await result.json(), { error: 'Access unavailable' });
+      assert.deepEqual(await result.json(), { error: 'Access unavailable' }, `${method} ${url}: response body`);
     }
     for (const url of ['/development', '/api/development']) {
       const result = await fetch(base + url, { signal: AbortSignal.timeout(5000) });
@@ -51,4 +51,4 @@ async function main() {
     if (child.pid && child.exitCode === null) await new Promise(resolve => child.once('exit', resolve));
   }
 }
-main().catch(() => { console.error('Disabled-auth smoke check failed'); process.exitCode = 1; });
+main().catch((error) => { console.error('Disabled-auth smoke check failed:', error); process.exitCode = 1; });
