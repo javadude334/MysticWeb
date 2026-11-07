@@ -16,14 +16,15 @@ test("sandbox posting requires explicit action and posting permissions", () => {
   assert.match(source, /if \(!author\) return json\(/);
 });
 
-test("production message posting remains unavailable while read receipts are enabled", () => {
+test("native posting is available without development flags and retains explicit action validation", () => {
   const source = fs.readFileSync(path.resolve(__dirname, "../src/app/api/messages/route.ts"), "utf8");
-  assert.match(source, /process\.env\.MYSTICWEB_ENABLE_NATIVE_LOGIN === "1"/);
+  assert.match(source, /return sandboxMessages\(request\)/);
+  assert.doesNotMatch(source, /MYSTICWEB_ENABLE_NATIVE_LOGIN|return unavailable/);
   const handler = fs.readFileSync(path.resolve(__dirname, "../src/lib/auth/sandbox-messages.ts"), "utf8");
   assert.match(handler, /request\.method === "POST" && new URL\(request\.url\)\.pathname === "\/api\/messages"/);
-  assert.match(handler, /new URL\(request\.url\)\.search === ""/);
+  assert.match(handler, /sandboxOriginAllowed\(request, request\.method === "POST"\)/);
   assert.match(handler, /search === "\?action=post"/);
-  assert.match(source, /return unavailable\(\)/);
+  assert.match(handler, /access\.canPost\(area\.id\)/);
 });
 
 test("browser composer connects New Post and Reply to authenticated posting endpoint", () => {
