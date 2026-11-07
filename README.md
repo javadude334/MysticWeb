@@ -105,3 +105,9 @@ See [development workspace](docs/development-workspace.md) for disposable accoun
 ## November 2 integrated testing
 
 The [integration test checklist](docs/integration-test-2026-11-02.md) covers the current mainline application plus the [MysticMail demo](mysticmail/README.md) and its [SYSOP.DOC](mysticmail/SYSOP.DOC). The MysticMail demo is synthetic and does not connect to live mail.
+
+## Copyright and acknowledgments
+
+MysticWeb © 2026 Javadude Development. MysticWeb is an independent open-source web interface for Mystic BBS. Mystic BBS was created by James Coyle (g00r00) and remains the property of its respective rights holders. MysticWeb is not affiliated with or endorsed by the Mystic BBS project. See [Mystic BBS](https://mysticbbs.com/) for the upstream software and [Javadude Development](https://javadude.dev/) for this project's developer.
+
+Compatibility with Mystic data formats does not imply ownership of BBS operators' or users' content. Third-party code and assets remain subject to their respective licenses and notices.
