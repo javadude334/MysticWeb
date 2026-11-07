@@ -40,7 +40,8 @@ export function LoginForm() {
         return;
       }
       setPassword("");
-      router.replace("/dashboard");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/dashboard");
       router.refresh();
     } catch {
       setError("Sign-in is currently unavailable.");
