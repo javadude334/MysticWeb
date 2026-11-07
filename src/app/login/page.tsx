@@ -21,8 +21,8 @@ export default function Login() {
           <span className={styles.eyebrow}>DAVE&apos;S BBS / WEB ACCESS</span>
           <span className={styles.loginIcon} aria-hidden="true">[ _ ]</span>
           <h1 id="login-title">Web login</h1>
-          <span className={styles.badge}>NATIVE ACCESS / STAGED</span>
-          <p>Use your Mystic BBS handle and password. The native server must approve sign-in; this deployment currently rejects login until sandbox integration is activated.</p>
+          <span className={styles.badge}>MYSTIC ACCOUNT LOGIN</span>
+          <p>Sign in with your Mystic BBS handle and password to access messages, files, and other member features.</p>
           <LoginForm />
           <p>For traditional access, connect to Dave&apos;s BBS using your Telnet client.</p>
           <a className={styles.primary} href="telnet://davesbbs.com">Connect via Telnet <span aria-hidden="true">↗</span></a>
