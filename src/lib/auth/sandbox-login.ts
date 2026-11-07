@@ -17,7 +17,10 @@ function config() {
       db: runtime.databasePath,
       secret: runtime.rateKey,
     };
-  } catch { return null; }
+  } catch (error) {
+    console.error("MysticWeb authentication runtime initialization failed:", error);
+    return null;
+  }
 }
 function currentToken(request: Request) {
   const values = (request.headers.get("cookie") ?? "").split(";").map(x => x.trim()).filter(x => x.startsWith(COOKIE + "="));
@@ -28,7 +31,11 @@ function sessionCookie(token: string | null) {
 }
 export async function sandboxLogin(request: Request): Promise<Response> {
   const settings = config();
-  if (!settings || request.method !== "POST" || !sandboxOriginAllowed(request, true)) return reply({ error: "Sandbox sign-in unavailable" }, 503);
+  if (!settings) return reply({ error: "Sandbox sign-in unavailable" }, 503);
+  if (request.method !== "POST" || !sandboxOriginAllowed(request, true)) {
+    console.error("MysticWeb login rejected: request method or trusted origin validation failed");
+    return reply({ error: "Sandbox sign-in unavailable" }, 503);
+  }
   try {
     if (request.headers.get("content-type") !== "application/json") return reply({ error: "Invalid request" }, 400);
     const raw = await request.text();
@@ -57,7 +64,10 @@ export async function sandboxLogin(request: Request): Promise<Response> {
       result.headers.set("Set-Cookie", sessionCookie(token));
       return result;
     } finally { store.close(); }
-  } catch { return reply({ error: "Sandbox sign-in unavailable" }, 503); }
+  } catch (error) {
+    console.error("MysticWeb login processing failed:", error);
+    return reply({ error: "Sandbox sign-in unavailable" }, 503);
+  }
 }
 export async function sandboxLogout(request: Request): Promise<Response> {
   const settings = config();
