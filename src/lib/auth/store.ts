@@ -121,6 +121,21 @@ export class AuthStore {
     }
   }
 
+  /** Counts only; does not disclose individual message receipts. */
+  countReadState(): { receipts: number; pointers: number; identities: number } {
+    const count = (table: string) => {
+      const row = this.db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get();
+      const n = Number(row?.count);
+      if (!Number.isSafeInteger(n) || n < 0) throw new AuthStoreError();
+      return n;
+    };
+    return {
+      receipts: count("message_read_receipts"),
+      pointers: count("message_read_pointers"),
+      identities: count("message_uids"),
+    };
+  }
+
   /** Bounded, read-only inventory for post-pack diagnostics. No pointer mutation. */
   listMessageReadPointers(limit = 5000): Array<{
     instance: string; areaId: number; userId: number; lastReadJamNumber: number;
