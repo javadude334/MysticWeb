@@ -20,7 +20,8 @@ export async function POST(request: Request): Promise<Response> {
     const areas = new Map(scan.bases.map(base => [base.areaId, base]));
     const store = new AuthStore(runtime.databasePath);
     let pointers: ReturnType<AuthStore["listMessageReadPointers"]>;
-    try { pointers = store.listMessageReadPointers(); }
+    let inventory: ReturnType<AuthStore["countReadState"]>;
+    try { pointers = store.listMessageReadPointers(); inventory = store.countReadState(); }
     finally { store.close(); }
     const reports: Array<{ areaId: number; userId: number; status: string }> = [];
     const nativeCache = new Map<number, ReturnType<typeof parseJamLastRead> | null>();
@@ -53,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     return Response.json({
       mode: "audit_only", nativeWrites: false, sqliteWrites: false,
-      scannedPointers: pointers.length, skippedAreas: scan.skipped.length,
+      scannedPointers: pointers.length, inventory, skippedAreas: scan.skipped.length,
       note: "Numeric equality is diagnostic only; it does not establish message identity or Mystic read semantics.",
       reports,
     });
