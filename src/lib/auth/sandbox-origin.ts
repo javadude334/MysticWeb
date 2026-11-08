@@ -30,13 +30,22 @@ export function sandboxOriginAllowed(request: Request, mutation: boolean): boole
   const origins = sandboxOrigins();
   if (!origins) return false;
   try {
-    const url = new URL(request.url);
-    const deployed = process.env.NODE_ENV !== "development";
-    const expected = url.origin;
-    if (!origins.has(expected)) return false;
-    if (mutation && (request.headers.get("origin") !== expected ||
-        (request.headers.has("sec-fetch-site") &&
-         request.headers.get("sec-fetch-site") !== "same-origin"))) return false;
-    return true;
-  } catch { return false; }
+    // Next.js may expose its internal listener URL (127.0.0.1:3100)
+    // behind nginx. Never compare that internal URL to the public origin.
+    // For mutations, require the browser-supplied Origin to be explicitly
+    // trusted, plus the Fetch Metadata same-origin signal when present.
+    if (mutation) {
+      const origin = request.headers.get("origin");
+      if (!origin || !origins.has(origin)) return false;
+      if (request.headers.has("sec-fetch-site") &&
+          request.headers.get("sec-fetch-site") !== "same-origin") return false;
+      return true;
+    }
+    // Session reads do not carry Origin in normal browser navigation.
+    // Their session cookie is independently authenticated by the handler.
+    const origin = request.headers.get("origin");
+    return origin === null || origins.has(origin);
+  } catch {
+    return false;
+  }
 }
