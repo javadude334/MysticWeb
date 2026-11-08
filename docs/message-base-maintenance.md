@@ -131,3 +131,25 @@ Production-grade reconciliation requires a proven stable message identity
 across packing, safe concurrency/locking with Mystic, and sandbox tests
 covering deletions, gaps, reordering, unread messages, and recovery.
 Never advance a pointer from a numeric comparison alone.
+
+## Pointer-update implementation gate (November 2026)
+
+The new pure `planPackedPointer` module computes **candidate** thresholds
+from complete before/after snapshots with independently verified 64-character
+message identities. It rejects duplicates, unknown identities, deleted or
+missing messages without proof, noncontiguous read states, and incomplete
+snapshots. Unit tests cover renumbering and fail-closed cases. No native or
+SQLite pointer writes are enabled.
+
+The current `stableJamReceiptId` includes `msg.number` in its hash.
+Therefore **existing receipts are not stable across JAM renumbering**.
+The production audit also found zero SQLite pointer rows. A safe
+automatic live writer cannot be enabled from those records. Implement
+a number-independent, collision-checked identity mapping with
+before-pack snapshots, verify Mystic's native lock semantics and
+native user mapping in the sandbox, then add transactional persistence.
+Never run the planner directly against live `.jlr` files as a writer.
+
+The audit now reports aggregate `inventory.receipts`,
+`inventory.pointers`, and `inventory.identities` counts to establish
+whether the required evidence exists. It remains read-only.
