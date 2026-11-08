@@ -121,6 +121,33 @@ export class AuthStore {
     }
   }
 
+  /** Replace supplemental pointers from validated native JAM snapshots only.
+   * Caller must verify installation, area mapping, and snapshot consistency.
+   * Never changes message receipts or any native Mystic file.
+   */
+  reconcileNativeReadPointers(rows: readonly {
+    areaId: number; userId: number; lastReadMsg: number;
+  }[], instance = "mystic_native_dev"): { insertedOrUpdated: number } {
+    if (instance !== "mystic_native_dev" || rows.length > 100000) throw new AuthStoreError();
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (!Number.isSafeInteger(row.areaId) || row.areaId < 1 || row.areaId > 0xffffffff ||
+          !Number.isSafeInteger(row.userId) || row.userId < 1 || row.userId > 0x7fffffff ||
+          !Number.isSafeInteger(row.lastReadMsg) || row.lastReadMsg < 0 || row.lastReadMsg > 0xffffffff ||
+          seen.has(`${row.areaId}:${row.userId}`)) throw new AuthStoreError();
+      seen.add(`${row.areaId}:${row.userId}`);
+    }
+    const now = new Date().toISOString();
+    this.transaction(() => {
+      const statement = this.db.prepare(
+        "INSERT INTO message_read_pointers(instance_id,area_id,user_id,last_read_jam_number,updated_at) VALUES (?,?,?,?,?) " +
+        "ON CONFLICT(instance_id,area_id,user_id) DO UPDATE SET last_read_jam_number=excluded.last_read_jam_number,updated_at=excluded.updated_at"
+      );
+      for (const row of rows) statement.run(instance, row.areaId, row.userId, row.lastReadMsg, now);
+    });
+    return { insertedOrUpdated: rows.length };
+  }
+
   /** Counts only; does not disclose individual message receipts. */
   countReadState(): { receipts: number; pointers: number; identities: number } {
     const count = (table: string) => {
