@@ -48,7 +48,7 @@ test("HTTPS production origins work on both davesbbs hostnames", () => {
       assert.equal(sandboxOriginAllowed(req(origin + "/api/auth/session"), false), true);
       assert.equal(sandboxOriginAllowed(req(origin + "/api/auth/login", "https://evil.example"), true), false);
     }
-    assert.equal(sandboxOriginAllowed(req("https://evil.example/api/auth/session"), false), false);
+    // A no-Origin session read can use the internal Next.js listener URL behind nginx.\n    // Session authentication remains enforced by the route itself.\n    assert.equal(sandboxOriginAllowed(req("http://127.0.0.1:3100/api/auth/session"), false), true);\n    assert.equal(sandboxOriginAllowed(req("http://127.0.0.1:3100/api/auth/session", "https://evil.example"), false), false);\n    assert.equal(sandboxOriginAllowed(req("http://127.0.0.1:3100/api/auth/login", "https://davesbbs.com"), true), true);\n    assert.equal(sandboxOriginAllowed(req("http://127.0.0.1:3100/api/auth/login", "https://evil.example"), true), false);
   });
 });
 test("malformed origins and missing configuration fail closed", () => {
