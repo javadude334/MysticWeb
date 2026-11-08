@@ -32,15 +32,18 @@ function sessionCookie(token: string | null) {
 export async function sandboxLogin(request: Request): Promise<Response> {
   const settings = config();
   if (!settings) return reply({ error: "Sandbox sign-in unavailable" }, 503);
-  if (request.method !== "POST" || !sandboxOriginAllowed(request, true)) {
-    console.error("MysticWeb login rejected: request method or trusted origin validation failed");
-    return reply({ error: "Sandbox sign-in unavailable" }, 503);
+  if (request.method !== "POST") return reply({ error: "Method not allowed" }, 405);
+  if (!sandboxOriginAllowed(request, true)) {
+    console.warn("MysticWeb login rejected: untrusted request origin");
+    return reply({ error: "Forbidden" }, 403);
   }
   try {
     if (request.headers.get("content-type") !== "application/json") return reply({ error: "Invalid request" }, 400);
     const raw = await request.text();
     if (Buffer.byteLength(raw) > 2048) return reply({ error: "Invalid request" }, 400);
-    const input: unknown = JSON.parse(raw);
+    let input: unknown;
+    try { input = JSON.parse(raw); }
+    catch { return reply({ error: "Invalid request" }, 400); }
     if (!input || typeof input !== "object" || Array.isArray(input)) return reply({ error: "Invalid request" }, 400);
     const value = input as Record<string, unknown>;
     if (Object.keys(value).sort().join(",") !== "password,username" ||
