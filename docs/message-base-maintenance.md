@@ -153,3 +153,21 @@ Never run the planner directly against live `.jlr` files as a writer.
 The audit now reports aggregate `inventory.receipts`,
 `inventory.pointers`, and `inventory.identities` counts to establish
 whether the required evidence exists. It remains read-only.
+
+## Mystic-authoritative reconciliation
+
+`POST /api/internal/maintenance/reconcile-read-pointers` requires the
+existing scheduler bearer token. It reads each available native `.jlr`
+snapshot, rejects malformed or changing files, and upserts verified native
+last-read values into the supplemental SQLite `message_read_pointers`
+table. The fixed installation scope is `mystic_native_dev`, matching the
+current native login. Missing/invalid native records are never interpreted
+as zero, and the endpoint never modifies native JAM or read receipts.
+
+This is a separate opt-in endpoint: do not put it in `maint.cmd` until
+live deployment and reconciliation behavior have been checked. Reading
+native files without a Mystic-compatible lock cannot guarantee a
+consistent snapshot if Mystic writes during synchronization. Run only
+during a quiescent maintenance window, and retain the existing read-only
+audit for comparison. A response can include skipped areas; investigate
+them before treating synchronization as complete.
