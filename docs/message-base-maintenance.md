@@ -56,3 +56,56 @@ filesystem alone does not resolve those limitations.
 
 The maintenance endpoint continues to require a Bearer token. No anonymous
 maintenance access is permitted. The scanner never modifies JAM messages.
+
+
+## Dave's BBS nightly maint.cmd integration (2026-11-08)
+
+The Windows host runs `D:\mystic\maint.cmd` at 03:00. After
+`mutil -exec PurgeMessageBases,PackMessageBases,LinkMessages` succeeds,
+invoke the existing `scripts/refresh-message-bases.ps1` to refresh the
+message-area catalog. Do **not** call this while MUTIL is packing files.
+
+The Windows batch integration requires these two **process environment
+variables** (do not embed secrets in the batch file):
+
+- `MYSTICWEB_BASE_URL=https://davesbbs.com`
+- `MYSTICWEB_TOKEN_FILE=<absolute restricted Windows path to mysticweb-api.json>`
+
+The token must be the **same token used by the Ubuntu MysticWeb server**,
+not an unrelated locally generated Windows token. Do not copy it to a
+publicly readable Mystic data directory. Ensure the Windows scheduler
+account can read it and ordinary BBS users cannot. Use HTTPS and confirm
+that the Ubuntu service has access to the actual live Mystic message
+configuration and JAM files.
+
+The PowerShell client is
+[`scripts/refresh-message-bases.ps1`](../scripts/refresh-message-bases.ps1).
+Copy it to `D:\mystic\scripts\refresh-message-bases.ps1` and invoke it
+after successful MUTIL message maintenance:
+
+```bat
+if errorlevel 1 (
+    echo ERROR: Message maintenance failed; skipping MysticWeb refresh. >> "%LOG%"
+) else (
+    if defined MYSTICWEB_BASE_URL if defined MYSTICWEB_TOKEN_FILE (
+        powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+          -File "%MYSTIC_ROOT%\scripts\refresh-message-bases.ps1" ^
+          -BaseUrl "%MYSTICWEB_BASE_URL%" ^
+          -TokenFile "%MYSTICWEB_TOKEN_FILE%" >> "%LOG%" 2>&1
+        if errorlevel 1 echo ERROR: MysticWeb area refresh failed. >> "%LOG%"
+    )
+)
+```
+
+**Important:** The existing route
+`POST /api/internal/maintenance/message-bases` refreshes the area
+catalog only. It does not reconcile per-user read receipts or native
+`.jlr` pointers. A pack-aware read-pointer reconciliation service remains
+unimplemented; never schedule an invented endpoint or blindly advance
+pointers after packing. Verify the Ubuntu runtime's `MYSTIC_DATA_ROOT`,
+shared mount, Mystic version/layout support, token path and scan response
+before enabling the production call. A 200 response with `updated:true`
+and plausible counts is required for acceptance. Inspect `skipped` areas.
+
+Do not log Bearer credentials. Preserve a copy of the original batch
+file and run a supervised manual test before relying on the 03:00 event.
