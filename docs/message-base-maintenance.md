@@ -109,3 +109,25 @@ and plausible counts is required for acceptance. Inspect `skipped` areas.
 
 Do not log Bearer credentials. Preserve a copy of the original batch
 file and run a supervised manual test before relying on the 03:00 event.
+
+## Read-pointer post-pack audit (work in progress)
+
+The authenticated `POST /api/internal/maintenance/read-pointers` endpoint
+provides a **read-only diagnostic**, using the same private Bearer credential
+as the message-base catalog refresh. It compares bounded SQLite pointer
+records with available native JAM `.jlr` records, returning statuses such as
+`number_matches`, `number_differs_identity_unverified`,
+`native_user_record_missing`, `native_pointer_unavailable`, and
+`area_not_in_catalog`.
+
+**Do not add this endpoint to the 03:00 batch yet.** It has not been
+validated on production. Even matching numbers do not prove that the
+same message was read: packing may change JAM numbering, and the SQLite
+pointer and native `.jlr` user identifiers require verification. This
+endpoint does not modify native files or SQLite receipts and is not the
+requested automatic reconciliation.
+
+Production-grade reconciliation requires a proven stable message identity
+across packing, safe concurrency/locking with Mystic, and sandbox tests
+covering deletions, gaps, reordering, unread messages, and recovery.
+Never advance a pointer from a numeric comparison alone.
