@@ -18,19 +18,19 @@ export async function proxy(request: NextRequest) {
   // Their handlers must still enforce identity and area-level permissions.
   if (pathname.startsWith("/api/")) return NextResponse.next();
   try {
-    const sessionUrl = new URL("/api/auth/session", request.url);
+    // Authenticate against the local Next.js listener, not the public HTTPS\n    // hostname. Server-side self-fetches through nginx can fail or be routed\n    // differently from browser requests. Never derive this target from Host.\n    const sessionUrl = new URL("/api/auth/session", "http://127.0.0.1:3100");
     const response = await fetch(sessionUrl, {
       headers: { cookie: request.headers.get("cookie") ?? "" },
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    if (response.ok) {
+    if (!response.ok) console.warn("MysticWeb page guard: session check returned", response.status);\n    if (response.ok) {
       const session: unknown = await response.json();
       if (session && typeof session === "object" &&
           "authenticated" in session && session.authenticated === true)
         return NextResponse.next();
     }
-  } catch { /* Authentication unavailable: deny access. */ }
+  } catch (error) {\n    console.warn("MysticWeb page guard: internal session check failed",\n      error instanceof Error ? error.message : "unknown error");\n    // Authentication unavailable: deny access. Never log cookies or tokens.\n  }
   const login = new URL("/login", request.url);
   login.searchParams.set("next", pathname + search);
   return NextResponse.redirect(login);
