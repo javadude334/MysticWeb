@@ -121,6 +121,21 @@ export class AuthStore {
     }
   }
 
+  /** Bounded, read-only inventory for post-pack diagnostics. No pointer mutation. */
+  listMessageReadPointers(limit = 5000): Array<{
+    instance: string; areaId: number; userId: number; lastReadJamNumber: number;
+  }> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 5000) throw new AuthStoreError();
+    const rows = this.db.prepare(
+      "SELECT instance_id, area_id, user_id, last_read_jam_number FROM message_read_pointers ORDER BY area_id, user_id LIMIT ?"
+    ).all(limit + 1);
+    if (rows.length > limit) throw new AuthStoreError();
+    return rows.map(row => ({
+      instance: String(row.instance_id), areaId: Number(row.area_id),
+      userId: Number(row.user_id), lastReadJamNumber: Number(row.last_read_jam_number),
+    }));
+  }
+
   /** Read receipts are stored in the same transactional database as sessions. */
   readMessageReceipts(instance: string, areaId: number, userId: number): {
     messages: Record<string, { readAt: string }>; lastReadJamNumber: number | null;
